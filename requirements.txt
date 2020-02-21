@@ -1,0 +1,15 @@
+attrs==19.3.0
+botocore==1.15.3
+certifi==2019.11.28
+chalice==1.12.0
+chardet==3.0.4
+Click==7.0
+docutils==0.15.2
+enum-compat==0.0.3
+idna==2.9
+jmespath==0.9.4
+python-dateutil==2.8.1
+requests==2.23.0
+six==1.14.0
+urllib3==1.25.8
+yapf==0.29.0
