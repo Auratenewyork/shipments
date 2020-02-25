@@ -29,3 +29,14 @@ def index():
         print(status_code)
 
     return Response(status_code=200, body=None)
+
+
+@app.route('/rubyhas', methods=['POST'])
+def purchase_order_webhook():
+    request = app.current_request
+
+    print('==========')
+    print(request.json_body)
+    print('==========')
+
+    return Response(status_code=200, body=None)
