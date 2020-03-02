@@ -70,7 +70,7 @@ def get_internal_shipments():
     ids = [shipment['id'] for shipment in shipments]
 
     for shipment_id in ids:
-        internal_shipments.append(get_internal_shipment(shipment_id))
+        internal_shipments.append(get_internal_shipment({ 'id': shipment_id }))
 
     return internal_shipments
 
@@ -92,12 +92,25 @@ def get_movement(movement_id):
     return response.json()
 
 
-def get_internal_shipment(shipment_id):
-    url = f'{FULFIL_API_URL}/model/stock.shipment.internal/{shipment_id}'
+def get_internal_shipment(params):
+    shipment_id = params.get('id')
+    reference = params.get('reference')
 
-    response = requests.get(url, headers=headers)
+    if shipment_id:
+        url = f'{FULFIL_API_URL}/model/stock.shipment.internal/{shipment_id}'
 
-    return response.json()
+        response = requests.get(url, headers=headers)
+
+        return response.json()
+
+    elif reference:
+        url = f'{FULFIL_API_URL}/model/stock.shipment.internal?reference={reference}'
+
+        response = requests.get(url, headers=headers)
+
+        return response.json()[0]
+
+    return None
 
 
 def create_internal_shipment(products):
