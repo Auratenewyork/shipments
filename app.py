@@ -1,9 +1,15 @@
-from chalice import Chalice, Response
+from datetime import date
 
-from chalicelib.fulfil import get_internal_shipments, get_movement, get_product
-from chalicelib.rubyhas import build_purchase_order, create_purchase_order
+from flask import Flask, Response
 
-app = Chalice(app_name='aurate-webhooks')
+from chalicelib.fulfil import (
+    create_internal_shipment, get_engraving_order_lines, get_internal_shipments,
+    get_movement, get_product)
+from chalicelib.rubyhas import (
+    build_purchase_order, create_purchase_order, get_item_quantity)
+
+# app = Chalice(app_name='aurate-webhooks')
+app = Flask(__name__)
 app.debug = True
 
 
@@ -25,8 +31,35 @@ def index():
         orders.append(purchase_order)
 
     for order in orders:
-        status_code = create_purchase_order(order)
-        print(status_code)
+        response = create_purchase_order(order)
+        # TODO: handle errors
+        print(response)
+
+    return Response(status_code=200, body=None)
+
+
+@app.route('/engravings', methods=['GET'])
+def engravings_orders():
+    engravings = get_engraving_order_lines()
+    products = []
+
+    for engraving in engravings:
+        product = get_product(engraving)
+        quantity = get_item_quantity(product['sku'])
+
+        # add product only if the desired quantity is in a stock
+        if quantity >= product.get('quantity'):
+            products.append(product)
+
+        else:
+            print('{sku}: out of stock'.format(sku=product.get('sku')))
+
+    if len(products):
+        shipment = create_internal_shipment(products)
+
+        if not shipment:
+            # TODO: send an email
+            print('Failed to create an IS for engravings')
 
     return Response(status_code=200, body=None)
 

@@ -1,7 +1,11 @@
 import json
 import os
 
+from lxml import etree
 import requests
+
+API_ENDPOINT = 'https://rby-int.deposco.com/integration/rby'
+headers = {'Content-Type': 'application/json'}
 
 order_bluprint = [{
     "businessUnit": "AURate",
@@ -48,6 +52,8 @@ def build_purchase_order(reference, created_at, products):
         order_line['pack']['quantity'] = product['quantity']
         order_line['orderPackQuantity'] = product['quantity']
         order_line['createdDateTime'] = created_at
+        order_line['notes'] = product.get('note')
+
         order_lines.append(order_line)
 
     order[0]['orderLines']['orderLine'] = order_lines
@@ -56,18 +62,32 @@ def build_purchase_order(reference, created_at, products):
 
 
 def create_purchase_order(order):
-    url = 'https://rby-int.deposco.com/integration/rby/orders'
+    url = f'{API_ENDPOINT}/orders'
     payload = {'order': order}
-    headers = {'Content-Type': 'application/json'}
 
-    response = requests.post(
-        url,
-        data=json.dumps(payload),
-        headers=headers,
-        auth=(
-            os.environ.get('RUBYHAS_USERNAME'),
-            os.environ.get('RUBYHAS_PASSWORD')
-        )
-    )
+    response = requests.post(url,
+                             data=json.dumps(payload),
+                             headers=headers,
+                             auth=(os.environ.get('RUBYHAS_USERNAME'),
+                                   os.environ.get('RUBYHAS_PASSWORD')))
 
-    return response.status_code
+    return response
+
+
+def get_item_quantity(item_number):
+    url = f'{API_ENDPOINT}/items/AURate/{item_number}'
+
+    response = requests.get(url,
+                            headers=headers,
+                            auth=(os.environ.get('RUBYHAS_USERNAME'),
+                                  os.environ.get('RUBYHAS_PASSWORD')))
+
+    root = etree.fromstring(response.content)
+
+    for item in root.getchildren():
+        packs = item.find('packs')
+        pack = packs.find('pack')
+        quantity = pack.find('readyToShip').text
+        return int(quantity)
+
+    return 0
