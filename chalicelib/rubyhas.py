@@ -1,5 +1,6 @@
 import json
 import os
+from copy import copy
 
 from lxml import etree
 import requests
@@ -7,47 +8,47 @@ import requests
 API_ENDPOINT = 'https://rby-int.deposco.com/integration/rby'
 headers = {'Content-Type': 'application/json'}
 
-order_bluprint = [{
-    "businessUnit": "AURate",
-    "number": None,
-    "type": "Purchase Order",
-    "status": "New",
-    "orderPriority": "0",
-    "createdDateTime": None,
-    "notes": None,
-    "orderLines": {
-        "orderLine": None
-    },
-    "customMappings": {
-        "@nil": "true"
-    },
-    "shippingStatus": "0",
-}]
-
-order_line_bluprint = {
-    "businessUnit": "AURate",
-    "lineStatus": "New",
-    "itemNumber": None,
-    "orderPackQuantity": 0,
-    "pack": {
-        "quantity": None
-    },
-    "createdDateTime": None,
-    "notes": None,
-    "customMappings": {
-        "@nil": "true"
-    }
-}
-
 
 def build_purchase_order(reference, created_at, products):
-    order = order_bluprint.copy()
+    order_bluprint = [{
+        "businessUnit": "AURate",
+        "number": None,
+        "type": "Purchase Order",
+        "status": "New",
+        "orderPriority": "0",
+        "createdDateTime": None,
+        "notes": None,
+        "orderLines": {
+            "orderLine": None
+        },
+        "customMappings": {
+            "@nil": "true"
+        },
+        "shippingStatus": "0",
+    }]
+
+    order_line_bluprint = {
+        "businessUnit": "AURate",
+        "lineStatus": "New",
+        "itemNumber": None,
+        "orderPackQuantity": 0,
+        "pack": {
+            "quantity": None
+        },
+        "createdDateTime": None,
+        "notes": None,
+        "customMappings": {
+            "@nil": "true"
+        }
+    }
+
+    order = order_bluprint[:]
     order[0]['number'] = reference
     order[0]['createdDateTime'] = created_at
     order_lines = []
 
     for product in products:
-        order_line = order_line_bluprint.copy()
+        order_line = copy(order_line_bluprint)
         order_line['itemNumber'] = product['sku']
         order_line['pack']['quantity'] = product['quantity']
         order_line['orderPackQuantity'] = product['quantity']

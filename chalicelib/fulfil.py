@@ -4,8 +4,8 @@ import os
 
 import requests
 
-from chalicelib import (
-    AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE)
+from chalicelib import (AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL,
+                        RUBYHAS_HQ_STORAGE)
 
 headers = {
     'X-API-KEY': os.environ.get('FULFIL_API_KEY'),
@@ -24,12 +24,13 @@ def get_engraving_order_lines():
     for order_id in ids:
         order = get_order(order_id)
 
-        for order_line_id in order.get('lines'):
-            order_line = get_order_line(order_line_id)
-            has_engraving = check_if_has_engraving(order_line)
+        if order.get('state') == 'processing':
+            for order_line_id in order.get('lines'):
+                order_line = get_order_line(order_line_id)
+                has_engraving = check_if_has_engraving(order_line)
 
-            if has_engraving:
-                order_lines.append(order_line)
+                if has_engraving:
+                    order_lines.append(order_line)
 
     return order_lines
 
@@ -70,7 +71,10 @@ def get_internal_shipments():
     ids = [shipment['id'] for shipment in shipments]
 
     for shipment_id in ids:
-        internal_shipments.append(get_internal_shipment({ 'id': shipment_id }))
+        shipment = get_internal_shipment({'id': shipment_id})
+
+        if shipment.get('state') in ['waiting', 'assigned']:
+            internal_shipments.append(shipment)
 
     return internal_shipments
 
@@ -113,10 +117,11 @@ def get_internal_shipment(params):
     return None
 
 
-def create_internal_shipment(products):
+def create_internal_shipment(reference, products, **kwargs):
     url = f'{FULFIL_API_URL}/model/stock.shipment.internal'
     current_date = date.today().isoformat()
     moves = []
+    state = kwargs.get('state', 'waiting')
 
     for product in products:
         movement = {
@@ -132,7 +137,7 @@ def create_internal_shipment(products):
         moves.append(movement)
 
     shipment = [{
-        'reference': f'eng-{current_date}',
+        'reference': reference,
         'from_location': RUBYHAS_HQ_STORAGE,
         'to_location': AURATE_HQ_STORAGE,
         'effective_date': None,
@@ -140,9 +145,8 @@ def create_internal_shipment(products):
         'transit_required': False,
         'planned_date': current_date,
         'planned_start_date': current_date,
-        'moves': [
-            ('create', moves)
-        ],
+        'state': state,
+        'moves': [('create', moves)],
     }]
 
     response = requests.post(url, headers=headers, data=json.dumps(shipment))
@@ -151,3 +155,11 @@ def create_internal_shipment(products):
         return json.loads(response.text)[0]
 
     return None
+
+
+def update_internal_shipment(shipment_id, data):
+    url = f'{FULFIL_API_URL}/model/stock.shipment.internal/{shipment_id}'
+
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+
+    return response
