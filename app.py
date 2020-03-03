@@ -14,7 +14,7 @@ app.debug = True
 
 
 @app.schedule(Cron(0, 23, '*', '*', '?', '*'))
-def index():
+def index(event):
     internal_shipments = get_internal_shipments()
     orders = []
     state = 'assigned'
@@ -53,7 +53,7 @@ def index():
 
 
 @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
-def engravings_orders():
+def engravings_orders(event):
     engravings = get_engraving_order_lines()
     products_in_stock = []
     products_out_of_stock = []
