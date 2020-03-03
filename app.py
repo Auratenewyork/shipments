@@ -1,6 +1,6 @@
 from datetime import date
 
-from chalice import Chalice, Response
+from chalice import Chalice, Response, Cron
 
 from chalicelib.fulfil import (create_internal_shipment,
                                get_engraving_order_lines, get_internal_shipment,
@@ -13,7 +13,7 @@ app = Chalice(app_name='aurate-webhooks')
 app.debug = True
 
 
-@app.route('/', methods=['GET'])
+@app.schedule(Cron(0, 23, '*', '*', '?', '*'))
 def index():
     internal_shipments = get_internal_shipments()
     orders = []
@@ -52,7 +52,7 @@ def index():
     return Response(status_code=200, body=None)
 
 
-@app.route('/engravings', methods=['GET'])
+@app.schedule(Cron(0, 18, '*', '*', '?', '*'))
 def engravings_orders():
     engravings = get_engraving_order_lines()
     products_in_stock = []
