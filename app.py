@@ -92,6 +92,7 @@ def engravings_orders():
             send_email(
                 "Fulfil: failed to create an IS for engravings",
                 f"Failed to create {reference} IS for engravings for {current_date}"
+            )
 
     if len(products_out_of_stock):
         reference = f'waiting-eng-{current_date}'
