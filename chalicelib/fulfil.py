@@ -1,3 +1,4 @@
+from chalicelib.email import send_email
 from datetime import date
 import json
 import os
@@ -67,13 +68,20 @@ def get_internal_shipments():
     internal_shipments = []
 
     response = requests.get(url, headers=headers, params=params)
+
+    if response.status_code != 200:
+        send_email("Fulfil: failed to get internal shipments",
+                   "Failed to get internal shipments via API")
+        print(response.text)
+        return []
+
     shipments = response.json()
     ids = [shipment['id'] for shipment in shipments]
 
     for shipment_id in ids:
         shipment = get_internal_shipment({'id': shipment_id})
 
-        if shipment.get('state') in ['waiting', 'assigned']:
+        if shipment and shipment.get('state') in ['waiting', 'assigned']:
             internal_shipments.append(shipment)
 
     return internal_shipments
@@ -105,14 +113,22 @@ def get_internal_shipment(params):
 
         response = requests.get(url, headers=headers)
 
-        return response.json()
+        if response.status_code == 200:
+            return response.json()
+
+        send_email("Fulfil: failed to get internal shipment",
+                   f"Failed to get IS with {shipment_id} ID")
 
     elif reference:
         url = f'{FULFIL_API_URL}/model/stock.shipment.internal?reference={reference}'
 
         response = requests.get(url, headers=headers)
 
-        return response.json()[0]
+        if response.status_code == 200:
+            return response.json()[0]
+
+        send_email("Fulfil: failed to get internal shipment",
+                   f"Failed to get {reference} IS")
 
     return None
 

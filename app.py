@@ -8,16 +8,19 @@ from chalicelib.fulfil import (create_internal_shipment,
                                get_product, update_internal_shipment)
 from chalicelib.rubyhas import (build_purchase_order, create_purchase_order,
                                 get_item_quantity)
+from chalicelib.email import send_email
 
 app = Chalice(app_name='aurate-webhooks')
 app.debug = True
 
 
 @app.schedule(Cron(0, 23, '*', '*', '?', '*'))
-def index(event):
+def index():
     internal_shipments = get_internal_shipments()
     orders = []
     state = 'assigned'
+    errors = []
+    success = []
 
     for shipment in internal_shipments:
         products = []
@@ -46,14 +49,27 @@ def index(event):
 
     for order in orders:
         response = create_purchase_order(order)
-        # TODO: handle errors
-        print(response)
+
+        if response.status_code > 207:
+            errors.append(order)
+        else:
+            success.append(order)
+
+    if len(errors):
+        references = ", ".join([o[0]['number'] for o in errors])
+        send_email("Ruby Has: Failed to create purchase orders",
+                   f"Failed to create purchase orders: {references}")
+
+    if len(success):
+        references = ", ".join([o[0]['number'] for o in success])
+        send_email(f"Ruby Has: {len(success)} purchase orders created",
+                   f"Successfully created purchase orders: {references}")
 
     return Response(status_code=200, body=None)
 
 
 @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
-def engravings_orders(event):
+def engravings_orders():
     engravings = get_engraving_order_lines()
     products_in_stock = []
     products_out_of_stock = []
@@ -75,16 +91,24 @@ def engravings_orders(event):
                                             state='assigned')
 
         if not shipment:
-            # TODO: send an email
-            print(f'Failed to create {reference} IS for engravings')
+            send_email(
+                "Fulfil: failed to create an IS for engravings",
+                f"Failed to create {reference} IS for engravings for {current_date}"
 
     if len(products_out_of_stock):
         reference = f'waiting-eng-{current_date}'
         shipment = create_internal_shipment(reference, products_out_of_stock)
 
         if not shipment:
-            # TODO: send an email
-            print(f'Failed to create {reference} IS for engravings')
+            send_email(
+                "Fulfil: failed to create an IS for engravings",
+                f"Failed to create {reference} IS for engravings for {current_date}"
+            )
+        else:
+            send_email(
+                "Fulfil: IS for engravings have been successfully created",
+                f"Successfully created {reference} IS for engravings for {current_date}"
+            )
 
     return Response(status_code=200, body=None)
 
@@ -110,8 +134,13 @@ def purchase_order_webhook():
         if internal_shipment and order_status in status_mapping.keys():
             update_internal_shipment(internal_shipment.get('id'),
                                      {'state': status_mapping[order_status]})
+            send_email(
+                f"Fulfil: {number} IS status changed",
+                f"{number} IS status was changed to {status_mapping[order_status]}"
+            )
 
         else:
-            print(f'IS with reference "{number}"" doesn\'t exist')
+            send_email(f"Fulfil: can't update {number} IS status",
+                       f"Can't find {number} IS to update the status.")
 
     return Response(status_code=200, body=None)
