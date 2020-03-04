@@ -65,8 +65,6 @@ def index():
         send_email(f"Ruby Has: {len(success)} purchase orders created",
                    f"Successfully created purchase orders: {references}")
 
-    return Response(status_code=200, body=None)
-
 
 @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
 def engravings_orders():
@@ -109,8 +107,6 @@ def engravings_orders():
                 "Fulfil: IS for engravings have been successfully created",
                 f"Successfully created {reference} IS for engravings for {current_date}"
             )
-
-    return Response(status_code=200, body=None)
 
 
 @app.route('/rubyhas', methods=['POST'])
