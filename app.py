@@ -109,6 +109,10 @@ def engravings_orders(event):
                 f"Successfully created {reference} IS for engravings for {current_date}"
             )
 
+    if not len(products_in_stock) and not len(products_out_of_stock):
+        send_email(f"Fulfil: no engravings orders found today",
+                   f"No engravings orders found today")
+
 
 @app.route('/rubyhas', methods=['POST'])
 def purchase_order_webhook():
