@@ -4,8 +4,8 @@ from sendgrid.helpers.mail import Mail
 
 
 def send_email(subject, content):
-    message = Mail(from_email='aurate@tech.com',
-                   to_emails='rocketnk@gmail.com',
+    message = Mail(from_email='aurate@info.com',
+                   to_emails='maxwell@auratenewyork.com',
                    subject=subject,
                    html_content=content)
 
