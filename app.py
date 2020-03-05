@@ -14,7 +14,7 @@ app = Chalice(app_name='aurate-webhooks')
 app.debug = True
 
 
-@app.schedule(Cron(0, 23, '*', '*', '?', '*'))
+@app.schedule(Cron(0, 21, '*', '*', '?', '*'))
 def index(event):
     internal_shipments = get_internal_shipments()
     orders = []
