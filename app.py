@@ -65,6 +65,9 @@ def index(event):
         send_email(f"Ruby Has: {len(success)} purchase orders created",
                    f"Successfully created purchase orders: {references}")
 
+    if not len(errors) and not len(success):
+        send_email("Ruby Has: no POs created", "No POs created. No errors.")
+
 
 @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
 def engravings_orders(event):
