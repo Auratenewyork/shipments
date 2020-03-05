@@ -63,11 +63,24 @@ def check_if_has_engraving(order_line):
 
 
 def get_internal_shipments():
-    url = f'{FULFIL_API_URL}/model/stock.shipment.internal'
-    params = {'created_at_min': date.today().isoformat()}
+    url = f'{FULFIL_API_URL}/model/stock.shipment.internal/search_read'
     internal_shipments = []
+    yesterday = date.today() - timedelta(days=1)
 
-    response = requests.get(url, headers=headers, params=params)
+    payload = [[[
+        "create_date", ">=", {
+            "__class__": "datetime",
+            "year": yesterday.year,
+            "month": yesterday.month,
+            "day": yesterday.day,
+            "hour": 21,
+            "minute": 0,
+            "second": 0,
+            "microsecond": 0
+        }
+    ]], None, None, None, ["reference", "state", "moves", "create_date"]]
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
 
     if response.status_code != 200:
         send_email("Fulfil: failed to get internal shipments",
