@@ -5,7 +5,8 @@ from chalice import Chalice, Response, Cron
 from chalicelib.fulfil import (create_internal_shipment,
                                get_engraving_order_lines, get_internal_shipment,
                                get_internal_shipments, get_movement,
-                               get_product, update_internal_shipment)
+                               get_product, update_internal_shipment,
+                               find_late_orders)
 from chalicelib.rubyhas import (build_purchase_order, create_purchase_order,
                                 get_item_quantity)
 from chalicelib.email import send_email
@@ -148,3 +149,8 @@ def purchase_order_webhook():
                        f"Can't find {number} IS to update the status.")
 
     return Response(status_code=200, body=None)
+
+
+@app.schedule(Cron(0, 17, '*', '*', '?', '*'))
+def find_late_orders_view():
+    find_late_orders()

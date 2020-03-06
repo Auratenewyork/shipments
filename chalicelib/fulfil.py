@@ -1,5 +1,5 @@
 from chalicelib.email import send_email
-from datetime import date
+from datetime import date, timedelta
 import json
 import os
 
@@ -40,9 +40,28 @@ def get_order(order_id):
     url = f'{FULFIL_API_URL}/model/sale.sale/{order_id}'
 
     response = requests.get(url, headers=headers)
-    order = response.json()
 
-    return order
+    if response.status_code == 200:
+        return response.json()
+
+    print(response.text)
+
+    return None
+
+
+def get_order_data(order_id, fields):
+    url = f'{FULFIL_API_URL}/model/sale.sale/search_read'
+
+    payload = [[["id", "=", str(order_id)]], None, None, None, fields]
+
+    response = requests.put(url, data=json.dumps(payload), headers=headers)
+
+    if response.status_code == 200:
+        return response.json()[0]
+
+    print(response.text)
+
+    return None
 
 
 def get_order_line(order_line_id):
@@ -192,3 +211,87 @@ def update_internal_shipment(shipment_id, data):
     response = requests.post(url, headers=headers, data=json.dumps(data))
 
     return response
+
+
+def find_late_orders():
+    url = f'{FULFIL_API_URL}/model/stock.shipment.out/search_read'
+    current_date = date.today()
+    in_three_days = current_date + timedelta(days=3)
+    orders = []
+
+    payload = [[
+        "AND",
+        [
+            "planned_date", ">", {
+                "__class__": "date",
+                "year": current_date.year,
+                "day": current_date.day,
+                "month": current_date.month,
+            }
+        ],
+        [
+            "planned_date", "<", {
+                "__class__": "date",
+                "year": in_three_days.year,
+                "day": in_three_days.day,
+                "month": in_three_days.month
+            }
+        ], ["state", "in", ["waiting", "packed", "assigned"]]
+    ], None, None, None, ["sales"]]
+
+    response = requests.put(url, data=json.dumps(payload), headers=headers)
+
+    if response.status_code != 200:
+        send_email("Fulfil: check late orders",
+                   "Checking late orders wasn't successfull. See logs on AWS.")
+        print(response.text)
+
+    else:
+        shipments = response.json()
+
+        for shipment in shipments:
+            for order_id in shipment.get('sales'):
+                order = get_order_data(
+                    order_id, ["reference", "party.name", "party.email"])
+
+                if not order:
+                    send_email(
+                        "Fulfil: failed to get Sales Order",
+                        f"Failed to get Sales Order with {order_id} ID.")
+                    continue
+
+                orders.append(order)
+
+    if len(orders):
+        content = """
+            <table style="color: #000;">
+                <tr>
+                    <td style="border: 1px solid #000; font-weight: bold; padding: 10px;">Shopify Order #</td>
+                    <td style="border: 1px solid #000; font-weight: bold; padding: 10px;">Customer Name/Last name</td>
+                    <td style="border: 1px solid #000; font-weight: bold; padding: 10px;">Customer Email</td>
+                </tr>
+                {}
+            </table>
+        """
+
+        rows = []
+
+        for order in orders:
+            row = """
+                <tr>
+                    <td style="border: 1px solid #000; padding: 10px;">{}</td>
+                    <td style="border: 1px solid #000; padding: 10px;">{}</td>
+                    <td style="border: 1px solid #000; padding: 10px;">{}</td>
+                </tr>
+            """.format(order['reference'], order['party.name'],
+                       order['party.email'])
+            rows.append(row)
+
+        data = "".join([row for row in rows])
+
+        table = content.format(data)
+
+        send_email(f"Fulfil: found {len(orders)} late orders", table)
+
+    else:
+        send_email("Fulfil: found 0 late orders", "Found 0 late orders")
