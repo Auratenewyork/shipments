@@ -152,5 +152,5 @@ def purchase_order_webhook():
 
 
 @app.schedule(Cron(0, 17, '*', '*', '?', '*'))
-def find_late_orders_view():
+def find_late_orders_view(event):
     find_late_orders()
