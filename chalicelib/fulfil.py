@@ -86,18 +86,21 @@ def get_internal_shipments():
     internal_shipments = []
     yesterday = date.today() - timedelta(days=1)
 
-    payload = [[[
-        "create_date", ">=", {
-            "__class__": "datetime",
-            "year": yesterday.year,
-            "month": yesterday.month,
-            "day": yesterday.day,
-            "hour": 21,
-            "minute": 0,
-            "second": 0,
-            "microsecond": 0
-        }
-    ]], None, None, None, ["reference", "state", "moves", "create_date"]]
+    payload = [[
+        "AND",
+        [
+            "create_date", ">=", {
+                "__class__": "datetime",
+                "year": yesterday.year,
+                "month": yesterday.month,
+                "day": yesterday.day,
+                "hour": 17,
+                "minute": 0,
+                "second": 0,
+                "microsecond": 0
+            }
+        ], ["state", "in", ["waiting", "assigned"]]
+    ], None, None, None, ["reference", "state", "moves", "create_date"]]
 
     response = requests.put(url, headers=headers, data=json.dumps(payload))
 
@@ -113,7 +116,7 @@ def get_internal_shipments():
     for shipment_id in ids:
         shipment = get_internal_shipment({'id': shipment_id})
 
-        if shipment and shipment.get('state') in ['waiting', 'assigned']:
+        if shipment:
             internal_shipments.append(shipment)
 
     return internal_shipments
