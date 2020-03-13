@@ -154,3 +154,66 @@ def purchase_order_webhook():
 @app.schedule(Cron(0, 17, '*', '*', '?', '*'))
 def find_late_orders_view(event):
     find_late_orders()
+
+
+@app.schedule(Cron(0, 19, '*', '*', '?', '*'))
+def handle_global_orders(event):
+    order_lines = get_global_order_lines()
+    current_date = date.today().isoformat()
+    products_in_stock = []
+    products_out_of_stock = []
+    email_body = []
+
+    if order_lines:
+        for order_line in order_lines:
+            product = get_product(order_line)
+            quantity = get_item_quantity(product['sku'])
+
+            if quantity > 0:
+                if quantity >= product['quantity']:
+                    products_in_stock.append(product)
+                else:
+                    # split product quantity into two internal shipments
+                    # one for product quantity which is in the stock
+                    # another for product quantity which is out of stock
+                    quantity_out_of_stock = quantity - product['quantity']
+                    product_in_stock = {**product, 'quantity': quantity}
+                    product_out_of_stock = {
+                        **product, 'quantity': quantity_out_of_stock
+                    }
+                    products_in_stock.append(product_in_stock)
+                    products_out_of_stock.append(product_out_of_stock)
+
+        if len(products_in_stock):
+            shipment = create_internal_shipment(f'GE-{current_date}',
+                                                products_in_stock,
+                                                state='assigned')
+
+            if not shipment:
+                email_body.append(
+                    "Failed to create IS for global orders in the stock")
+            else:
+                email_body.append(
+                    "Successfully created IS for global orders in the stock")
+
+        if len(products_out_of_stock):
+            shipment = create_internal_shipment(f'GE-{current_date}-waiting',
+                                                products_out_of_stock,
+                                                state='assigned')
+
+            if not shipment:
+                email_body.append(
+                    "Failed to create IS for global orders in the stock")
+            else:
+                email_body.append(
+                    "Successfully created IS for global orders out of stock")
+
+    elif order_lines is not None:
+        email_body.append("Found 0 global orders")
+    else:
+        email_body.append("Failed to get global orders. See logs on AWS.")
+
+    send_email(f"Fulfil Report: Global orders",
+               "\n".join([line for line in email_body]))
+
+    return Response(status_code=200, body=None)
