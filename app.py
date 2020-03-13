@@ -211,7 +211,7 @@ def handle_global_orders(event):
         if len(products_out_of_stock):
             shipment = create_internal_shipment(f'GE-{current_date}-waiting',
                                                 products_out_of_stock,
-                                                state='assigned')
+                                                state='waiting')
 
             if not shipment:
                 email_body.append(
