@@ -6,7 +6,7 @@ from chalicelib.fulfil import (create_internal_shipment,
                                get_engraving_order_lines, get_internal_shipment,
                                get_internal_shipments, get_movement,
                                get_product, update_internal_shipment,
-                               find_late_orders)
+                               find_late_orders, get_global_order_lines)
 from chalicelib.rubyhas import (build_purchase_order, create_purchase_order,
                                 get_item_quantity)
 from chalicelib.email import send_email
@@ -16,12 +16,13 @@ app.debug = True
 
 
 @app.schedule(Cron(0, 21, '*', '*', '?', '*'))
-def index(event):
+def create_pos(event):
     internal_shipments = get_internal_shipments()
     orders = []
     state = 'assigned'
     errors = []
     success = []
+    email_body = []
 
     for shipment in internal_shipments:
         products = []
@@ -58,16 +59,19 @@ def index(event):
 
     if len(errors):
         references = ", ".join([o[0]['number'] for o in errors])
-        send_email("Ruby Has: Failed to create purchase orders",
-                   f"Failed to create purchase orders: {references}")
+        email_body.append(f"Failed to create purchase orders: {references}")
 
     if len(success):
         references = ", ".join([o[0]['number'] for o in success])
-        send_email(f"Ruby Has: {len(success)} purchase orders created",
-                   f"Successfully created purchase orders: {references}")
+        email_body.append(
+            f"Successfully created {len(success)} purchase orders: {references}"
+        )
 
     if not len(errors) and not len(success):
-        send_email("Ruby Has: no POs created", "No POs created. No errors.")
+        email_body.append("No Purchase orders created. No errors.")
+
+    send_email(f"Ruby Has Report: Purchase orders",
+               "\n".join([line for line in email_body]))
 
 
 @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
@@ -76,15 +80,26 @@ def engravings_orders(event):
     products_in_stock = []
     products_out_of_stock = []
     current_date = date.today().isoformat()
+    email_body = []
 
     for engraving in engravings:
         product = get_product(engraving)
         quantity = get_item_quantity(product['sku'])
 
-        if quantity >= product.get('quantity'):
-            products_in_stock.append(product)
-        else:
-            products_out_of_stock.append(product)
+        if quantity > 0:
+            if quantity >= product['quantity']:
+                products_in_stock.append(product)
+            else:
+                # split product quantity into two internal shipments
+                # one for product quantity which is in the stock
+                # another for product quantity which is out of stock
+                quantity_out_of_stock = quantity - product['quantity']
+                product_in_stock = {**product, 'quantity': quantity}
+                product_out_of_stock = {
+                    **product, 'quantity': quantity_out_of_stock
+                }
+                products_in_stock.append(product_in_stock)
+                products_out_of_stock.append(product_out_of_stock)
 
     if len(products_in_stock):
         reference = f'eng-{current_date}'
@@ -93,29 +108,25 @@ def engravings_orders(event):
                                             state='assigned')
 
         if not shipment:
-            send_email(
-                "Fulfil: failed to create an IS for engravings",
-                f"Failed to create {reference} IS for engravings for {current_date}"
-            )
+            email_body.append(
+                f"Failed to create \"{reference}\" IS for engravings")
 
     if len(products_out_of_stock):
         reference = f'waiting-eng-{current_date}'
         shipment = create_internal_shipment(reference, products_out_of_stock)
 
         if not shipment:
-            send_email(
-                "Fulfil: failed to create an IS for engravings",
-                f"Failed to create {reference} IS for engravings for {current_date}"
-            )
+            email_body.append(
+                f"Failed to create \"{reference}\" IS for engravings")
         else:
-            send_email(
-                "Fulfil: IS for engravings have been successfully created",
-                f"Successfully created {reference} IS for engravings for {current_date}"
-            )
+            email_body.append(
+                f"Successfully created \"{reference}\" IS for engravings")
 
     if not len(products_in_stock) and not len(products_out_of_stock):
-        send_email(f"Fulfil: no engravings orders found today",
-                   f"No engravings orders found today")
+        email_body.append(f"No engravings orders found today")
+
+    send_email("Fulfil Report: Internal shipments",
+               "\n".join([line for line in email_body]))
 
 
 @app.route('/rubyhas', methods=['POST'])
@@ -140,13 +151,14 @@ def purchase_order_webhook():
             update_internal_shipment(internal_shipment.get('id'),
                                      {'state': status_mapping[order_status]})
             send_email(
-                f"Fulfil: {number} IS status changed",
-                f"{number} IS status was changed to {status_mapping[order_status]}"
+                "Fulfil Report: Internal shipment status changed",
+                f"\"{number}\" IS status has been changed to {status_mapping[order_status]}"
             )
 
         else:
-            send_email(f"Fulfil: can't update {number} IS status",
-                       f"Can't find {number} IS to update the status.")
+            send_email(
+                "Fulfil Report: Failed to update Internal shipment status",
+                f"Can't find {number} IS to update the status.")
 
     return Response(status_code=200, body=None)
 
