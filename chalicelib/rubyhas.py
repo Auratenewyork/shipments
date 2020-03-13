@@ -2,7 +2,6 @@ import json
 import os
 from copy import copy
 
-from lxml import etree
 import requests
 
 API_ENDPOINT = 'https://rby-int.deposco.com/integration/rby'
@@ -79,16 +78,15 @@ def get_item_quantity(item_number):
     url = f'{API_ENDPOINT}/items/AURate/{item_number}'
 
     response = requests.get(url,
-                            headers=headers,
+                            headers={
+                                **headers, 'Accept': 'application/json'
+                            },
                             auth=(os.environ.get('RUBYHAS_USERNAME'),
                                   os.environ.get('RUBYHAS_PASSWORD')))
 
-    root = etree.fromstring(response.content)
+    item = response.get('item')
 
-    for item in root.getchildren():
-        packs = item.find('packs')
-        pack = packs.find('pack')
-        quantity = pack.find('readyToShip').text
-        return int(quantity)
+    if item:
+        return int(item.get('packs')[0]['pack']['readyToShip'])
 
     return 0
