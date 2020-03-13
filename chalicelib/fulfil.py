@@ -298,3 +298,42 @@ def find_late_orders():
 
     else:
         send_email("Fulfil: found 0 late orders", "Found 0 late orders")
+
+
+def get_global_order_lines():
+    url = f'{FULFIL_API_URL}/model/sale.sale/search_read'
+    order_lines = []
+
+    payload = [[
+        "AND", ["reference", "like", "GE%"], ["state", "in", ["processing"]],
+        [
+            "create_date", ">=", {
+                "__class__": "datetime",
+                "year": 2020,
+                "month": 3,
+                "day": 12,
+                "hour": 0,
+                "minute": 0,
+                "second": 0,
+                "microsecond": 0
+            }
+        ]
+    ], None, None, None, ["reference", "lines"]]
+
+    response = requests.put(url, data=json.dumps(payload), headers=headers)
+
+    if response.status_code != 200:
+        print(response.text)
+        return None
+
+    orders = response.json()
+
+    for order in orders:
+        for order_line_id in order.get('lines', []):
+            order_line = get_order_line(order_line_id)
+            has_engraving = check_if_has_engraving(order_line)
+
+            if not has_engraving:
+                order_lines.append(order_line)
+
+    return order_lines
