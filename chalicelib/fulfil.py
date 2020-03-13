@@ -303,16 +303,17 @@ def find_late_orders():
 def get_global_order_lines():
     url = f'{FULFIL_API_URL}/model/sale.sale/search_read'
     order_lines = []
+    yesterday = date.today() - timedelta(days=1)
 
     payload = [[
         "AND", ["reference", "like", "GE%"], ["state", "in", ["processing"]],
         [
             "create_date", ">=", {
                 "__class__": "datetime",
-                "year": 2020,
-                "month": 3,
-                "day": 12,
-                "hour": 0,
+                "year": yesterday.year,
+                "month": yesterday.month,
+                "day": yesterday.day,
+                "hour": 15,
                 "minute": 0,
                 "second": 0,
                 "microsecond": 0
