@@ -1,10 +1,10 @@
-from chalicelib.email import send_email
-from datetime import date, timedelta
 import json
 import os
+from datetime import date, timedelta
 
 import requests
 
+from chalicelib.email import send_email
 from chalicelib import (AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL,
                         RUBYHAS_HQ_STORAGE)
 
@@ -122,11 +122,11 @@ def get_internal_shipments():
     return internal_shipments
 
 
-def get_product(movement):
-    product_id = movement.get('product')
-    sku = movement.get('item_blurb').get('subtitle')[0][1]
-    quantity = movement.get('quantity')
-    note = movement.get('note')
+def get_product(item):
+    product_id = item.get('product')
+    sku = item.get('item_blurb').get('subtitle')[0][1]
+    quantity = int(item.get('quantity'))
+    note = item.get('note')
 
     return {'id': product_id, 'sku': sku, 'quantity': quantity, 'note': note}
 
