@@ -83,7 +83,7 @@ def create_pos(event):
         email_body.append("No Purchase orders created. No errors.")
 
     send_email(f"Ruby Has Report: Purchase orders",
-               "\n".join([line for line in email_body]))
+               "<br />".join([line for line in email_body]))
 
 
 @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
@@ -150,7 +150,7 @@ def engravings_orders(event):
         email_body.append(f"No engravings orders found today")
 
     send_email("Fulfil Report: Internal shipments",
-               "\n".join([line for line in email_body]))
+               "<br />".join([line for line in email_body]))
 
 
 @app.route('/rubyhas', methods=['POST'])
@@ -262,6 +262,6 @@ def handle_global_orders(event):
         email_body.append("Failed to get global orders. See logs on AWS.")
 
     send_email(f"Fulfil Report: Global orders",
-               "\n".join([line for line in email_body]))
+               "<br />".join([line for line in email_body]))
 
     return Response(status_code=200, body=None)
