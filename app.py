@@ -37,7 +37,7 @@ def create_pos(event):
 
             quantity = get_item_quantity(product['sku'])
 
-            if not quantity:
+            if quantity is None:
                 email_body.append(
                     f"Failed to get the product [{movement.get('product')}] quantity"
                 )
@@ -104,26 +104,27 @@ def engravings_orders(event):
 
         quantity = get_item_quantity(product['sku'])
 
-        if not quantity:
+        if quantity is None:
             email_body.append(
                 f"Failed to get the product [{engraving.get('product')}] quantity"
             )
             continue
 
-        if quantity > 0:
-            if quantity >= product['quantity']:
-                products_in_stock.append(product)
-            else:
-                # split product quantity into two internal shipments
-                # one for product quantity which is in the stock
-                # another for product quantity which is out of stock
-                quantity_out_of_stock = quantity - product['quantity']
-                product_in_stock = {**product, 'quantity': quantity}
-                product_out_of_stock = {
-                    **product, 'quantity': quantity_out_of_stock
-                }
-                products_in_stock.append(product_in_stock)
-                products_out_of_stock.append(product_out_of_stock)
+        if quantity >= product['quantity']:
+            products_in_stock.append(product)
+        elif quantity > 0:
+            # split product quantity into two internal shipments
+            # one for product quantity which is in the stock
+            # another for product quantity which is out of stock
+            quantity_out_of_stock = product['quantity'] - quantity
+            product_in_stock = {**product, 'quantity': quantity}
+            product_out_of_stock = {
+                **product, 'quantity': quantity_out_of_stock
+            }
+            products_in_stock.append(product_in_stock)
+            products_out_of_stock.append(product_out_of_stock)
+        else:
+            products_out_of_stock.append(product)
 
     if len(products_in_stock):
         reference = f'eng-{current_date}'
@@ -133,7 +134,11 @@ def engravings_orders(event):
 
         if not shipment:
             email_body.append(
-                f"Failed to create \"{reference}\" IS for engravings")
+                f"Failed to create \"{reference}\" IS for engravings in stock")
+        else:
+            email_body.append(
+                f"Successfully created \"{reference}\" IS for engravings in stock"
+            )
 
     if len(products_out_of_stock):
         reference = f'waiting-eng-{current_date}'
@@ -141,10 +146,12 @@ def engravings_orders(event):
 
         if not shipment:
             email_body.append(
-                f"Failed to create \"{reference}\" IS for engravings")
+                f"Failed to create \"{reference}\" IS for engravings out of stck"
+            )
         else:
             email_body.append(
-                f"Successfully created \"{reference}\" IS for engravings")
+                f"Successfully created \"{reference}\" IS for engravings out of stock"
+            )
 
     if not len(products_in_stock) and not len(products_out_of_stock):
         email_body.append(f"No engravings orders found today")
@@ -211,26 +218,27 @@ def handle_global_orders(event):
 
             quantity = get_item_quantity(product['sku'])
 
-            if not quantity:
+            if quantity is None:
                 email_body.append(
                     f"Failed to get the product [{order_line.get('product')}] quantity"
                 )
                 continue
 
-            if quantity > 0:
-                if quantity >= product['quantity']:
-                    products_in_stock.append(product)
-                else:
-                    # split product quantity into two internal shipments
-                    # one for product quantity which is in the stock
-                    # another for product quantity which is out of stock
-                    quantity_out_of_stock = quantity - product['quantity']
-                    product_in_stock = {**product, 'quantity': quantity}
-                    product_out_of_stock = {
-                        **product, 'quantity': quantity_out_of_stock
-                    }
-                    products_in_stock.append(product_in_stock)
-                    products_out_of_stock.append(product_out_of_stock)
+            if quantity >= product['quantity']:
+                products_in_stock.append(product)
+            elif quantity > 0:
+                # split product quantity into two internal shipments
+                # one for product quantity which is in the stock
+                # another for product quantity which is out of stock
+                quantity_out_of_stock = product['quantity'] - quantity
+                product_in_stock = {**product, 'quantity': quantity}
+                product_out_of_stock = {
+                    **product, 'quantity': quantity_out_of_stock
+                }
+                products_in_stock.append(product_in_stock)
+                products_out_of_stock.append(product_out_of_stock)
+            else:
+                products_out_of_stock.append(product)
 
         if len(products_in_stock):
             shipment = create_internal_shipment(f'GE-{current_date}',
@@ -251,7 +259,7 @@ def handle_global_orders(event):
 
             if not shipment:
                 email_body.append(
-                    "Failed to create IS for global orders in the stock")
+                    "Failed to create IS for global orders out stock")
             else:
                 email_body.append(
                     "Successfully created IS for global orders out of stock")
