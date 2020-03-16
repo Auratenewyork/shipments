@@ -77,7 +77,6 @@ def create_purchase_order(order):
 
 def get_item_quantity(item_number):
     url = f'{API_ENDPOINT}/items/AURate/{item_number}'
-    error = None
 
     response = requests.get(url,
                             headers={
@@ -87,7 +86,7 @@ def get_item_quantity(item_number):
                                   os.environ.get('RUBYHAS_PASSWORD')))
 
     if response.status_code != 200:
-        error = response.text
+        print(response.text)
 
     try:
         item = response.json().get('item')[0]
@@ -95,11 +94,7 @@ def get_item_quantity(item_number):
         if item:
             return int(item.get('packs')['pack']['readyToShip'])
     except Exception as e:
-        error = str(e)
-
-    if error:
-        send_email(
-            "Ruby Has Report: Failed to get product quantity",
-            f"Failed to get {item_number} product quantity. See logs on AWS.")
+        print(response.text)
+        print(str(e))
 
     return None
