@@ -124,11 +124,23 @@ def get_internal_shipments():
 
 def get_product(item):
     product_id = item.get('product')
-    sku = item.get('item_blurb').get('subtitle')[0][1]
     quantity = int(item.get('quantity'))
     note = item.get('note')
+    url = f'{FULFIL_API_URL}/model/product.product/{product_id}'
 
-    return {'id': product_id, 'sku': sku, 'quantity': quantity, 'note': note}
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        product = response.json()
+
+        return {
+            'id': product_id,
+            'sku': product['code'],
+            'quantity': quantity,
+            'note': note
+        }
+
+    return None
 
 
 def get_movement(movement_id):
