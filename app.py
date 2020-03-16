@@ -192,10 +192,8 @@ def find_late_orders_view(event):
     find_late_orders()
 
 
-# @app.schedule(Cron(0, 19, '*', '*', '?', '*'))
-# def handle_global_orders(event):
-@app.route('/')
-def handle_global_orders():
+@app.schedule(Cron(0, 19, '*', '*', '?', '*'))
+def handle_global_orders(event):
     order_lines = get_global_order_lines()
     current_date = date.today().isoformat()
     products_in_stock = []
