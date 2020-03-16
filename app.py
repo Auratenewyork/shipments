@@ -29,7 +29,19 @@ def create_pos(event):
         for movement_id in shipment.get('moves'):
             movement = get_movement(movement_id)
             product = get_product(movement)
+
+            if not product:
+                email_body.append(
+                    f"Failed to get the product [{movement.get('product')}]")
+                continue
+
             quantity = get_item_quantity(product['sku'])
+
+            if not quantity:
+                email_body.append(
+                    f"Failed to get the product [{movement.get('product')}] quantity"
+                )
+                continue
 
             # if at least one product out of stock
             # then set state of IS to waiting
@@ -84,7 +96,19 @@ def engravings_orders(event):
 
     for engraving in engravings:
         product = get_product(engraving)
+
+        if not product:
+            email_body.append(
+                f"Failed to get the product [{engraving.get('product')}]")
+            continue
+
         quantity = get_item_quantity(product['sku'])
+
+        if not quantity:
+            email_body.append(
+                f"Failed to get the product [{engraving.get('product')}] quantity"
+            )
+            continue
 
         if quantity > 0:
             if quantity >= product['quantity']:
@@ -168,8 +192,10 @@ def find_late_orders_view(event):
     find_late_orders()
 
 
-@app.schedule(Cron(0, 19, '*', '*', '?', '*'))
-def handle_global_orders(event):
+# @app.schedule(Cron(0, 19, '*', '*', '?', '*'))
+# def handle_global_orders(event):
+@app.route('/')
+def handle_global_orders():
     order_lines = get_global_order_lines()
     current_date = date.today().isoformat()
     products_in_stock = []
@@ -179,7 +205,19 @@ def handle_global_orders(event):
     if order_lines:
         for order_line in order_lines:
             product = get_product(order_line)
+
+            if not product:
+                email_body.append(
+                    f"Failed to get the product [{order_line.get('product')}]")
+                continue
+
             quantity = get_item_quantity(product['sku'])
+
+            if not quantity:
+                email_body.append(
+                    f"Failed to get the product [{order_line.get('product')}] quantity"
+                )
+                continue
 
             if quantity > 0:
                 if quantity >= product['quantity']:
