@@ -1,3 +1,4 @@
+from chalicelib.email import send_email
 import json
 import os
 from copy import copy
@@ -76,6 +77,7 @@ def create_purchase_order(order):
 
 def get_item_quantity(item_number):
     url = f'{API_ENDPOINT}/items/AURate/{item_number}'
+    has_error = False
 
     response = requests.get(url,
                             headers={
@@ -84,9 +86,23 @@ def get_item_quantity(item_number):
                             auth=(os.environ.get('RUBYHAS_USERNAME'),
                                   os.environ.get('RUBYHAS_PASSWORD')))
 
-    item = response.get('item')
+    if response.status_code != 200:
+        has_error = True
+        print(response.text)
 
-    if item:
-        return int(item.get('packs')[0]['pack']['readyToShip'])
+    try:
+        item = response.json().get('item')[0]
+
+        if item:
+            return int(item.get('packs')[0]['pack']['readyToShip'])
+    except Exception as e:
+        has_error = True
+        print(str(e))
+
+    if has_error:
+        send_email(
+            "Ruby Has Report: Failed to get product quantity",
+            f"Failed to get {item_number} product quantity. See logs on AWS.")
+        raise Exception
 
     return 0
