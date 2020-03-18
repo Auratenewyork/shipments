@@ -4,9 +4,34 @@ import os
 from copy import copy
 
 import requests
+from urllib.parse import urlencode
+
 
 API_ENDPOINT = 'https://rby-int.deposco.com/integration/rby'
-headers = {'Content-Type': 'application/json'}
+headers = {'Accept': 'application/json'}
+
+
+def api_call(url, method='post', payload=None):
+    url = f'{API_ENDPOINT}/{url}'
+
+    try:
+        _method = getattr(requests, method)
+    except AttributeError as e:
+        print(f'{method} not found, using get')
+        _method = getattr(requests, 'get')
+
+    kwargs = dict(headers=headers,
+                  auth=(os.environ.get('RUBYHAS_USERNAME'),
+                        os.environ.get('RUBYHAS_PASSWORD')))
+    kwargs['url'] = url
+    if payload and method == 'post':
+        kwargs['payload'] = payload
+
+    if payload and method == 'get':
+        kwargs['url'] += f'?{urlencode(payload)}'
+
+    print(f'Calling {url} link with params : {kwargs}')
+    return _method(**kwargs)
 
 
 def build_purchase_order(reference, created_at, products):
@@ -63,16 +88,10 @@ def build_purchase_order(reference, created_at, products):
 
 
 def create_purchase_order(order):
-    url = f'{API_ENDPOINT}/orders'
+    url = 'orders'
     payload = {'order': order}
 
-    response = requests.post(url,
-                             data=json.dumps(payload),
-                             headers=headers,
-                             auth=(os.environ.get('RUBYHAS_USERNAME'),
-                                   os.environ.get('RUBYHAS_PASSWORD')))
-
-    return response
+    return api_call(url, payload=payload)
 
 
 def get_item_quantity(item_number):
