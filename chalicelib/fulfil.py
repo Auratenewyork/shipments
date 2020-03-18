@@ -1,5 +1,7 @@
 from chalicelib.email import send_email
-from datetime import date
+
+from datetime import date, datetime as dt
+
 import json
 import os
 
@@ -8,10 +10,23 @@ import requests
 from chalicelib import (AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL,
                         RUBYHAS_HQ_STORAGE)
 
+from fulfil_client import Client
+
 headers = {
     'X-API-KEY': os.environ.get('FULFIL_API_KEY'),
     'Content-Type': 'application/json'
 }
+
+CONFIG = {
+    'location_ids': {
+        'ruby_has': 23,
+        'ruby_has_storage_zone': 26,
+        'aurate_hq': 4,
+        'aurate_hq_storage_zone': 3
+    },
+}
+
+client = Client(os.environ.get('FULFIL_API_DOMAIN','aurate-sandbox'), os.environ.get('FULFIL_API_KEY'))
 
 
 def get_engraving_order_lines():
@@ -179,3 +194,55 @@ def update_internal_shipment(shipment_id, data):
     response = requests.post(url, headers=headers, data=json.dumps(data))
 
     return response
+
+
+def get_fulfil_model_url(model):
+    return f'{FULFIL_API_URL}/model/{model}'
+
+
+def get_fulfil_product_api(field, value, fieldsString, context):
+    # Product = client.model('product.product')
+    # product = Product.read(
+    #     [_id],
+    #     ['id', 'quantity_on_hand', 'quantity_available'],
+    #     context={'locations': [rubyconf['location_ids']['ruby_has_storage_zone']]}
+    # )
+    # return product
+    res = {}
+    url = f'{get_fulfil_model_url("product.product")}?{field}={value}&fields={fieldsString}'
+
+    if context:
+        if type(context) is not str:
+            context = json.dumps(context)
+        url += f'&context={context}'
+
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        if isinstance(response.json(), list):
+            res = response.json()[0]
+
+    return res
+
+
+
+def update_fulfil_inventory_api(product_id, product_quantity):
+
+    params = [
+      {
+        'date': client.today(),
+        'type': 'cycle',
+        'lost_found': 7,
+        'location': CONFIG['location_ids']['ruby_has_storage_zone'],
+        'lines': [['create', [{'product': product_id, 'quantity': product_quantity}]]],
+      }
+    ]
+
+    stock_inventory = client.model('stock.inventory')
+    res = stock_inventory.create(params)
+    return res
+
+
+def update_stock_api(params):
+    inventory = client.model('stock.inventory')
+    inventory.complete(params)
+    inventory.confirm(params)

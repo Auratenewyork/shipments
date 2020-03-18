@@ -1,13 +1,15 @@
-from datetime import date
+from datetime import date, datetime as dt
 
 from chalice import Chalice, Response, Cron
 
 from chalicelib.fulfil import (create_internal_shipment,
                                get_engraving_order_lines, get_internal_shipment,
                                get_internal_shipments, get_movement,
-                               get_product, update_internal_shipment)
+                               get_product, update_internal_shipment, get_fulfil_product_api,
+                               update_fulfil_inventory_api, update_stock_api)
 from chalicelib.rubyhas import (build_purchase_order, create_purchase_order,
-                                get_item_quantity)
+                                get_item_quantity, api_call)
+from chalicelib.fulfil import CONFIG as rubyconf
 from chalicelib.email import send_email
 
 app = Chalice(app_name='aurate-webhooks')
@@ -15,7 +17,7 @@ app.debug = True
 
 
 @app.schedule(Cron(0, 23, '*', '*', '?', '*'))
-def index(event):
+def index():
     internal_shipments = get_internal_shipments()
     orders = []
     state = 'assigned'
@@ -67,7 +69,7 @@ def index(event):
 
 
 @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
-def engravings_orders(event):
+def engravings_orders():
     engravings = get_engraving_order_lines()
     products_in_stock = []
     products_out_of_stock = []
@@ -143,5 +145,107 @@ def purchase_order_webhook():
         else:
             send_email(f"Fulfil: can't update {number} IS status",
                        f"Can't find {number} IS to update the status.")
-
+    elif order.get('type') == 'SALES_ORDER':
+        number = order.get('number')
+        syncinventories_id(number)
     return Response(status_code=200, body=None)
+
+
+@app.schedule(Cron(0, 18, '*', '*', '?', '*'))
+def syncinventories_all():
+    page = 1
+    inventories = {}
+    while True:
+        res = api_call('inventory/full', method='get',
+                       payload={'pageNo': page, 'pageSize': 999, 'facilityNumber': 'RHNY'})
+
+        if res.status_code == 200:
+            itemsinventory = res.json()
+
+            if not itemsinventory:
+                break
+
+            for i in itemsinventory['itemInventory']:
+                if i['itemNumber'].startswith('C-'):
+                    continue
+
+                if i['itemNumber'] in inventories:
+                    inventories[i['itemNumber']]['rubyhas'] = int(i['facilityInventory']['inventory']['total'])
+                else:
+                    inventories[i['itemNumber']] = {'rubyhas': 0}
+                    inventories[i['itemNumber']]['rubyhas'] += int(i['facilityInventory']['inventory']['total'])
+
+            page += 1
+
+    synced = 0
+    not_founded_sku = []
+    for _id, i in inventories.items():
+        product = get_fulfil_product_api('code', _id, 'id,quantity_on_hand,quantity_available',
+                                         {"locations": [rubyconf['location_ids']['ruby_has_storage_zone'], ]})
+
+        if 'quantity_on_hand' not in product:
+            not_founded_sku.append(_id)
+            continue
+
+        fulfil_inventory = product['quantity_on_hand']
+
+        # No need to update
+        if i['rubyhas'] == fulfil_inventory:
+            continue
+
+        stock_inventory = update_fulfil_inventory_api(product['id'], i['rubyhas'])
+        if stock_inventory:
+            update_stock_api(stock_inventory)
+            synced += 1
+
+    data = {synced: f'Finished inventory update script - updated {synced} stock levels in Fulfil'}
+    if not_founded_sku:
+        data['not_founded'] = ':'.join([
+            'List SKU of not founded in fulfil products',
+            ', '.join(not_founded_sku)
+        ])
+
+    send_email(f'Results for syncing inventories at {dt.today().strftime("%d/%m/%y")}',
+               '\r\n'.join('{} : {}'.format(key, value) for key, value in data.items()))
+
+
+@app.route('/syncinventories/{item_number}', methods=['GET'], api_key_required=False)
+def syncinventories_id(item_number):
+    page = 1
+    inventory = 0
+    while True:
+        res = api_call('inventory/full', method='get',
+                       payload={'pageNo': page, 'pageSize': 999, 'facilityNumber': 'RHNY'})
+
+        if res.status_code == 200:
+            itemsinventory = res.json()
+
+            if not itemsinventory:
+                break
+
+            for i in itemsinventory['itemInventory']:
+                if i['itemNumber'].startswith('C-'):
+                    continue
+                if i['itemNumber'] == item_number:
+                    inventory = i['facilityInventory']['inventory']['total']
+
+        if inventory:
+            break
+
+    product = get_fulfil_product_api('code', item_number, 'id,quantity_on_hand,quantity_available',
+                                     {"locations": [rubyconf['location_ids']['ruby_has_storage_zone'], ]})
+
+    if 'quantity_on_hand' not in product:
+        send_email(f'Unabled to sync inventory for {item_number} at {dt.today().strftime("%d/%m/%y")}',
+                   'Server unabled to run query')
+
+    fulfil_inventory = product['quantity_on_hand']
+
+    # No need to update
+    if inventory != fulfil_inventory:
+        stock_inventory = update_fulfil_inventory_api(product['id'], i['rubyhas'])
+        if stock_inventory:
+            update_stock_api(stock_inventory)
+    else:
+        send_email(f'No need to sync for {item_number} at {dt.today().strftime("%d/%m/%y")}',
+                   f'Stocks are match ( fulfil - {fulfil_inventory} | rubyhas - {inventory}')
