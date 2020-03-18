@@ -1,8 +1,8 @@
+from chalicelib.email import send_email
 import json
 import os
 from copy import copy
 
-from lxml import etree
 import requests
 from urllib.parse import urlencode
 
@@ -98,16 +98,21 @@ def get_item_quantity(item_number):
     url = f'{API_ENDPOINT}/items/AURate/{item_number}'
 
     response = requests.get(url,
-                            headers=headers,
+                            headers={
+                                **headers, 'Accept': 'application/json'
+                            },
                             auth=(os.environ.get('RUBYHAS_USERNAME'),
                                   os.environ.get('RUBYHAS_PASSWORD')))
 
-    root = etree.fromstring(response.content)
+    if response.status_code != 200:
+        print(response.text)
 
-    for item in root.getchildren():
-        packs = item.find('packs')
-        pack = packs.find('pack')
-        quantity = pack.find('readyToShip').text
-        return int(quantity)
+    try:
+        item = response.json().get('item')[0]
 
-    return 0
+        return int(item.get('packs')['pack']['readyToShip'])
+    except Exception as e:
+        print(response.text)
+        print(str(e))
+
+    return None
