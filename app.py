@@ -89,7 +89,7 @@ def create_pos(event):
 
 
 @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
-def engravings_orders():
+def engravings_orders(event):
     engravings = get_engraving_order_lines()
     products_in_stock = []
     products_out_of_stock = []
@@ -282,7 +282,7 @@ def handle_global_orders(event):
 
 
 @app.schedule(Cron(0, 0, 'SUN', '*', '*', '*'))
-def syncinventories_all():
+def syncinventories_all(event):
     page = 1
     inventories = {}
     while True:
