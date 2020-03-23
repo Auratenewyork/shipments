@@ -429,7 +429,6 @@ def invoke_waiting_ruby():
     return Response(status_code=200, body=body)
 
 
-@app.route('/')
 def reassign_waiting_ruby():
     def update_movement(movement):
         if movement['from_location'] != PRODUCTION and movement[
