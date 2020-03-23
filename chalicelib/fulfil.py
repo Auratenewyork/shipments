@@ -1,14 +1,14 @@
+from datetime import date, timedelta
 import json
 import os
-from datetime import date, timedelta
-
-import requests
-
-from chalicelib.email import send_email
-from chalicelib import (AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL,
-                        RUBYHAS_HQ_STORAGE)
 
 from fulfil_client import Client
+import requests
+
+from chalicelib import (
+    AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
+    RUBYHAS_WAREHOUSE)
+from chalicelib.email import send_email
 
 headers = {
     'X-API-KEY': os.environ.get('FULFIL_API_KEY'),
@@ -414,3 +414,48 @@ def get_global_order_lines():
                 order_lines.append(order_line)
 
     return order_lines
+
+
+def get_waiting_ruby_shipments():
+    url = f"{get_fulfil_model_url('stock.shipment.out')}/search_read"
+    payload = [
+        [
+            "AND",
+            ["state", "=", "waiting"],
+            ["warehouse", "=", RUBYHAS_WAREHOUSE],
+        ],
+        None,
+        None,
+        None,
+        ["moves"]
+    ]
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+
+    if response.status_code == 200:
+        return response.json()
+
+    print(response.text)
+
+    return None
+
+
+def update_customer_shipment(shipment_id, payload):
+    url = f"{get_fulfil_model_url('stock.shipment.out')}/{shipment_id}"
+
+    response = requests.post(url, headers=headers, data=json.dumps(payload))
+
+    if response.status_code != 200:
+        print(response.text)
+
+    return response.status_code
+
+
+def change_movement_locations(movement_id, from_location, to_location):
+    url = f"{get_fulfil_model_url('stock.move')}/{movement_id}"
+    payload = {"to_location": to_location, "from_location": from_location}
+
+    response = requests.post(url, headers=headers, data=json.dumps(payload))
+
+    if response.status_code != 200:
+        print(response.text)
