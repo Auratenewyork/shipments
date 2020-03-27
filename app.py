@@ -281,7 +281,7 @@ def handle_global_orders(event):
     return Response(status_code=200, body=None)
 
 
-@app.schedule(Cron(0, 0, 'SUN', '*', '*', '*'))
+@app.schedule(Cron(59, 23, '?', '*', '*', '*'))
 def syncinventories_all(event):
     page = 1
     inventories = {}

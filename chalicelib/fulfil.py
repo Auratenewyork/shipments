@@ -1,3 +1,4 @@
+
 import json
 import os
 from datetime import date, timedelta
@@ -246,14 +247,6 @@ def get_fulfil_model_url(model):
 
 
 def get_fulfil_product_api(field, value, fieldsString, context):
-    # Product = client.model('product.product')
-    # product = Product.read(
-    #     [_id],
-    #     ['id', 'quantity_on_hand', 'quantity_available'],
-    #     context={'locations': [rubyconf['location_ids']['ruby_has_storage_zone']]}
-    # )
-    # return product
-    res = {}
     url = f'{get_fulfil_model_url("product.product")}?{field}={value}&fields={fieldsString}'
 
     if context:
@@ -262,10 +255,10 @@ def get_fulfil_product_api(field, value, fieldsString, context):
         url += f'&context={context}'
 
     response = requests.get(url, headers=headers)
+    res = {}
     if response.status_code == 200:
-        if isinstance(response.json(), list):
-            res = response.json()[0]
-
+        res_json = response.json()
+        res = res_json[0] if len(res_json) > 0 else {}
     return res
 
 
@@ -291,6 +284,7 @@ def update_stock_api(params):
     inventory = client.model('stock.inventory')
     inventory.complete(params)
     inventory.confirm(params)
+
 
 def find_late_orders():
     url = f'{FULFIL_API_URL}/model/stock.shipment.out/search_read'

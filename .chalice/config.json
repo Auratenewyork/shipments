@@ -4,6 +4,17 @@
   "stages": {
     "dev": {
       "api_gateway_stage": "api"
+    },
+    "prod": {
+      "lambda_timeout": 500,
+      "environment_variables": {
+        "FULFIL_API_DOMAIN" : "aurate",
+        "FULFIL_API_KEY": "ee41ebf87f4a4fd29696f8b5db6b8cfc",
+        "RUBYHAS_PASSWORD": "xhzC8rmuvHHuTrRW",
+        "RUBYHAS_USERNAME": "auratedefoundationapi",
+        "SENDGRID_API_KEY": "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",
+        "FULFIL_API_ENDPOINT": "https://aurate.fulfil.io/api/v2"
+      }
     }
   }
 }

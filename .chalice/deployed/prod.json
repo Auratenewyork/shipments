@@ -47,6 +47,16 @@
       "rule_name": "aurate-webhooks-prod-handle_global_orders-event"
     },
     {
+      "name": "syncinventories_all",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-prod-syncinventories_all"
+    },
+    {
+      "name": "syncinventories_all-event",
+      "resource_type": "cloudwatch_event",
+      "rule_name": "aurate-webhooks-prod-syncinventories_all-event"
+    },
+    {
       "name": "api_handler",
       "resource_type": "lambda_function",
       "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-prod"
