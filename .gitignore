@@ -3,3 +3,5 @@
 .vscode
 .idea
 __pycache__
+.DS_Store
+.chalice/.DS_Store

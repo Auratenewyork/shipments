@@ -7,8 +7,10 @@
     },
     "prod": {
       "lambda_timeout": 500,
+      "manage_iam_role" : false,
+      "iam_role_arn": "arn:aws:iam::016009606683:role/aurate-webhook",
       "environment_variables": {
-        "FULFIL_API_DOMAIN" : "aurate",
+        "FULFIL_API_DOMAIN": "aurate",
         "FULFIL_API_KEY": "ee41ebf87f4a4fd29696f8b5db6b8cfc",
         "RUBYHAS_PASSWORD": "xhzC8rmuvHHuTrRW",
         "RUBYHAS_USERNAME": "auratedefoundationapi",

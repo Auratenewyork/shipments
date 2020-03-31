@@ -1,31 +1,21 @@
-
+from datetime import date, timedelta
 import json
 import os
-from datetime import date, timedelta
-
-import requests
-
-from chalicelib.email import send_email
-from chalicelib import (AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL,
-                        RUBYHAS_HQ_STORAGE)
 
 from fulfil_client import Client
+import requests
+
+from chalicelib import (
+    AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
+    RUBYHAS_WAREHOUSE)
+from chalicelib.email import send_email
 
 headers = {
     'X-API-KEY': os.environ.get('FULFIL_API_KEY'),
     'Content-Type': 'application/json'
 }
 
-CONFIG = {
-    'location_ids': {
-        'ruby_has': 23,
-        'ruby_has_storage_zone': 26,
-        'aurate_hq': 4,
-        'aurate_hq_storage_zone': 3
-    },
-}
-
-client = Client(os.environ.get('FULFIL_API_DOMAIN','aurate-sandbox'), os.environ.get('FULFIL_API_KEY'))
+client = Client(os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox'), os.environ.get('FULFIL_API_KEY'))
 
 
 def get_engraving_order_lines():
@@ -104,15 +94,15 @@ def get_internal_shipments():
         "AND",
         [
             "create_date", ">=", {
-                "__class__": "datetime",
-                "year": yesterday.year,
-                "month": yesterday.month,
-                "day": yesterday.day,
-                "hour": 17,
-                "minute": 0,
-                "second": 0,
-                "microsecond": 0
-            }
+            "__class__": "datetime",
+            "year": yesterday.year,
+            "month": yesterday.month,
+            "day": yesterday.day,
+            "hour": 17,
+            "minute": 0,
+            "second": 0,
+            "microsecond": 0
+        }
         ], ["state", "in", ["waiting", "assigned"]]
     ], None, None, None, ["reference", "state", "moves", "create_date"]]
 
@@ -262,17 +252,15 @@ def get_fulfil_product_api(field, value, fieldsString, context):
     return res
 
 
-
 def update_fulfil_inventory_api(product_id, product_quantity):
-
     params = [
-      {
-        'date': client.today(),
-        'type': 'cycle',
-        'lost_found': 7,
-        'location': CONFIG['location_ids']['ruby_has_storage_zone'],
-        'lines': [['create', [{'product': product_id, 'quantity': product_quantity}]]],
-      }
+        {
+            'date': client.today(),
+            'type': 'cycle',
+            'lost_found': 7,
+            'location': RUBYHAS_WAREHOUSE,
+            'lines': [['create', [{'product': product_id, 'quantity': product_quantity}]]],
+        }
     ]
 
     stock_inventory = client.model('stock.inventory')
@@ -296,19 +284,19 @@ def find_late_orders():
         "AND",
         [
             "planned_date", ">", {
-                "__class__": "date",
-                "year": current_date.year,
-                "day": current_date.day,
-                "month": current_date.month,
-            }
+            "__class__": "date",
+            "year": current_date.year,
+            "day": current_date.day,
+            "month": current_date.month,
+        }
         ],
         [
             "planned_date", "<", {
-                "__class__": "date",
-                "year": in_three_days.year,
-                "day": in_three_days.day,
-                "month": in_three_days.month
-            }
+            "__class__": "date",
+            "year": in_three_days.year,
+            "day": in_three_days.day,
+            "month": in_three_days.month
+        }
         ], ["state", "in", ["waiting", "packed", "assigned"]]
     ], None, None, None, ["sales"]]
 
@@ -379,15 +367,15 @@ def get_global_order_lines():
         "AND", ["reference", "like", "GE%"], ["state", "in", ["processing"]],
         [
             "create_date", ">=", {
-                "__class__": "datetime",
-                "year": yesterday.year,
-                "month": yesterday.month,
-                "day": yesterday.day,
-                "hour": 15,
-                "minute": 0,
-                "second": 0,
-                "microsecond": 0
-            }
+            "__class__": "datetime",
+            "year": yesterday.year,
+            "month": yesterday.month,
+            "day": yesterday.day,
+            "hour": 15,
+            "minute": 0,
+            "second": 0,
+            "microsecond": 0
+        }
         ]
     ], None, None, None, ["reference", "lines"]]
 
@@ -408,3 +396,48 @@ def get_global_order_lines():
                 order_lines.append(order_line)
 
     return order_lines
+
+
+def get_waiting_ruby_shipments():
+    url = f"{get_fulfil_model_url('stock.shipment.out')}/search_read"
+    payload = [
+        [
+            "AND",
+            ["state", "=", "waiting"],
+            ["warehouse", "=", RUBYHAS_WAREHOUSE],
+        ],
+        None,
+        None,
+        None,
+        ["moves"]
+    ]
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+
+    if response.status_code == 200:
+        return response.json()
+
+    print(response.text)
+
+    return None
+
+
+def update_customer_shipment(shipment_id, payload):
+    url = f"{get_fulfil_model_url('stock.shipment.out')}/{shipment_id}"
+
+    response = requests.post(url, headers=headers, data=json.dumps(payload))
+
+    if response.status_code != 200:
+        print(response.text)
+
+    return response.status_code
+
+
+def change_movement_locations(movement_id, from_location, to_location):
+    url = f"{get_fulfil_model_url('stock.move')}/{movement_id}"
+    payload = {"to_location": to_location, "from_location": from_location}
+
+    response = requests.post(url, headers=headers, data=json.dumps(payload))
+
+    if response.status_code != 200:
+        print(response.text)
