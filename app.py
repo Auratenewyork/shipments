@@ -1,3 +1,4 @@
+import math
 from datetime import date
 from datetime import datetime as dt
 
@@ -13,7 +14,8 @@ from chalicelib.fulfil import (
     get_engraving_order_lines, get_fulfil_product_api, get_global_order_lines,
     get_internal_shipment, get_internal_shipments, get_movement, get_product,
     get_waiting_ruby_shipments, update_customer_shipment,
-    update_fulfil_inventory_api, update_internal_shipment, update_stock_api)
+    update_fulfil_inventory_api, update_internal_shipment, update_stock_api,
+    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment)
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
 
@@ -89,7 +91,7 @@ def create_pos(event):
         email_body.append("No Purchase orders created. No errors.")
 
     send_email(f"Ruby Has Report: Purchase orders",
-               "<br />".join([line for line in email_body]))
+               "<br />".join(email_body))
 
 
 @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
@@ -163,7 +165,7 @@ def engravings_orders(event):
         email_body.append(f"No engravings orders found today")
 
     send_email("Fulfil Report: Internal shipments",
-               "<br />".join([line for line in email_body]))
+               "<br />".join(email_body))
 
 
 @app.route('/rubyhas', methods=['POST'])
@@ -280,7 +282,7 @@ def handle_global_orders(event):
         email_body.append("Failed to get global orders. See logs on AWS.")
 
     send_email(f"Fulfil Report: Global orders",
-               "<br />".join([line for line in email_body]))
+               "<br />".join(email_body))
 
     return Response(status_code=200, body=None)
 
@@ -478,4 +480,53 @@ def reassign_waiting_ruby():
         email_body.append("No waiting Ruby shipments have been found")
 
     send_email("Fulfil Report: Re-assign waiting Ruby shipments",
-               "<br />".join([line for line in email_body]))
+               "<br />".join(email_body))
+
+
+def close_empty_shipments():
+    email_body = []
+    count = get_empty_shipments_count()
+    empty_shipments = []
+
+    if count is None:
+        email_body.append('Faied to retrieve shipments count. See logs on AWS.')
+
+    else:
+        chunk_size = 500
+        offset = 0
+        chunks_count = math.ceil(count / chunk_size)
+
+        print(chunks_count)
+
+        for _ in range(1, chunks_count + 1):
+            shipments = get_empty_shipments(offset, chunk_size)
+
+            if shipments is None:
+                email_body.append('Failed to retrieve a chunk of shipments. See logs on AWS.')
+                continue
+
+            else:
+                without_sales = list(filter(lambda x: not x['sales'], shipments))
+                empty_shipments += [o['id'] for o in without_sales]
+
+            offset += chunk_size
+
+        if len(empty_shipments):
+            email_body.append(f'Found {len(empty_shipments)} empty shipments: {", ".join(empty_shipments)}')
+
+            for shipment_id in empty_shipments:
+                success = cancel_customer_shipment(shipment_id)
+
+                if success:
+                    email_body.append(f'[{shipment_id}] Shipment has been successfully canceled')
+
+                else:
+                    email_body.append(f'Failed to cancel [{shipment_id}] shipment')
+
+        else:
+            email_body.append('Found 0 empty shipments')
+
+    send_email(
+        "Fulfil Report: Close empty customer shipments",
+        "<br />".join(email_body)
+    )
