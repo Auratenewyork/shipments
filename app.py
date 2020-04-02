@@ -529,6 +529,7 @@ def reassign_waiting_ruby():
                "<br />".join(email_body))
 
 
+@app.route('/close-empty-shipments', methods=['GET'])
 def close_empty_shipments():
     email_body = []
     count = get_empty_shipments_count()
