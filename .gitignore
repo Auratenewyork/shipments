@@ -1,5 +1,8 @@
 .chalice/deployments/
 .chalice/venv/
+.chalice/config.json
 .vscode
 .idea
 __pycache__
+.DS_Store
+.chalice/.DS_Store

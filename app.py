@@ -1,3 +1,4 @@
+import json
 import math
 from datetime import date
 from datetime import datetime as dt
@@ -6,9 +7,8 @@ import boto3
 from chalice import Chalice, Cron, Response
 
 from chalicelib import (
-    AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION)
+    AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION, RUBYHAS_WAREHOUSE)
 from chalicelib.email import send_email
-from chalicelib.fulfil import CONFIG as rubyconf
 from chalicelib.fulfil import (
     change_movement_locations, create_internal_shipment, find_late_orders,
     get_engraving_order_lines, get_fulfil_product_api, get_global_order_lines,
@@ -287,8 +287,13 @@ def handle_global_orders(event):
     return Response(status_code=200, body=None)
 
 
-@app.schedule(Cron(0, 0, 'SUN', '*', '*', '*'))
-def syncinventories_all(event):
+@app.lambda_function(name='get_full_inventory_rubyhas')
+def get_full_inventory_rubyhas(event, context):
+
+    def chunks(dictionary, size):
+        items = dictionary.items()
+        return (dict(items[i:i + size]) for i in range(0, len(items), size))
+
     page = 1
     inventories = {}
     while True:
@@ -320,12 +325,28 @@ def syncinventories_all(event):
 
             page += 1
 
+    client = boto3.client('lambda')
+
+    send_email("Fulfil Report: Sync Pipeline",
+               "Parsed succesfully. Going to sync. You will be notified about the results via email.")
+
+    for sub_inventory in chunks(inventories, 50):
+        client.invoke(
+            FunctionName='aurate-webhooks-prod-sync_fullfill_rubyhas',
+            InvocationType='Event',
+            Payload=json.dumps(sub_inventory)
+        )
+
+
+
+@app.lambda_function(name='sync_fullfill_rubyhas')
+def sync_fullfill_rubyhas(inventories):
     synced = 0
     not_founded_sku = []
     for _id, i in inventories.items():
         product = get_fulfil_product_api(
             'code', _id, 'id,quantity_on_hand,quantity_available',
-            {"locations": [rubyconf['location_ids']['ruby_has_storage_zone'],]})
+            {"locations": [RUBYHAS_WAREHOUSE, ]})
 
         if 'quantity_on_hand' not in product:
             not_founded_sku.append(_id)
@@ -357,6 +378,31 @@ def syncinventories_all(event):
         f'Results for syncing inventories at {dt.today().strftime("%d/%m/%y")}',
         '\r\n'.join(
             '{} : {}'.format(key, value) for key, value in data.items()))
+
+
+@app.schedule(Cron(59, 23, '?', '*', '*', '*'))
+def syncinventories_event(event):
+    syncinventories_all()
+
+
+@app.route('/syncinventories', methods=['GET'])
+def syncinventories_all():
+    client = boto3.client('lambda')
+
+    response = client.invoke(
+        FunctionName='aurate-webhooks-prod-get_full_inventory_rubyhas',
+        InvocationType='Event',
+    )
+
+    if response['StatusCode'] == 202:
+        body = "The function has been successfully started. You will be notified about the results via email."
+    else:
+        body = f"Something went wrong during the function invokaction. See logs on AWS. Response : \n " \
+               f"Status : {response['StatusCode']}"\
+               f"LogResult : {response['LogResult']}"\
+               f"FunctionError : {response['FunctionError']}"\
+
+    return Response(status_code=200, body=body)
 
 
 @app.route('/syncinventories/{item_number}',
@@ -391,7 +437,7 @@ def syncinventories_id(item_number):
 
     product = get_fulfil_product_api(
         'code', item_number, 'id,quantity_on_hand,quantity_available',
-        {"locations": [rubyconf['location_ids']['ruby_has_storage_zone'],]})
+        {"locations": [RUBYHAS_WAREHOUSE, ]})
 
     if 'quantity_on_hand' not in product:
         send_email(
@@ -434,7 +480,7 @@ def invoke_waiting_ruby():
 def reassign_waiting_ruby():
     def update_movement(movement):
         if movement['from_location'] != PRODUCTION and movement[
-                'to_location'] != PRODUCTION:
+            'to_location'] != PRODUCTION:
             change_movement_locations(movement_id,
                                       from_location=AURATE_STORAGE_ZONE,
                                       to_location=AURATE_OUTPUT_ZONE)

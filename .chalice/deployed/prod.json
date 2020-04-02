@@ -1,10 +1,14 @@
 {
   "resources": [
     {
-      "name": "default-role",
-      "resource_type": "iam_role",
-      "role_arn": "arn:aws:iam::016009606683:role/aurate-webhooks-prod",
-      "role_name": "aurate-webhooks-prod"
+      "name": "get_full_inventory_rubyhas",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-prod-get_full_inventory_rubyhas"
+    },
+    {
+      "name": "sync_fullfill_rubyhas",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-prod-sync_fullfill_rubyhas"
     },
     {
       "name": "create_pos",
@@ -45,6 +49,16 @@
       "name": "handle_global_orders-event",
       "resource_type": "cloudwatch_event",
       "rule_name": "aurate-webhooks-prod-handle_global_orders-event"
+    },
+    {
+      "name": "syncinventories_event",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-prod-syncinventories_event"
+    },
+    {
+      "name": "syncinventories_event-event",
+      "resource_type": "cloudwatch_event",
+      "rule_name": "aurate-webhooks-prod-syncinventories_event-event"
     },
     {
       "name": "api_handler",

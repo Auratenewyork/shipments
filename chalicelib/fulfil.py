@@ -15,16 +15,7 @@ headers = {
     'Content-Type': 'application/json'
 }
 
-CONFIG = {
-    'location_ids': {
-        'ruby_has': 23,
-        'ruby_has_storage_zone': 26,
-        'aurate_hq': 4,
-        'aurate_hq_storage_zone': 3
-    },
-}
-
-client = Client(os.environ.get('FULFIL_API_DOMAIN','aurate-sandbox'), os.environ.get('FULFIL_API_KEY'))
+client = Client(os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox'), os.environ.get('FULFIL_API_KEY'))
 
 
 def get_engraving_order_lines():
@@ -103,15 +94,15 @@ def get_internal_shipments():
         "AND",
         [
             "create_date", ">=", {
-                "__class__": "datetime",
-                "year": yesterday.year,
-                "month": yesterday.month,
-                "day": yesterday.day,
-                "hour": 17,
-                "minute": 0,
-                "second": 0,
-                "microsecond": 0
-            }
+            "__class__": "datetime",
+            "year": yesterday.year,
+            "month": yesterday.month,
+            "day": yesterday.day,
+            "hour": 17,
+            "minute": 0,
+            "second": 0,
+            "microsecond": 0
+        }
         ], ["state", "in", ["waiting", "assigned"]]
     ], None, None, None, ["reference", "state", "moves", "create_date"]]
 
@@ -251,14 +242,6 @@ def get_fulfil_model_url(model):
 
 
 def get_fulfil_product_api(field, value, fieldsString, context):
-    # Product = client.model('product.product')
-    # product = Product.read(
-    #     [_id],
-    #     ['id', 'quantity_on_hand', 'quantity_available'],
-    #     context={'locations': [rubyconf['location_ids']['ruby_has_storage_zone']]}
-    # )
-    # return product
-    res = {}
     url = f'{get_fulfil_model_url("product.product")}?{field}={value}&fields={fieldsString}'
 
     if context:
@@ -267,23 +250,22 @@ def get_fulfil_product_api(field, value, fieldsString, context):
         url += f'&context={context}'
 
     response = requests.get(url, headers=headers)
+    res = {}
     if response.status_code == 200:
-        if isinstance(response.json(), list):
-            res = response.json()[0]
-
+        res_json = response.json()
+        res = res_json[0] if len(res_json) > 0 else {}
     return res
 
 
 def update_fulfil_inventory_api(product_id, product_quantity):
-
     params = [
-      {
-        'date': client.today(),
-        'type': 'cycle',
-        'lost_found': 7,
-        'location': CONFIG['location_ids']['ruby_has_storage_zone'],
-        'lines': [['create', [{'product': product_id, 'quantity': product_quantity}]]],
-      }
+        {
+            'date': client.today(),
+            'type': 'cycle',
+            'lost_found': 7,
+            'location': RUBYHAS_WAREHOUSE,
+            'lines': [['create', [{'product': product_id, 'quantity': product_quantity}]]],
+        }
     ]
 
     stock_inventory = client.model('stock.inventory')
@@ -307,19 +289,19 @@ def find_late_orders():
         "AND",
         [
             "planned_date", ">", {
-                "__class__": "date",
-                "year": current_date.year,
-                "day": current_date.day,
-                "month": current_date.month,
-            }
+            "__class__": "date",
+            "year": current_date.year,
+            "day": current_date.day,
+            "month": current_date.month,
+        }
         ],
         [
             "planned_date", "<", {
-                "__class__": "date",
-                "year": in_three_days.year,
-                "day": in_three_days.day,
-                "month": in_three_days.month
-            }
+            "__class__": "date",
+            "year": in_three_days.year,
+            "day": in_three_days.day,
+            "month": in_three_days.month
+        }
         ], ["state", "in", ["waiting", "packed", "assigned"]]
     ], None, None, None, ["sales"]]
 
@@ -390,15 +372,15 @@ def get_global_order_lines():
         "AND", ["reference", "like", "GE%"], ["state", "in", ["processing"]],
         [
             "create_date", ">=", {
-                "__class__": "datetime",
-                "year": yesterday.year,
-                "month": yesterday.month,
-                "day": yesterday.day,
-                "hour": 15,
-                "minute": 0,
-                "second": 0,
-                "microsecond": 0
-            }
+            "__class__": "datetime",
+            "year": yesterday.year,
+            "month": yesterday.month,
+            "day": yesterday.day,
+            "hour": 15,
+            "minute": 0,
+            "second": 0,
+            "microsecond": 0
+        }
         ]
     ], None, None, None, ["reference", "lines"]]
 
