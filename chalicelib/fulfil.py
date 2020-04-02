@@ -148,11 +148,16 @@ def get_product(item):
 
 
 def get_movement(movement_id):
-    url = f'{FULFIL_API_URL}/model/stock.move/{movement_id}'
+    url = f"{get_fulfil_model_url('stock.move')}/{movement_id}"
 
     response = requests.get(url, headers=headers)
 
-    return response.json()
+    if response.status_code == 200:
+        return response.json()
+
+    print(response.text)
+
+    return None
 
 
 def get_internal_shipment(params):
@@ -441,3 +446,57 @@ def change_movement_locations(movement_id, from_location, to_location):
 
     if response.status_code != 200:
         print(response.text)
+
+
+def get_empty_shipments_count():
+    url = f'{get_fulfil_model_url("stock.shipment.out")}/search_count'
+
+    payload = [[
+        "AND",
+        ["reference", "=", None],
+        ["state", "not in", ["done", "cancel"]]
+    ]]
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+
+    if response.status_code == 200:
+        return response.json()
+
+    print(response.text)
+
+    return None
+
+
+def get_empty_shipments(offset, chunk_size):
+    url = f'{get_fulfil_model_url("stock.shipment.out")}/search_read'
+
+    payload = [
+        [
+            "AND",
+            ["reference", "=", None],
+            ["state", "not in", ["done", "cancel"]]
+        ],
+        offset,
+        chunk_size,
+        None,
+        ["reference", "sales"]
+    ]
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+
+    if response.status_code == 200:
+        return response.json()
+
+    print(response.text)
+    return None
+
+
+def cancel_customer_shipment(shipment_id):
+    url = f'{get_fulfil_model_url("stock.shipment.out")}/{shipment_id}/cancel'
+
+    response = requests.put(url, headers=headers)
+
+    if response.status_code != 200:
+        print(response.text)
+
+    return response.status_code == 200
