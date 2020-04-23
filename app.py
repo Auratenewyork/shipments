@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 import math
 from datetime import date
@@ -15,7 +17,8 @@ from chalicelib.fulfil import (
     get_internal_shipment, get_internal_shipments, get_movement, get_product,
     get_waiting_ruby_shipments, update_customer_shipment,
     update_fulfil_inventory_api, update_internal_shipment, update_stock_api,
-    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment)
+    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
+    get_all, get_instance, get_bom_instance)
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
 
@@ -577,3 +580,52 @@ def close_empty_shipments():
         "Fulfil Report: Close empty customer shipments",
         "<br />".join(email_body)
     )
+
+
+@app.route('/pull_sku', methods=['GET'], api_key_required=False)
+def pull_sku():
+    # pulling every SKU along with its BOM
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    unusual_output = io.StringIO()
+    unusual_writer = csv.writer(unusual_output)
+    product_fields = ['id', 'code', 'name', 'description', 'active']
+    bom_fields = ['bom_id', 'bom_name']
+    writer.writerow(product_fields + bom_fields)
+    unusual_writer.writerow(product_fields + ['expected_bom'])
+
+    products = get_all('product.product')
+    for item in products:
+        product = get_instance('product.product', item['id'])
+        boms = []
+        for bom_id in product['boms']:
+            bom = get_bom_instance(bom_id)
+            if bom:
+                boms.append(bom)
+        row = [product['id'], product['code'], product['name'],
+               product['description'], product['active']]
+        if boms:
+            row.extend([boms[0]['id'], boms[0]['name']])
+            writer.writerow(row)
+            if len(boms) != 1:
+                for bom in boms[1:]:
+                    row = [None]*5
+                    row.extend([bom['id'], bom['name']])
+                    writer.writerow(row)
+        else:
+            unusual_writer.writerow(row + product['boms'] or [''])
+
+        break
+    files = [
+        dict(name='SKU_BOM.csv', mime_type='text/csv',
+             text=output.getvalue()),
+        dict(name='SKU_without_BOM.csv', mime_type='text/csv',
+             text=unusual_output.getvalue()),
+    ]
+    output.close()
+    unusual_output.close()
+    send_email('Pulling every SKU along with its BOM',
+               '', files=files)
+
+    return Response(status_code=200, body='Pulling finished')

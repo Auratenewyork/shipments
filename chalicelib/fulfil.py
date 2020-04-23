@@ -1,8 +1,9 @@
+from functools import lru_cache
 from datetime import date, timedelta
 import json
 import os
 
-from fulfil_client import Client
+from fulfil_client import Client, ClientError
 import requests
 
 from chalicelib import (
@@ -500,3 +501,24 @@ def cancel_customer_shipment(shipment_id):
         print(response.text)
 
     return response.status_code == 200
+
+
+def get_all(model):
+    Product = client.model(model)
+    products = Product.search_read_all([], None, ['id'])
+    return products
+
+
+def get_instance(model, id):
+    Product = client.model(model)
+    product = Product.get(id)
+    return product
+
+
+@lru_cache(maxsize=30000)
+def get_bom_instance(id):
+    try:
+        bom = get_instance('production.bom', id)
+    except ClientError:
+        bom = None
+    return bom
