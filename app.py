@@ -15,7 +15,9 @@ from chalicelib.fulfil import (
     get_internal_shipment, get_internal_shipments, get_movement, get_product,
     get_waiting_ruby_shipments, update_customer_shipment,
     update_fulfil_inventory_api, update_internal_shipment, update_stock_api,
-    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment)
+    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
+    get_waiting_customer_shipments, check_in_stock, delete_movement,
+    create_customer_shipment)
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
 
@@ -577,3 +579,78 @@ def close_empty_shipments():
         "Fulfil Report: Close empty customer shipments",
         "<br />".join(email_body)
     )
+
+
+@app.route('/split-customer-shipments', methods=['GET'])
+def split_customer_shipments():
+    chunk_size = 10
+    offset = 0
+    email_body = []
+
+    shipments = get_waiting_customer_shipments(offset, chunk_size)
+
+    if shipments is None:
+        email_body.append("Something went wrong while retrieving customer shipments. See logs on AWS.")
+
+    elif not shipments:
+        email_body.append("Found 0 waiting internal shipments")
+
+    else:
+        # if shipments count equals chunk_size then try to get more shipments
+        if len(shipments) == chunk_size:
+            while len(shipments) == chunk_size + offset:
+                offset += chunk_size
+                shipments += get_waiting_customer_shipments(offset, chunk_size)
+
+        for shipment in shipments:
+            if len(shipment.get('moves')) > 1:
+                products_in_stock = []
+
+                for movement_id in shipment.get('moves'):
+                    movement = get_movement(movement_id)
+
+                    if not movement:
+                        email_body.append(f"Failed to get [{movement_id}] movement")
+                        continue
+
+                    product_id = movement.get('product')
+                    quantity = movement.get('quantity')
+
+                    in_stock = check_in_stock(product_id, AURATE_STORAGE_ZONE)
+
+                    if in_stock:
+                        products_in_stock.append({
+                            'id': product_id,
+                            'quantity': quantity,
+                            'movement': movement_id,
+                        })
+
+                if len(products_in_stock):
+                    number = f"{shipment['number']}-split"
+                    new_shipment = create_customer_shipment(
+                                        number,
+                                        shipment['delivery_address'],
+                                        shipment['customer'],
+                                        products_in_stock,
+                                        state='waiting')
+
+                    if not new_shipment:
+                        email_body.append(
+                            f"Failed to create \"{number}\" CS")
+                    else:
+                        email_body.append(
+                            f"Successfully created \"{number}\" CS"
+                        )
+
+                        for product in products_in_stock:
+                            deleted = delete_movement(product['movement'])
+
+                            if deleted:
+                                email_body.append(f"[{product['movement']}] Movement was deleted")
+
+    send_email(
+        "Fulfil Report: Split Customer Shipments",
+        "<br />".join(email_body)
+    )
+
+    return Response(status_code=200, body=email_body)

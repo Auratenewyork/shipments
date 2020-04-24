@@ -7,7 +7,7 @@ import requests
 
 from chalicelib import (
     AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
-    RUBYHAS_WAREHOUSE)
+    RUBYHAS_WAREHOUSE, AURATE_OUTPUT_ZONE)
 from chalicelib.email import send_email
 
 headers = {
@@ -500,3 +500,99 @@ def cancel_customer_shipment(shipment_id):
         print(response.text)
 
     return response.status_code == 200
+
+
+def get_waiting_customer_shipments(offset, chunk_size):
+    url = f'{get_fulfil_model_url("stock.shipment.out")}/search_read'
+
+    payload = [
+        [
+            ["state", "=", "waiting"]
+        ],
+        offset,
+        chunk_size,
+        None,
+        [
+            "number",
+            "moves",
+            "delivery_address",
+            "customer",
+        ]
+    ]
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+
+    if response.status_code != 200:
+        print(response.text)
+        return None
+
+    return response.json()
+
+
+def check_in_stock(product_id, location_id):
+    chunk_size = 500
+    url = f'{get_fulfil_model_url("stock.location")}?fields=id,quantity_on_hand&context={{"product": {product_id}}}&per_page={chunk_size}'
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code != 200:
+        print(response.text)
+        return False
+
+    locations = response.json()
+
+    if location_id in [o['id'] for o in locations]:
+        location = [o for o in locations if o['id'] == location_id][0]
+
+        return location.get('quantity_on_hand', 0) > 0
+
+    return False
+
+
+def delete_movement(movement_id):
+    url = f'{get_fulfil_model_url("stock.move")}/{movement_id}'
+
+    response = requests.delete(url, headers=headers)
+
+    print(response.text)
+
+    return response.status_code == 204
+
+
+def create_customer_shipment(number, delivery_address, customer, products, **kwargs):
+    url = f'{get_fulfil_model_url("stock.shipment.out")}'
+    current_date = date.today().isoformat()
+    moves = []
+    state = kwargs.get('state', 'waiting')
+
+    for product in products:
+        movement = {
+            'from_location': AURATE_HQ_STORAGE,
+            'to_location': AURATE_OUTPUT_ZONE,
+            'unit_price': None,
+            'currency': 172,
+            'uom': 1,
+            'quantity': int(product.get('quantity')),
+            'product': product.get('id'),
+            'company': COMPANY,
+        }
+        moves.append(movement)
+
+    shipment = [{
+        'number': number,
+        'from_location': RUBYHAS_HQ_STORAGE,
+        'delivery_address': delivery_address,
+        "customer": customer,
+        'effective_date': None,
+        'company': COMPANY,
+        'planned_date': current_date,
+        'state': state,
+        'moves': [('create', moves)],
+    }]
+
+    response = requests.post(url, headers=headers, data=json.dumps(shipment))
+
+    if response.status_code == 201:
+        return json.loads(response.text)[0]
+
+    return None
