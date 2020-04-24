@@ -15,13 +15,19 @@ from chalicelib.fulfil import (
     get_internal_shipment, get_internal_shipments, get_movement, get_product,
     get_waiting_ruby_shipments, update_customer_shipment,
     update_fulfil_inventory_api, update_internal_shipment, update_stock_api,
+    get_report_template,
+    get_supplier_shipment, update_supplier_shipment, get_contact_from_supplier_shipment, create_pdf,
+    get_po_from_shipment, get_line_from_po,
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     get_waiting_customer_shipments, check_in_stock, delete_movement,
     create_customer_shipment)
+
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
 
 app = Chalice(app_name='aurate-webhooks')
+s3 = boto3.client('s3', region_name='us-east-2')
+BUCKET = 'chalicetest'
 app.debug = True
 
 
@@ -291,7 +297,6 @@ def handle_global_orders(event):
 
 @app.lambda_function(name='get_full_inventory_rubyhas')
 def get_full_inventory_rubyhas(event, context):
-
     def chunks(dictionary, size):
         items = dictionary.items()
         return (dict(items[i:i + size]) for i in range(0, len(items), size))
@@ -338,7 +343,6 @@ def get_full_inventory_rubyhas(event, context):
             InvocationType='Event',
             Payload=json.dumps(sub_inventory)
         )
-
 
 
 @app.lambda_function(name='sync_fullfill_rubyhas')
@@ -400,9 +404,9 @@ def syncinventories_all():
         body = "The function has been successfully started. You will be notified about the results via email."
     else:
         body = f"Something went wrong during the function invokaction. See logs on AWS. Response : \n " \
-               f"Status : {response['StatusCode']}"\
-               f"LogResult : {response['LogResult']}"\
-               f"FunctionError : {response['FunctionError']}"\
+               f"Status : {response['StatusCode']}" \
+               f"LogResult : {response['LogResult']}" \
+               f"FunctionError : {response['FunctionError']}"
 
     return Response(status_code=200, body=body)
 
@@ -581,6 +585,34 @@ def close_empty_shipments():
     )
 
 
+@app.route('/shipped/{ss_number}',
+           methods=['GET'],
+           api_key_required=False)
+def set_shipped(ss_number):
+    barcode = get_report_template(11)
+    # ????
+    # restoking = get_report_template(11)
+    ss = get_supplier_shipment(ss_number)
+    update_supplier_shipment(ss_number)
+    address = get_contact_from_supplier_shipment(ss)
+    ss = get_supplier_shipment(ss_number)
+    barcode_data = []
+    for po_id in ss['purchases']:
+        po = get_po_from_shipment(po_id)
+        for line in po['lines']:
+            product = get_line_from_po(line)
+            barcode_data.append({
+                'quantity': product['quantity'],
+                'code': product['supplier_product_code'],
+                'subtext': product['supplier_product_name']
+            })
+
+    file = create_pdf(barcode_data, barcode['template'])
+    send_email('Checking barcodes', content=[file])
+    s3.upload_file(file, BUCKET, f'{ss_number}_barcode.pdf')
+    return Response(status_code=200,)
+
+
 @app.route('/split-customer-shipments', methods=['GET'])
 def split_customer_shipments():
     chunk_size = 10
@@ -628,11 +660,11 @@ def split_customer_shipments():
                 if len(products_in_stock):
                     number = f"{shipment['number']}-split"
                     new_shipment = create_customer_shipment(
-                                        number,
-                                        shipment['delivery_address'],
-                                        shipment['customer'],
-                                        products_in_stock,
-                                        state='waiting')
+                        number,
+                        shipment['delivery_address'],
+                        shipment['customer'],
+                        products_in_stock,
+                        state='waiting')
 
                     if not new_shipment:
                         email_body.append(
