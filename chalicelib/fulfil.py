@@ -1,9 +1,12 @@
+import tempfile
 from datetime import date, timedelta
 import json
 import os
 
 from fulfil_client import Client
 import requests
+from xhtml2pdf import pisa
+from jinja2 import Template
 
 from chalicelib import (
     AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
@@ -500,3 +503,57 @@ def cancel_customer_shipment(shipment_id):
         print(response.text)
 
     return response.status_code == 200
+
+
+def get_report_template(report_id):
+    if not report_id:
+        raise TypeError("Specify id!")
+
+    reports = client.model('ir.action.report.template')
+    return reports.get(report_id)
+
+
+def get_supplier_shipment(ss_id):
+    if not ss_id:
+        raise TypeError("Specify id!")
+
+    ss = client.model('stock.shipment.in')
+    return ss.get(int(ss_id))
+
+
+def update_supplier_shipment(ss_id):
+    if not ss_id:
+        raise TypeError("Specify id!")
+
+    url = f'{get_fulfil_model_url("stock.shipment.in")}/{ss_id}'
+
+    response = requests.put(url, headers=headers, data={'state': 'done'})
+
+    if response.status_code != 200:
+        print(response.text)
+
+    return response.status_code == 200
+
+
+def get_contact_from_supplier_shipment(ss):
+    contact = ss['contact_address']
+    cm = client.model('party.address')
+    return cm.get(int(contact))
+
+def get_po_from_shipment(po_id):
+    pp = client.model('purchase.purchase')
+    return pp.get(int(po_id))
+
+
+def get_line_from_po(line_id):
+    pl = client.model('purchase.line')
+    return pl.get(int(line_id))
+
+def create_pdf(data, template):
+    template = Template(template)
+    file = template.render(barcode=data)
+    tmp = tempfile.TemporaryFile()
+    pisa.CreatePDF(
+        src=file,  # HTML to convert
+        dest=tmp)
+    return tmp
