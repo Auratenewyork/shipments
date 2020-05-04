@@ -1,7 +1,6 @@
 import json
 import math
 import os
-from copy import copy
 from datetime import date
 from datetime import datetime as dt
 
@@ -593,10 +592,8 @@ def close_empty_shipments():
            api_key_required=False)
 def set_shipped(ss_number):
     barcode = get_report_template(11)
-    # ????
-    # restoking = get_report_template(11)
     ss = get_supplier_shipment(ss_number)
-    # update_supplier_shipment(ss_number)
+    update_supplier_shipment(ss_number)
     address = get_contact_from_supplier_shipment(ss)
     ss = get_supplier_shipment(ss_number)
     barcode_data = []
@@ -610,7 +607,7 @@ def set_shipped(ss_number):
                 'subtext': product['supplier_product_name']
             })
 
-    file = create_pdf(barcode_data, barcode['template'], binary_path=f'/usr/local/bin/wkhtmltopdf')
+    file = create_pdf(barcode_data, barcode['template'], binary_path=f"{os['LAMBDA_TASK_ROOT']}/bin/wkhtmltopdf")
     send_email('Checking barcodes', content="Test", attachment=[file, ], email='srglvk3@gmail.com')
     s3.put_object(Body=file, Bucket=BUCKET, Key=f'{ss_number}_barcode.pdf')
     file_url = '%s/%s/%s' % (s3.meta.endpoint_url, BUCKET, f'{ss_number}_barcode.pdf')
