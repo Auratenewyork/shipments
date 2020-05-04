@@ -13,8 +13,9 @@ def send_email(subject, content, email='maxwell@auratenewyork.com', attachment=N
 
     if attachment:
         for a in attachment:
-            pdf = base64.b64encode(a)
-            attachment = Attachment()
+            base64_encoded_data = base64.b64encode(a)
+            pdf = base64_encoded_data.decode('utf-8')
+            attachment = Attachment(pdf)
             attachment.type = "application/pdf"
             attachment.filename = "barcode.pdf"
             attachment.disposition = "attachment"

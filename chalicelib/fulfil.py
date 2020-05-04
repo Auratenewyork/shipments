@@ -1,11 +1,10 @@
-import tempfile
+import pdfkit
 from datetime import date, timedelta
 import json
 import os
 
 from fulfil_client import Client
 import requests
-from xhtml2pdf import pisa
 from jinja2 import Template
 
 from chalicelib import (
@@ -540,6 +539,7 @@ def get_contact_from_supplier_shipment(ss):
     cm = client.model('party.address')
     return cm.get(int(contact))
 
+
 def get_po_from_shipment(po_id):
     pp = client.model('purchase.purchase')
     return pp.get(int(po_id))
@@ -549,14 +549,22 @@ def get_line_from_po(line_id):
     pl = client.model('purchase.line')
     return pl.get(int(line_id))
 
-def create_pdf(data, template):
-    template = Template(template)
-    file = template.render(barcode=data)
-    tmp = tempfile.TemporaryFile()
-    pisa.CreatePDF(
-        src=file,  # HTML to convert
-        dest=tmp)
-    return tmp
+
+def create_pdf(data, template, binary_path):
+    template_rendered = Template(template)
+    configs = {
+        'barcode_height': 1.0,
+        'barcode_width': 2.0,
+        'barcode_dimension_uom': 'inch',
+        'barcode_dpi': 300
+    }
+    file = template_rendered.render(barcodes=data, **configs)
+    config = pdfkit.configuration(wkhtmltopdf=binary_path)
+    pdf_string = pdfkit.from_string(file, output_path=False, configuration=config,
+                                    options={'debug-javascript': '', 'javascript-delay': 2000})
+
+    return pdf_string
+
 
 def get_waiting_customer_shipments(offset, chunk_size):
     url = f'{get_fulfil_model_url("stock.shipment.out")}/search_read'
@@ -652,4 +660,3 @@ def create_customer_shipment(number, delivery_address, customer, products, **kwa
         return json.loads(response.text)[0]
 
     return None
-
