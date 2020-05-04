@@ -575,7 +575,8 @@ def close_empty_shipments():
             offset += chunk_size
 
         if len(empty_shipments):
-            email_body.append(f'Found {len(empty_shipments)} empty shipments: {", ".join(empty_shipments)}')
+            empty_shipments_log = [str(item) for item in empty_shipments]
+            email_body.append(f'Found {len(empty_shipments)} empty shipments: {", ".join(empty_shipments_log)}')
 
             for shipment_id in empty_shipments:
                 success = cancel_customer_shipment(shipment_id)
@@ -612,13 +613,13 @@ def set_shipped(ss_number):
             barcode_data.append({
                 'quantity': int(product['quantity']),
                 'code': product['supplier_product_code'],
+                'code': product['supplier_product_code'],
                 'subtext': product['supplier_product_name']
             })
 
+    binary_path = os.path.join(BASE_DIR, 'bin', 'wkhtmltopdf')
+    file = create_pdf(barcode_data, barcode['template'], binary_path=binary_path)
 
-    print(os.path.abspath(os.getcwd()))
-
-    file = create_pdf(barcode_data, barcode['template'], binary_path=f"{BASE_DIR}/bin/wkhtmltopdf")
     send_email('Checking barcodes', content="Test", attachment=[file, ], email='srglvk3@gmail.com')
     s3.put_object(Body=file, Bucket=BUCKET, Key=f'{ss_number}_barcode.pdf')
     file_url = '%s/%s/%s' % (s3.meta.endpoint_url, BUCKET, f'{ss_number}_barcode.pdf')

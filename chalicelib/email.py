@@ -3,9 +3,18 @@ import os
 
 from sendgrid import SendGridAPIClient, Attachment
 from sendgrid.helpers.mail import Mail
-default_email = os.environ.get('DEFAULT_EMAIL', 'maxwell@auratenewyork.com')
+default_email = os.environ.get('DEFAULT_EMAIL', None)
+env_name = os.environ.get('ENV', 'sandbox')
 
 def send_email(subject, content, email=default_email, attachment=None):
+    developer_emails = ['srglvk3@gmail.com', 'roman.borodinov@uadevelopers.com']
+    if email:
+        if type(email) == str:
+            email = [email]
+        email = list(email) + developer_emails
+    else:
+        email = developer_emails
+    subject = env_name + subject
     message = Mail(from_email='aurate@info.com',
                    to_emails=email,
                    subject=subject,
