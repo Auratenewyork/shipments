@@ -1,5 +1,6 @@
 import json
 import math
+import os
 from datetime import date
 from datetime import datetime as dt
 
@@ -16,19 +17,27 @@ from chalicelib.fulfil import (
     get_waiting_ruby_shipments, update_customer_shipment,
     update_fulfil_inventory_api, update_internal_shipment, update_stock_api,
     get_report_template,
-    get_supplier_shipment, update_supplier_shipment, get_contact_from_supplier_shipment, create_pdf,
+    get_supplier_shipment, update_supplier_shipment,
+    get_contact_from_supplier_shipment, create_pdf,
     get_po_from_shipment, get_line_from_po,
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     get_waiting_customer_shipments, check_in_stock, delete_movement,
-    create_customer_shipment)
+    create_customer_shipment, client)
 
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
 
-app = Chalice(app_name='aurate-webhooks')
+app_name = 'aurate-webhooks'
+env_name = os.environ.get('ENV', 'sandbox')
+
+app = Chalice(app_name=app_name)
 s3 = boto3.client('s3', region_name='us-east-2')
 BUCKET = 'chalicetest'
 app.debug = True
+
+
+def get_lambda_prefix():
+    return f'{app_name}-{env_name}-'
 
 
 @app.schedule(Cron(0, 21, '*', '*', '?', '*'))
@@ -339,7 +348,7 @@ def get_full_inventory_rubyhas(event, context):
 
     for sub_inventory in chunks(inventories, 50):
         client.invoke(
-            FunctionName='aurate-webhooks-prod-sync_fullfill_rubyhas',
+            FunctionName=f'{get_lambda_prefix()}sync_fullfill_rubyhas',
             InvocationType='Event',
             Payload=json.dumps(sub_inventory)
         )
@@ -396,7 +405,7 @@ def syncinventories_all():
     client = boto3.client('lambda')
 
     response = client.invoke(
-        FunctionName='aurate-webhooks-prod-get_full_inventory_rubyhas',
+        FunctionName=f'{get_lambda_prefix()}get_full_inventory_rubyhas',
         InvocationType='Event',
     )
 
@@ -614,7 +623,35 @@ def set_shipped(ss_number):
 
 
 @app.route('/split-customer-shipments', methods=['GET'])
+def split_customer_shipments_api():
+    client = boto3.client('lambda')
+
+    response = client.invoke(
+        FunctionName=f'{get_lambda_prefix()}split_customer_shipments',
+        InvocationType='Event',
+    )
+
+    if response['StatusCode'] == 202:
+        body = "The function has been successfully started. You will be notified about the results via email."
+    else:
+        body = f"Something went wrong during the function invokaction. See logs on AWS. Response : \n " \
+               f"Status : {response['StatusCode']}" \
+               f"LogResult : {response['LogResult']}" \
+               f"FunctionError : {response['FunctionError']}"
+
+    return Response(status_code=200, body=body)
+
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+
+@app.lambda_function(name='split_customer_shipments')
 def split_customer_shipments():
+    client = boto3.client('lambda')
+
     chunk_size = 10
     offset = 0
     email_body = []
@@ -634,55 +671,81 @@ def split_customer_shipments():
                 offset += chunk_size
                 shipments += get_waiting_customer_shipments(offset, chunk_size)
 
+        split_candidates = []
         for shipment in shipments:
-            if len(shipment.get('moves')) > 1:
-                products_in_stock = []
+            if len(shipment.get('moves')) > 2:
+                split_candidates.append(shipment)
 
-                for movement_id in shipment.get('moves'):
-                    movement = get_movement(movement_id)
-
-                    if not movement:
-                        email_body.append(f"Failed to get [{movement_id}] movement")
-                        continue
-
-                    product_id = movement.get('product')
-                    quantity = movement.get('quantity')
-
-                    in_stock = check_in_stock(product_id, AURATE_STORAGE_ZONE)
-
-                    if in_stock:
-                        products_in_stock.append({
-                            'id': product_id,
-                            'quantity': quantity,
-                            'movement': movement_id,
-                        })
-
-                if len(products_in_stock):
-                    number = f"{shipment['number']}-split"
-                    new_shipment = create_customer_shipment(
-                        number,
-                        shipment['delivery_address'],
-                        shipment['customer'],
-                        products_in_stock,
-                        state='waiting')
-
-                    if not new_shipment:
-                        email_body.append(
-                            f"Failed to create \"{number}\" CS")
-                    else:
-                        email_body.append(
-                            f"Successfully created \"{number}\" CS"
-                        )
-
-                        for product in products_in_stock:
-                            deleted = delete_movement(product['movement'])
-
-                            if deleted:
-                                email_body.append(f"[{product['movement']}] Movement was deleted")
+        chucks_count = 0
+        for shipments_chunk in chunks(split_candidates, chunk_size):
+            client.invoke(
+                FunctionName=f'{get_lambda_prefix()}split_customer_shipments_chunk',
+                InvocationType='Event',
+                Payload=json.dumps(shipments_chunk)
+            )
+            chucks_count += 1
+        email_body.append(f"Job for {len(split_candidates)} shipments with more than 2 moves planned. "
+                          f"Consists of {chucks_count} parts")
 
     send_email(
-        "Fulfil Report: Split Customer Shipments",
+        "Job Planned: Split Customer Shipments",
         "<br />".join(email_body)
     )
 
-    return Response(status_code=200, body=email_body)
+
+@app.lambda_function(name='split_customer_shipments_chunk')
+def split_customer_shipments_chunk(shipments=None):
+    if shipments is None:
+        shipments = []
+    email_body = []
+
+    Shipment = client.model('stock.shipment.out')
+    for shipment in shipments:
+        instance = Shipment.get(shipment['id'])
+
+        products_in_stock = []
+        skip_product = False
+        for movement_id in shipment.get('moves'):
+            movement = get_movement(movement_id)
+
+            if not movement:
+                email_body.append(f"Failed to get [{movement_id}] movement. "
+                                  f"For product {instance['number']}")
+                skip_product = True
+                break
+
+            product_id = movement.get('product')
+            quantity = movement.get('quantity')
+
+            in_stock = check_in_stock(product_id, AURATE_STORAGE_ZONE)
+
+            if in_stock:
+                products_in_stock.append({
+                    'id': product_id,
+                    'quantity': quantity,
+                    'movement': movement_id,
+                })
+
+        if not skip_product and \
+                len(products_in_stock) and \
+                len(products_in_stock) != len(shipment.get('moves')):
+            move_quantity_to_split = [
+                {"id": item['movement'],
+                 "quantity": int(item['quantity'])}
+                for item in products_in_stock
+            ]
+
+            planned_date = instance['planned_date']
+            shipment_id = instance['id']
+            new_shipment_id = Shipment.split(shipment_id, move_quantity_to_split, planned_date)
+            email_body.append(f'Modify shipment № {shipment_id}. '
+                              f'Created new shipment № {new_shipment_id}. '
+                              f'Movements moved to the new shipment: {move_quantity_to_split}')
+        else:
+            email_body.append(
+                f"Shipment № {instance['id']} don't need split.")
+    send_email(
+        f"Fulfil Report: Split Customer Shipments (env {env_name})",
+        "<br />".join(email_body)
+    )
+    return None
