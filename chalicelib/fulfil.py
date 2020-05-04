@@ -658,5 +658,5 @@ def create_customer_shipment(number, delivery_address, customer, products, **kwa
 
     if response.status_code == 201:
         return json.loads(response.text)[0]
-
+    print(response.status_code, response.reason)
     return None
