@@ -615,7 +615,10 @@ def set_shipped(ss_number):
                 'subtext': product['supplier_product_name']
             })
 
-    file = create_pdf(barcode_data, barcode['template'], binary_path=f"{os['LAMBDA_TASK_ROOT']}/bin/wkhtmltopdf")
+
+    print(os.path.abspath(os.getcwd()))
+
+    file = create_pdf(barcode_data, barcode['template'], binary_path=f"{BASE_DIR}/bin/wkhtmltopdf")
     send_email('Checking barcodes', content="Test", attachment=[file, ], email='srglvk3@gmail.com')
     s3.put_object(Body=file, Bucket=BUCKET, Key=f'{ss_number}_barcode.pdf')
     file_url = '%s/%s/%s' % (s3.meta.endpoint_url, BUCKET, f'{ss_number}_barcode.pdf')
