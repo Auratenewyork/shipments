@@ -1,10 +1,12 @@
 import base64
 import os
 
-from sendgrid import SendGridAPIClient, Attachment
-from sendgrid.helpers.mail import Mail
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition, ContentId
+
 default_email = os.environ.get('DEFAULT_EMAIL', None)
 env_name = os.environ.get('ENV', 'sandbox')
+
 
 def send_email(subject, content, email=default_email, attachment=None):
     developer_emails = ['srglvk3@gmail.com', 'roman.borodinov@uadevelopers.com']
@@ -22,11 +24,13 @@ def send_email(subject, content, email=default_email, attachment=None):
 
     if attachment:
         for a in attachment:
+            encoded = base64.b64encode(a).decode()
             attachment = Attachment()
-            attachment.type = "application/pdf"
-            attachment.filename = "barcode.pdf"
-            attachment.disposition = "attachment"
-            message.add_attachment(a)
+            attachment.file_content = FileContent(encoded)
+            attachment.file_type = FileType('application/pdf')
+            attachment.file_name = FileName('barcode.pdf')
+            attachment.disposition = Disposition('attachment')
+            message.attachment = attachment
 
     try:
         sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))

@@ -613,7 +613,6 @@ def set_shipped(ss_number):
             barcode_data.append({
                 'quantity': int(product['quantity']),
                 'code': product['supplier_product_code'],
-                'code': product['supplier_product_code'],
                 'subtext': product['supplier_product_name']
             })
 

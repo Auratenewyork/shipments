@@ -1,0 +1,87 @@
+{
+  "resources": [
+    {
+      "name": "get_full_inventory_rubyhas",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-sandbox-get_full_inventory_rubyhas"
+    },
+    {
+      "name": "sync_fullfill_rubyhas",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-sandbox-sync_fullfill_rubyhas"
+    },
+    {
+      "name": "split_customer_shipments",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-sandbox-split_customer_shipments"
+    },
+    {
+      "name": "split_customer_shipments_chunk",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-sandbox-split_customer_shipments_chunk"
+    },
+    {
+      "name": "create_pos",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-sandbox-create_pos"
+    },
+    {
+      "name": "create_pos-event",
+      "resource_type": "cloudwatch_event",
+      "rule_name": "aurate-webhooks-sandbox-create_pos-event"
+    },
+    {
+      "name": "engravings_orders",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-sandbox-engravings_orders"
+    },
+    {
+      "name": "engravings_orders-event",
+      "resource_type": "cloudwatch_event",
+      "rule_name": "aurate-webhooks-sandbox-engravings_orders-event"
+    },
+    {
+      "name": "find_late_orders_view",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-sandbox-find_late_orders_view"
+    },
+    {
+      "name": "find_late_orders_view-event",
+      "resource_type": "cloudwatch_event",
+      "rule_name": "aurate-webhooks-sandbox-find_late_orders_view-event"
+    },
+    {
+      "name": "handle_global_orders",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-sandbox-handle_global_orders"
+    },
+    {
+      "name": "handle_global_orders-event",
+      "resource_type": "cloudwatch_event",
+      "rule_name": "aurate-webhooks-sandbox-handle_global_orders-event"
+    },
+    {
+      "name": "syncinventories_event",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-sandbox-syncinventories_event"
+    },
+    {
+      "name": "syncinventories_event-event",
+      "resource_type": "cloudwatch_event",
+      "rule_name": "aurate-webhooks-sandbox-syncinventories_event-event"
+    },
+    {
+      "name": "api_handler",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-2:016009606683:function:aurate-webhooks-sandbox"
+    },
+    {
+      "name": "rest_api",
+      "resource_type": "rest_api",
+      "rest_api_id": "k92b6nbu5j",
+      "rest_api_url": "https://k92b6nbu5j.execute-api.us-east-2.amazonaws.com/sandbox/"
+    }
+  ],
+  "schema_version": "2.0",
+  "backend": "api"
+}
