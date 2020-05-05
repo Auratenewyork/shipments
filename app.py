@@ -619,7 +619,7 @@ def set_shipped(ss_number):
     binary_path = os.path.join(BASE_DIR, 'bin', 'wkhtmltopdf')
     file = create_pdf(barcode_data, barcode['template'], binary_path=binary_path)
 
-    send_email('Checking barcodes', content="Test", attachment=[file, ], email='srglvk3@gmail.com')
+    send_email('Checking barcodes', content="Test", attachment=file, email='srglvk3@gmail.com')
     s3.put_object(Body=file, Bucket=BUCKET, Key=f'{ss_number}_barcode.pdf')
     file_url = '%s/%s/%s' % (s3.meta.endpoint_url, BUCKET, f'{ss_number}_barcode.pdf')
     return Response(status_code=200, body={'file': file_url})

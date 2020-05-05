@@ -16,26 +16,26 @@ def send_email(subject, content, email=default_email, attachment=None):
         email = list(email) + developer_emails
     else:
         email = developer_emails
-    subject = env_name + subject
+    email = list(set(email))
+    subject = env_name + '. ' + subject
     message = Mail(from_email='aurate@info.com',
                    to_emails=email,
                    subject=subject,
                    html_content=content)
-
     if attachment:
-        for a in attachment:
-            encoded = base64.b64encode(a).decode()
-            attachment = Attachment()
-            attachment.file_content = FileContent(encoded)
-            attachment.file_type = FileType('application/pdf')
-            attachment.file_name = FileName('barcode.pdf')
-            attachment.disposition = Disposition('attachment')
-            message.attachment = attachment
+        encoded = base64.b64encode(attachment).decode()
+        attachment = Attachment()
+        attachment.file_content = FileContent(encoded)
+        attachment.file_type = FileType('application/pdf')
+        attachment.file_name = FileName('barcode.pdf')
+        attachment.disposition = Disposition('attachment')
+        message.attachment = attachment
 
     try:
         sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
         sg.send(message)
     except Exception as e:
         print(str(e))
-        print(subject)
-        print(content)
+        print(str(e.body))
+        print('Subject  ', subject)
+        print('CONTENT  ', content)
