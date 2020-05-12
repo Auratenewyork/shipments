@@ -25,7 +25,7 @@ def api_call(url, method='post', payload=None):
                         os.environ.get('RUBYHAS_PASSWORD')))
     kwargs['url'] = url
     if payload and method == 'post':
-        kwargs['payload'] = payload
+        kwargs['data'] = json.dumps(payload)
 
     if payload and method == 'get':
         kwargs['url'] += f'?{urlencode(payload)}'
