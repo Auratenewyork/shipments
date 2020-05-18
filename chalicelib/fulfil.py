@@ -1,15 +1,15 @@
-import pdfkit
-from datetime import date, timedelta
 import json
 import os
+from datetime import date, timedelta
 
-from fulfil_client import Client
+import pdfkit
 import requests
+from fulfil_client import Client
 from jinja2 import Template
 
 from chalicelib import (
     AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
-    RUBYHAS_WAREHOUSE, AURATE_OUTPUT_ZONE)
+    RUBYHAS_WAREHOUSE, AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE)
 from chalicelib.email import send_email
 
 headers = {
@@ -593,7 +593,7 @@ def get_waiting_customer_shipments(offset, chunk_size):
     return response.json()
 
 
-def check_in_stock(product_id, location_id):
+def check_in_stock(product_id, location_id, quantity):
     chunk_size = 500
     url = f'{get_fulfil_model_url("stock.location")}?fields=id,quantity_on_hand&context={{"product": {product_id}}}&per_page={chunk_size}'
 
@@ -604,12 +604,9 @@ def check_in_stock(product_id, location_id):
         return False
 
     locations = response.json()
-
-    if location_id in [o['id'] for o in locations]:
-        location = [o for o in locations if o['id'] == location_id][0]
-
-        return location.get('quantity_on_hand', 0) > 0
-
+    for item in locations:
+        if item['id'] == location_id:
+            return item.get('quantity_on_hand', 0) >= quantity
     return False
 
 
@@ -660,3 +657,117 @@ def create_customer_shipment(number, delivery_address, customer, products, **kwa
         return json.loads(response.text)[0]
     print(response.status_code, response.reason)
     return None
+
+
+def join_shipments(candidates):
+
+    def result_message(error_text='', skip_text=''):
+        # creating summing message
+        candidate_ids = [item['id'] for item in candidates]
+        message = f'Join of {candidate_ids} '
+        if error_text:
+            return message + f'failed with message: {error_text}. \n'
+        if skip_text:
+            return message + f'{skip_text}. \n'
+        else:
+            return message + ' got SUCCESS.\n'
+
+    def movements_in_stock(movements):
+        # check that all movements are on stock
+        movements = list(set(movements))
+        Move = client.model('stock.move')
+        requested_movements = list(Move.search_read_all(
+            domain=['AND', [("id", "in", movements), ]],
+            order=None,
+            fields=['product', 'quantity']
+        ))
+        if len(requested_movements) != len(movements):
+            return False
+        result = True
+        for movement in requested_movements:
+            in_stock = check_in_stock(movement.get('product'),
+                                      AURATE_STORAGE_ZONE,
+                                      movement.get('quantity'))
+            result = result and in_stock
+        return result
+
+
+    if len(candidates) > 1:
+        # filtering that all moves from merge candidates are on the store
+        checked_candidates = []
+        for item in candidates:
+            if movements_in_stock(item['moves']):
+                checked_candidates.append(item)
+
+        if len(checked_candidates) <= 1:
+            print(result_message(
+                skip_text='Have no sense (products are not on stock)')
+
+            )
+            return None
+
+        # end filtering
+
+        create_payload = {
+            "method": "wizard.stock.shipment.out.merge.create",
+            "params": [{}]}
+        response = requests.post(url=client.host, headers=headers,
+                                 json=create_payload)
+        if response.status_code != 200 or 'error' in response.json:
+            return result_message(response.json['error'])
+        join_id = response.json()['result'][0]
+        execute_payload = {
+            "method": "wizard.stock.shipment.out.merge.execute",
+            "params": [join_id, {}, "merge",
+                       {"action_id": 346,
+                        "active_model": "stock.shipment.out",
+                        "active_id": checked_candidates[0]['id'],
+                        "active_ids": [item['id'] for item in
+                                       checked_candidates]}]}
+        response = requests.post(url=client.host, headers=headers,
+                                 json=execute_payload)
+
+        # remove current stock.shipment.out.merge anyway
+        delete_payload = {
+            "method": "wizard.stock.shipment.out.merge.delete",
+            "params": [join_id, {}]}
+        requests.post(url=client.host, headers=headers,
+                      json=delete_payload)
+
+        if response.status_code != 200 or 'error' in response.json:
+            return result_message(response.json['error'])
+
+        return result_message()
+
+
+def merge_shipments():
+
+    def compare(l, r, fields):
+        res = True
+        for f in fields:
+            res = res and l[f] == r[f]
+        return res
+
+    Model = client.model('stock.shipment.out')
+    fields = ['customer', 'delivery_address', 'state']
+    res = Model.search_read_all(
+        domain=['AND', [("state", "in", ["waiting", "draft"]),
+                        ["planned_date", ">",
+                         {"__class__": "date", "year": 2020, "month": 3,
+                          "day": 1}]]],
+        order=[["delivery_address", "ASC"], ["state", "ASC"]],
+        fields=fields+['moves'])
+    join_candidates = []
+    last = {}
+    join_process_context = []
+    for r in res:
+        if last and not (compare(last, r, fields)):
+            join_process_context.append(join_candidates)
+            join_candidates = []
+        last = r
+        join_candidates.append(r)
+    join_process_context.append(join_candidates)
+
+    join_process_context = [item for item in join_process_context
+                            if len(item) > 1]
+    return join_process_context
