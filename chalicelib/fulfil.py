@@ -7,6 +7,7 @@ from fulfil_client import Client
 import requests
 from jinja2 import Template
 
+from app import BASE_DIR
 from chalicelib import (
     AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
     RUBYHAS_WAREHOUSE, AURATE_OUTPUT_ZONE)
@@ -343,7 +344,7 @@ def find_late_orders():
         """
 
         rows = []
-
+        emails = []
         for order in orders:
             row = """
                 <tr>
@@ -354,12 +355,17 @@ def find_late_orders():
             """.format(order['reference'], order['party.name'],
                        order['party.email'])
             rows.append(row)
+            emails.append(order['party.email'])
 
         data = "".join([row for row in rows])
 
         table = content.format(data)
 
         send_email(f"Fulfil: found {len(orders)} late orders", table)
+
+        template = open(f'{BASE_DIR}/chalicelib/template/email.html', 'r').read()
+        for email in tuple(emails):
+            send_email("Late order!", template, email)
 
     else:
         send_email("Fulfil: found 0 late orders", "Found 0 late orders")
