@@ -17,7 +17,6 @@ def send_email(subject, content, email=default_email, attachment=None):
     else:
         email = developer_emails
     email = list(set(email))
-    subject = env_name + '. ' + subject
     message = Mail(from_email='aurate@info.com',
                    to_emails=email,
                    subject=subject,
