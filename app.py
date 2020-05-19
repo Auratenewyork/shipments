@@ -21,8 +21,7 @@ from chalicelib.fulfil import (
     get_contact_from_supplier_shipment, create_pdf,
     get_po_from_shipment, get_line_from_po,
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
-    get_waiting_customer_shipments, check_in_stock, delete_movement,
-    create_customer_shipment, client)
+    get_waiting_customer_shipments, check_in_stock, client, join_shipments)
 
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
@@ -625,6 +624,11 @@ def set_shipped(ss_number):
     return Response(status_code=200, body={'file': file_url})
 
 
+@app.schedule(Cron(59, 9, '?', '*', '*', '*'))
+def split_customer_shipments_job(event):
+    split_customer_shipments_api()
+
+
 @app.route('/split-customer-shipments', methods=['GET'])
 def split_customer_shipments_api():
     client = boto3.client('lambda')
@@ -643,12 +647,6 @@ def split_customer_shipments_api():
                f"FunctionError : {response['FunctionError']}"
 
     return Response(status_code=200, body=body)
-
-
-def chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
 
 
 @app.lambda_function(name='split_customer_shipments')
@@ -718,7 +716,7 @@ def split_customer_shipments_chunk(event, context):
         product_id = movement.get('product')
         quantity = movement.get('quantity')
 
-        in_stock = check_in_stock(product_id, AURATE_STORAGE_ZONE)
+        in_stock = check_in_stock(product_id, AURATE_STORAGE_ZONE, quantity)
 
         if in_stock:
             products_in_stock.append({
@@ -758,6 +756,55 @@ def split_customer_shipments_chunk(event, context):
             FunctionName=f'{get_lambda_prefix()}split_customer_shipments_chunk',
             InvocationType='Event',
             Payload=json.dumps({'shipments': shipments,
+                                'email_body': email_body})
+        )
+    return None
+
+
+@app.schedule(Cron(59, 10, '?', '*', '*', '*'))
+def merge_shipments_event(event):
+    merge_shipments()
+
+
+@app.route('/merge_shipments', methods=['GET'])
+def merge_shipments():
+    from chalicelib.fulfil import merge_shipments
+    candidates = merge_shipments()
+
+    boto_client = boto3.client('lambda')
+    boto_client.invoke(
+        FunctionName=f'{get_lambda_prefix()}merge_shipments_chunk',
+        InvocationType='Event',
+        Payload=json.dumps({'candidates': candidates,
+                            'email_body': []})
+    )
+    return f"Planned job from [{len(candidates)}] potential candidates"
+
+
+@app.lambda_function(name='merge_shipments_chunk')
+def merge_shipments_chunk(event, context):
+    candidates = event['candidates']
+    email_body = event['email_body']
+
+    current = candidates.pop()
+    message = join_shipments(current)
+    if message:
+        email_body.append(message)
+
+    if len(email_body) == 20 or not candidates:
+        email_body.append(f'{len(candidates)} records in process')
+        send_email(
+            f"Fulfil Report: Merge Customer Shipments (env {env_name})",
+            "<br />".join(email_body)
+        )
+        email_body = []
+
+    if candidates:
+        boto_client = boto3.client('lambda')
+        boto_client.invoke(
+            FunctionName=f'{get_lambda_prefix()}merge_shipments_chunk',
+            InvocationType='Event',
+            Payload=json.dumps({'candidates': candidates,
                                 'email_body': email_body})
         )
     return None
