@@ -7,7 +7,6 @@ import requests
 from fulfil_client import Client
 from jinja2 import Template
 
-from app import BASE_DIR
 from chalicelib import (
     AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
     RUBYHAS_WAREHOUSE, AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE)
@@ -283,6 +282,7 @@ def update_stock_api(params):
 
 
 def find_late_orders():
+    from app import BASE_DIR
     url = f'{FULFIL_API_URL}/model/stock.shipment.out/search_read'
     current_date = date.today()
     in_three_days = current_date + timedelta(days=3)
