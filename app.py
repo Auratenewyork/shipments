@@ -21,7 +21,8 @@ from chalicelib.fulfil import (
     get_contact_from_supplier_shipment, create_pdf,
     get_po_from_shipment, get_line_from_po,
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
-    get_waiting_customer_shipments, check_in_stock, client, join_shipments)
+    get_waiting_customer_shipments, check_in_stock, client, join_shipments,
+    merge_shipments)
 
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
@@ -763,12 +764,11 @@ def split_customer_shipments_chunk(event, context):
 
 @app.schedule(Cron(59, 10, '?', '*', '*', '*'))
 def merge_shipments_event(event):
-    merge_shipments()
+    merge_shipments_api()
 
 
 @app.route('/merge_shipments', methods=['GET'])
-def merge_shipments():
-    from chalicelib.fulfil import merge_shipments
+def merge_shipments_api():
     candidates = merge_shipments()
 
     boto_client = boto3.client('lambda')
@@ -778,7 +778,7 @@ def merge_shipments():
         Payload=json.dumps({'candidates': candidates,
                             'email_body': []})
     )
-    return f"Planned job from [{len(candidates)}] potential candidates"
+    return f"Planned job from {len(candidates)} potential candidates"
 
 
 @app.lambda_function(name='merge_shipments_chunk')
@@ -787,7 +787,11 @@ def merge_shipments_chunk(event, context):
     email_body = event['email_body']
 
     current = candidates.pop()
-    message = join_shipments(current)
+    try:
+        message = join_shipments(current)
+    except Exception as e:
+        message = str(Exception)
+
     if message:
         email_body.append(message)
 
@@ -795,7 +799,7 @@ def merge_shipments_chunk(event, context):
         email_body.append(f'{len(candidates)} records in process')
         send_email(
             f"Fulfil Report: Merge Customer Shipments (env {env_name})",
-            "<br />".join(email_body)
+            "<br />".join(email_body), dev_recipients=True,
         )
         email_body = []
 

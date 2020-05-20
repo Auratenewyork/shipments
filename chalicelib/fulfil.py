@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import date, timedelta
-
+from retrying import retry
 import pdfkit
 import requests
 from fulfil_client import Client
@@ -665,6 +665,7 @@ def create_customer_shipment(number, delivery_address, customer, products, **kwa
     return None
 
 
+@retry(stop_max_attempt_number=2, wait_fixed=50)
 def join_shipments(candidates):
 
     def result_message(error_text='', skip_text=''):
