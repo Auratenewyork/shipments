@@ -3,6 +3,7 @@ import math
 import os
 from datetime import date
 from datetime import datetime as dt
+from functools import lru_cache
 
 import boto3
 from chalice import Chalice, Cron, Response
@@ -39,6 +40,19 @@ app.debug = True
 
 def get_lambda_prefix():
     return f'{app_name}-{env_name}-'
+
+
+@lru_cache(maxsize=12)
+def get_lambda_name(name, boto_client=None):
+    stack_name = "aurate-stack-" + env_name + '-'
+    converted_name = ''.join(word.title() for word in name.split('_'))
+    lambda_name = stack_name + converted_name
+    if not boto_client:
+        boto_client = boto3.client('lambda')
+    lambdas = boto_client.list_functions()
+    for fn in lambdas['Functions']:
+        if fn['FunctionName'].startswith(lambda_name):
+            return fn['FunctionName']
 
 
 @app.schedule(Cron(0, 21, '*', '*', '?', '*'))
@@ -349,7 +363,7 @@ def get_full_inventory_rubyhas(event, context):
 
     for sub_inventory in chunks(inventories, 50):
         client.invoke(
-            FunctionName=f'{get_lambda_prefix()}sync_fullfill_rubyhas',
+            FunctionName=get_lambda_name('sync_fullfill_rubyhas'),
             InvocationType='Event',
             Payload=json.dumps(sub_inventory)
         )
@@ -406,7 +420,7 @@ def syncinventories_all():
     client = boto3.client('lambda')
 
     response = client.invoke(
-        FunctionName=f'{get_lambda_prefix()}get_full_inventory_rubyhas',
+        FunctionName=get_lambda_name('get_full_inventory_rubyhas'),
         InvocationType='Event',
     )
 
@@ -481,7 +495,7 @@ def invoke_waiting_ruby():
     body = None
 
     response = client.invoke(
-        FunctionName='reassign_waiting_ruby_prod',
+        FunctionName=get_lambda_name('reassign_waiting_ruby_prod'),
         InvocationType='Event',
     )
 
@@ -626,7 +640,7 @@ def set_shipped(ss_number):
 
 
 @app.schedule(Cron(59, 9, '?', '*', '*', '*'))
-def split_customer_shipments_job(event):
+def split_shipments_job(event):
     split_customer_shipments_api()
 
 
@@ -635,7 +649,7 @@ def split_customer_shipments_api():
     client = boto3.client('lambda')
 
     response = client.invoke(
-        FunctionName=f'{get_lambda_prefix()}split_customer_shipments',
+        FunctionName=get_lambda_name('split_customer_shipments'),
         InvocationType='Event',
     )
 
@@ -679,7 +693,7 @@ def split_customer_shipments(event, context):
                 split_candidates.append(shipment)
 
         client.invoke(
-            FunctionName=f'{get_lambda_prefix()}split_customer_shipments_chunk',
+            FunctionName=get_lambda_name('split_customer_shipments_chunk'),
             InvocationType='Event',
             Payload=json.dumps({'shipments': split_candidates,
                                 'email_body': []})
@@ -754,7 +768,7 @@ def split_customer_shipments_chunk(event, context):
     if shipments:
         boto_client = boto3.client('lambda')
         boto_client.invoke(
-            FunctionName=f'{get_lambda_prefix()}split_customer_shipments_chunk',
+            FunctionName=get_lambda_name('split_customer_shipments_chunk'),
             InvocationType='Event',
             Payload=json.dumps({'shipments': shipments,
                                 'email_body': email_body})
@@ -773,7 +787,7 @@ def merge_shipments_api():
 
     boto_client = boto3.client('lambda')
     boto_client.invoke(
-        FunctionName=f'{get_lambda_prefix()}merge_shipments_chunk',
+        FunctionName=get_lambda_name('merge_shipments_chunk'),
         InvocationType='Event',
         Payload=json.dumps({'candidates': candidates,
                             'email_body': []})
@@ -806,7 +820,7 @@ def merge_shipments_chunk(event, context):
     if candidates:
         boto_client = boto3.client('lambda')
         boto_client.invoke(
-            FunctionName=f'{get_lambda_prefix()}merge_shipments_chunk',
+            FunctionName=get_lambda_name('merge_shipments_chunk'),
             InvocationType='Event',
             Payload=json.dumps({'candidates': candidates,
                                 'email_body': email_body})

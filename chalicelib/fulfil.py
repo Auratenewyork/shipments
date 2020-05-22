@@ -365,7 +365,8 @@ def find_late_orders():
 
         template = open(f'{BASE_DIR}/chalicelib/template/email.html', 'r').read()
         for email in set(emails):
-            send_email("Late order!", template, email)
+            pass  # terminated
+            # send_email("Late order!", template, email)
 
     else:
         send_email("Fulfil: found 0 late orders", "Found 0 late orders")
