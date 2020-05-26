@@ -9,7 +9,8 @@ import boto3
 from chalice import Chalice, Cron, Response
 
 from chalicelib import (
-    AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION, RUBYHAS_WAREHOUSE)
+    AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
+    RUBYHAS_WAREHOUSE, easypost)
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
     change_movement_locations, create_internal_shipment, find_late_orders,
@@ -824,5 +825,53 @@ def merge_shipments_chunk(event, context):
             InvocationType='Event',
             Payload=json.dumps({'candidates': candidates,
                                 'email_body': email_body})
+        )
+    return None
+
+
+@app.schedule(Cron(0, 12, '?', '*', '*', '*'))
+def easypost_in_transit_event(event):
+    easypost_in_transit_api()
+
+
+@app.route('/easypost_in_transit', methods=['GET'])
+def easypost_in_transit_api():
+
+    params = easypost.get_transit_shipment_params()
+    boto_client = boto3.client('lambda')
+    boto_client.invoke(
+        FunctionName=get_lambda_name('easypost_in_transit_chuck'),
+        InvocationType='Event',
+        Payload=json.dumps({'params': params,
+                            'email_body': []})
+    )
+    return f"Planned job to pull late 'in_transit' shipments from easypost. " \
+           f"In messages from {params['start_datetime']} " \
+           f"to {params['end_datetime']}"
+
+
+@app.lambda_function(name='easypost_in_transit_chuck')
+def easypost_in_transit_chuck(event, context):
+    try:
+        result = easypost.pull_in_transit_shipments(
+            event['params'],
+        )
+    except Exception as e:
+        result = dict(next_page=False, params={},
+                      messages=[str(e)])
+    email_body = event['email_body'] + result['messages']
+
+    if result['next_page']:
+        boto_client = boto3.client('lambda')
+        boto_client.invoke(
+            FunctionName=get_lambda_name('easypost_in_transit_chuck'),
+            InvocationType='Event',
+            Payload=json.dumps({'params': result['params'],
+                                'email_body': email_body})
+        )
+    else:
+        send_email(
+            f"Easypost Report: Pull late in_transit shipments (env {env_name})",
+            "<br />".join(email_body), dev_recipients=True,
         )
     return None

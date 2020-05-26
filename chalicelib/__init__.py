@@ -9,3 +9,6 @@ AURATE_OUTPUT_ZONE = 2
 COMPANY = 1
 PRODUCTION = 9
 FULFIL_API_URL = os.environ.get('FULFIL_API_ENDPOINT')
+EASYPOST_API_KEY = os.environ.get('EASYPOST_API_KEY')
+EASYPOST_URL = 'https://api.easypost.com/v2/shipments'
+
