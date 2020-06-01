@@ -1,8 +1,7 @@
 import json
 import math
 import os
-from datetime import date
-from datetime import datetime as dt
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 
 import boto3
@@ -10,7 +9,7 @@ from chalice import Chalice, Cron, Response
 
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
-    RUBYHAS_WAREHOUSE, easypost)
+    RUBYHAS_WAREHOUSE, easypost, listDictsToHTMLTable)
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
     change_movement_locations, create_internal_shipment, find_late_orders,
@@ -24,7 +23,7 @@ from chalicelib.fulfil import (
     get_po_from_shipment, get_line_from_po,
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     get_waiting_customer_shipments, check_in_stock, client, join_shipments,
-    merge_shipments)
+    merge_shipments, pull_shipments_by_date)
 
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
@@ -406,7 +405,7 @@ def sync_fullfill_rubyhas(inventories):
         ])
 
     send_email(
-        f'Results for syncing inventories at {dt.today().strftime("%d/%m/%y")}',
+        f'Results for syncing inventories at {datetime.today().strftime("%d/%m/%y")}',
         '\r\n'.join(
             '{} : {}'.format(key, value) for key, value in data.items()))
 
@@ -472,7 +471,7 @@ def syncinventories_id(item_number):
 
     if 'quantity_on_hand' not in product:
         send_email(
-            f'Unabled to sync inventory for {item_number} at {dt.today().strftime("%d/%m/%y")}',
+            f'Unabled to sync inventory for {item_number} at {datetime.today().strftime("%d/%m/%y")}',
             'Server unabled to run query')
 
     fulfil_inventory = product['quantity_on_hand']
@@ -485,7 +484,7 @@ def syncinventories_id(item_number):
             update_stock_api(stock_inventory)
     else:
         send_email(
-            f'No need to sync for {item_number} at {dt.today().strftime("%d/%m/%y")}',
+            f'No need to sync for {item_number} at {datetime.today().strftime("%d/%m/%y")}',
             f'Stocks are match ( fulfil - {fulfil_inventory} | rubyhas - {inventory}'
         )
 
@@ -843,7 +842,7 @@ def easypost_in_transit_api():
         FunctionName=get_lambda_name('easypost_in_transit_chuck'),
         InvocationType='Event',
         Payload=json.dumps({'params': params,
-                            'email_body': []})
+                            'shipments': []})
     )
     return f"Planned job to pull late 'in_transit' shipments from easypost. " \
            f"In messages from {params['start_datetime']} " \
@@ -859,7 +858,7 @@ def easypost_in_transit_chuck(event, context):
     except Exception as e:
         result = dict(next_page=False, params={},
                       messages=[str(e)])
-    email_body = event['email_body'] + result['messages']
+    shipments = event['shipments'] + result['shipments']
 
     if result['next_page']:
         boto_client = boto3.client('lambda')
@@ -867,11 +866,47 @@ def easypost_in_transit_chuck(event, context):
             FunctionName=get_lambda_name('easypost_in_transit_chuck'),
             InvocationType='Event',
             Payload=json.dumps({'params': result['params'],
-                                'email_body': email_body})
+                                'shipments': shipments})
         )
     else:
         send_email(
             f"Easypost Report: Pull late in_transit shipments (env {env_name})",
-            "<br />".join(email_body), dev_recipients=True,
+            str(listDictsToHTMLTable(shipments)), dev_recipients=True,
         )
     return None
+
+
+@app.schedule(Cron(59, 11, '?', '*', '*', '*'))
+def pull_daily_shipments_event(event):
+    _datetime = datetime.utcnow()
+    result = pull_shipments_by_date(_datetime)
+    message = "Shipments by last 24 hours from " + \
+              _datetime.isoformat()[:-7] + "<br>"
+    message += str(listDictsToHTMLTable(result))
+    send_email(
+        f"Fulfil Report: Pull daily shipments (env {env_name})",
+        message, dev_recipients=True,
+    )
+    return message
+
+
+@app.route('/pull_daily_shipments', methods=['GET'])
+def pull_daily_shipments_api():
+    request = app.current_request
+    if not request.query_params or "date" not in request.query_params:
+        return 'Please, specify dates in query string with "date" as a key. \n' \
+               'Example:  /pull_daily_shipments?date=2020-05-27,2020-05-28  '
+    dates_str = request.query_params.get('date', None)
+    dates = [item.strip() for item in dates_str.split(",") if item]
+    result = []
+    for d in dates:
+        _date = date.fromisoformat(d)
+        _time = datetime.max.time()
+        _datetime = datetime.combine(_date, _time)
+        _datetime += timedelta(hours=-3) # Indent to transform to EST
+        res = pull_shipments_by_date(_datetime)
+        result.append(f"Shipments by date {d}")
+        # result.append(listDictsToHTMLTable(res))
+        result += res
+        result.append("")
+    return "\n".join([str(item) for item in result])

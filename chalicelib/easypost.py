@@ -4,7 +4,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 from retrying import retry
 
-from chalicelib import EASYPOST_API_KEY, EASYPOST_URL
+from chalicelib import EASYPOST_API_KEY, EASYPOST_URL, listDictsToHTMLTable
 
 
 def get_transit_shipment_params():
@@ -17,9 +17,10 @@ def get_transit_shipment_params():
               'page_size': page_size}
     return params
 
+
 @retry(stop_max_attempt_number=2, wait_fixed=50)
 def pull_in_transit_shipments(params):
-    messages = []
+    result = []
 
     auth = HTTPBasicAuth(EASYPOST_API_KEY, '')
     response = requests.get(url=EASYPOST_URL,
@@ -33,13 +34,13 @@ def pull_in_transit_shipments(params):
                     pre_transit_update = datetime.strptime(
                         tracking['datetime'], "%Y-%m-%dT%H:%M:%SZ")
                     if pre_transit_update < (datetime.now() - timedelta(days=5)):
-                        message = f"Late shipment id: {item['id']}, " \
-                                  f"Tracking code:  {item['tracking_code']}, " \
-                                  f"Status: {item['status']}, " \
-                                  f"tracking_status: {tracking['status']} " \
-                                  f"from {pre_transit_update} "
-
-                        messages.append(message)
+                        res = dict(id=str(item['id']),
+                                   status=str(item['status']),
+                                   order=str(item['order_id']),
+                                   tracking_code=str(item['tracking_code']),
+                                   tracking_status_from=str(pre_transit_update),
+                                   )
+                        result.append(res)
                         # Stop iterating tracking details
                         break
     if len(shipments):
@@ -47,15 +48,17 @@ def pull_in_transit_shipments(params):
 
     next_page = (len(shipments) == params['page_size'])
 
-    return dict(messages=messages, params=params, next_page=next_page)
+    return dict(shipments=result, params=params, next_page=next_page)
 
 
 def run_in_transit_shipments():
     # function to check functionality in the one tread.
     params = get_transit_shipment_params()
     next_page = True
-    with open('easypost_result', 'w') as f:
+    result = []
+    with open('easypost_result', 'w+') as f:
         while next_page:
-            result = pull_in_transit_shipments(params)
-            next_page = result['next_page']
-            f.writelines(result['messages'])
+            res = pull_in_transit_shipments(params)
+            next_page = res['next_page']
+            result += res['shipments']
+        f.write(str(listDictsToHTMLTable(result)))

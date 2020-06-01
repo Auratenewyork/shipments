@@ -1,11 +1,12 @@
 import json
 import os
 from datetime import date, timedelta
-from retrying import retry
+
 import pdfkit
 import requests
 from fulfil_client import Client
 from jinja2 import Template
+from retrying import retry
 
 from chalicelib import (
     AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
@@ -779,3 +780,24 @@ def merge_shipments():
     join_process_context = [item for item in join_process_context
                             if len(item) > 1]
     return join_process_context
+
+
+def pull_shipments_by_date(end_datetime):
+    Model = client.model('stock.shipment.out')
+    start_datetime = end_datetime - timedelta(days=1)
+    res = Model.search_read_all(
+        domain=['AND', [  # ("state", "in", ["waiting", "draft"]),
+            ["create_date", ">",
+             {"__class__": "datetime", "year": start_datetime.year,
+              "month": start_datetime.month, "day": start_datetime.day,
+              "hour": start_datetime.hour, "minute": start_datetime.minute,
+              "second": start_datetime.second, "microsecond": 0}],
+            ["create_date", "<",
+             {"__class__": "datetime", "year": end_datetime.year,
+              "month": end_datetime.month, "day": end_datetime.day,
+              "hour": end_datetime.hour, "minute": end_datetime.minute,
+              "second": end_datetime.second, "microsecond": 0}]
+        ]],
+        order=None,
+        fields=['number', 'state', 'order_numbers', ])
+    return list(res)
