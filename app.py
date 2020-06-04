@@ -21,12 +21,12 @@ from chalicelib.fulfil import (
     get_supplier_shipment, update_supplier_shipment,
     get_contact_from_supplier_shipment, create_pdf,
     get_po_from_shipment, get_line_from_po,
-    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
-    get_waiting_customer_shipments, check_in_stock, client, join_shipments,
-    merge_shipments, pull_shipments_by_date)
-
+    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment)
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
+from chalicelib.shipments import (
+    get_split_candidates, split_shipment, join_shipments, merge_shipments,
+    pull_shipments_by_date)
 
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
@@ -667,97 +667,29 @@ def split_customer_shipments_api():
 @app.lambda_function(name='split_customer_shipments')
 def split_customer_shipments(event, context):
     client = boto3.client('lambda')
-
-    chunk_size = 10
-    offset = 0
-    email_body = []
-
-    shipments = get_waiting_customer_shipments(offset, chunk_size)
-
-    if shipments is None:
-        email_body.append("Something went wrong while retrieving customer shipments. See logs on AWS.")
-
-    elif not shipments:
-        email_body.append("Found 0 waiting internal shipments")
-
-    else:
-        # if shipments count equals chunk_size then try to get more shipments
-        if len(shipments) == chunk_size:
-            while len(shipments) == chunk_size + offset:
-                offset += chunk_size
-                shipments += get_waiting_customer_shipments(offset, chunk_size)
-
-        split_candidates = []
-        for shipment in shipments:
-            if len(shipment.get('moves')) > 2:
-                split_candidates.append(shipment)
-
+    split_candidates = get_split_candidates()
+    if split_candidates:
         client.invoke(
             FunctionName=get_lambda_name('split_customer_shipments_chunk'),
             InvocationType='Event',
             Payload=json.dumps({'shipments': split_candidates,
                                 'email_body': []})
         )
-        email_body.append(f"Job for {len(split_candidates)} shipments "
-                          f"with more than 2 moves planned. ")
-
-    send_email(
-        f"Fulfil Report: Split Customer Shipments (env {env_name})",
-        "<br />".join(email_body)
-    )
+        message = (f"Job for {len(split_candidates)} shipments "
+                   f"with more than 2 moves planned. ")
+        send_email(f"Fulfil Report: Split Customer Shipments (env {env_name})",
+                   message)
 
 
 @app.lambda_function(name='split_customer_shipments_chunk')
 def split_customer_shipments_chunk(event, context):
-
     shipments = event['shipments']
     email_body = event['email_body']
-
-    Shipment = client.model('stock.shipment.out')
     shipment = shipments.pop()
-    instance = Shipment.get(shipment['id'])
 
-    products_in_stock = []
-    skip_product = False
-    for movement_id in shipment.get('moves'):
-        movement = get_movement(movement_id)
+    split_result = split_shipment(shipment)
+    email_body.append(split_result)
 
-        if not movement:
-            email_body.append(f"Failed to get [{movement_id}] movement. "
-                              f"For product {instance['number']}")
-            skip_product = True
-            break
-
-        product_id = movement.get('product')
-        quantity = movement.get('quantity')
-
-        in_stock = check_in_stock(product_id, AURATE_STORAGE_ZONE, quantity)
-
-        if in_stock:
-            products_in_stock.append({
-                'id': product_id,
-                'quantity': quantity,
-                'movement': movement_id,
-            })
-
-    if not skip_product and \
-            len(products_in_stock) and \
-            len(products_in_stock) != len(shipment.get('moves')):
-        move_quantity_to_split = [
-            {"id": item['movement'],
-             "quantity": int(item['quantity'])}
-            for item in products_in_stock
-        ]
-
-        planned_date = instance['planned_date']
-        shipment_id = instance['id']
-        new_shipment_id = Shipment.split(shipment_id, move_quantity_to_split, planned_date)
-        email_body.append(f'Modify shipment № {shipment_id}. '
-                          f'Created new shipment № {new_shipment_id}. '
-                          f'Movements moved to the new shipment: {move_quantity_to_split}')
-    else:
-        email_body.append(
-            f"Shipment № {instance['id']} don't need split.")
     if len(email_body) == 20 or not shipments:
         email_body.append(f'{len(shipments)} records in process')
         send_email(
