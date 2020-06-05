@@ -4,7 +4,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 from retrying import retry
 
-from chalicelib import EASYPOST_API_KEY, EASYPOST_URL, listDictsToHTMLTable
+from chalicelib import EASYPOST_API_KEY, EASYPOST_URL
+from chalicelib.common import listDictsToHTMLTable
 
 
 def get_transit_shipment_params():

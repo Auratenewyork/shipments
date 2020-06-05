@@ -9,7 +9,8 @@ from chalice import Chalice, Cron, Response
 
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
-    RUBYHAS_WAREHOUSE, easypost, listDictsToHTMLTable)
+    RUBYHAS_WAREHOUSE, easypost)
+from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
     change_movement_locations, create_internal_shipment, find_late_orders,
@@ -21,12 +22,13 @@ from chalicelib.fulfil import (
     get_supplier_shipment, update_supplier_shipment,
     get_contact_from_supplier_shipment, create_pdf,
     get_po_from_shipment, get_line_from_po,
-    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment)
+    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment, client as fulfill_client)
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
     pull_shipments_by_date)
+
 
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
@@ -134,6 +136,7 @@ def engravings_orders(event):
     current_date = date.today().isoformat()
     email_body = []
 
+    product_check = {}
     for engraving in engravings:
         product = get_product(engraving)
 
@@ -144,12 +147,21 @@ def engravings_orders(event):
 
         quantity = get_item_quantity(product['sku'])
 
+        if product['id'] not in product_check.keys():
+            product_check[product['id']] = quantity
+        if quantity and quantity >= product['quantity']:
+            product_check[product['id']] -= product['quantity']
+        if product_check[product['id']] < 0:
+            send_email("!!!IMPORTANT: Internal shipments (product check result)",
+                       f"problem with {product['id']} created internal shipment "
+                       f"with values more then available on rubyhas (app.py:157)",
+                       dev_recipients=False)
+
         if quantity is None:
             email_body.append(
                 f"Failed to get the product [{engraving.get('product')}] quantity"
             )
             continue
-
         if quantity >= product['quantity']:
             products_in_stock.append(product)
         elif quantity > 0:
@@ -197,7 +209,7 @@ def engravings_orders(event):
         email_body.append(f"No engravings orders found today")
 
     send_email("Fulfil Report: Internal shipments",
-               "<br />".join(email_body))
+               "<br />".join(email_body), dev_recipients=False)
 
 
 @app.route('/rubyhas', methods=['POST'])
@@ -694,7 +706,7 @@ def split_customer_shipments_chunk(event, context):
         email_body.append(f'{len(shipments)} records in process')
         send_email(
             f"Fulfil Report: Split Customer Shipments (env {env_name})",
-            "<br />".join(email_body)
+            "<br />".join(email_body), dev_recipients=True,
         )
         email_body = []
     if shipments:
@@ -842,3 +854,70 @@ def pull_daily_shipments_api():
         result += res
         result.append("")
     return "\n".join([str(item) for item in result])
+
+
+# @app.schedule(Cron(30, 9, '?', '*', '*', '*'))
+# def pull_sku_quantities_event(event):
+#     pull_sku_quantities_api()
+
+
+@app.route('/pull_sku_quantities', methods=['GET'])
+def pull_sku_quantities_api():
+    boto_client = boto3.client('lambda')
+    boto_client.invoke(
+        FunctionName=get_lambda_name('pull_sku_quantities'),
+        InvocationType='Event',
+        Payload=json.dumps({'offset': 0, 'data': []})
+    )
+    return f"Pull SKU quantities started."
+
+
+
+@app.lambda_function(name='pull_sku_quantities')
+def pull_sku_quantities(event, context):
+    start_time = datetime.now()
+    offset = event['offset']
+    create_report = False
+    data = event['data']
+    i = 0
+    fields = ['quantity_available', 'quantity_on_hand', 'code', 'sale_order_count', 'list_price', 'long_description', 'landed_cost',  'price_list_lines', 'dimensions_uom', 'quantity_wip', 'categories', 'quantity_waiting_consumption', 'rec_name', 'name', 'average_price', 'create_date', 'weight', 'sequence', 'warehouse_quantities',  'cost_price_method', 'quantity_outbound',  'quantity_on_confirmed_purchase_orders', 'list_prices', 'active', 'box_type', 'length', 'cost_price_uom', 'height', 'quantity_returned', 'quantity_inbound',  'width', 'cost_price', 'weight_digits', 'average_daily_sales', 'brand', 'quantity_buildable', 'cost_value', 'customs_value_used', 'weight_uom', 'customs_value', 'variant_name', 'list_price_uom', 'warehouse_locations', 'quantity_sold', 'cost_prices', 'quantity',]
+    Model = fulfill_client.model('product.product')
+    products = Model.search_read_all(
+        domain=['AND', [("active", "=", 'true'), ]],
+        order=None,
+        fields=fields,
+        offset=offset)
+
+    def stop_moment():
+        # find moment before 500sec for safe invoke the function before timeout.
+        print("Stop moment achieved")
+        if datetime.now() - start_time > timedelta(seconds=470) and not i % 500:
+            return True
+
+    def convert_product(p):
+        for key, value in p.items():
+            p[key] = json.dumps(value, cls=CustomJsonEncoder)
+
+    while stop_moment():
+        for p in products:
+            i += 1
+            if p['quantity_available'] or p['quantity_on_hand']:
+                data.append(convert_product(p))
+        create_report = True
+        print("Finish iterating in products.")
+        break
+
+    if create_report:
+        send_email(
+            f"Fulfil Report: daily pull of SKU quantities (env {env_name})",
+            '<br>'.join(data), dev_recipients=True,
+        )
+    else:
+        offset += i
+        print(f'Invoke function again with {offset}. {len(data)} items pulled')
+        boto_client = boto3.client('lambda')
+        boto_client.invoke(
+            FunctionName=get_lambda_name('pull_sku_quantities'),
+            InvocationType='Event',
+            Payload=json.dumps({'offset': 0, 'data': data})
+        )
