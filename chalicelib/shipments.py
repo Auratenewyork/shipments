@@ -52,7 +52,6 @@ def join_shipments(candidates):
         if len(checked_candidates) <= 1:
             print(result_message(
                 skip_text='Have no sense (products are not on stock)')
-
             )
             return None
 

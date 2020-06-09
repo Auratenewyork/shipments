@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 import math
 import os
@@ -127,8 +129,8 @@ def create_pos(event):
     send_email(f"Ruby Has Report: Purchase orders",
                "<br />".join(email_body))
 
-
-@app.schedule(Cron(0, 18, '*', '*', '?', '*'))
+# Terminated!!!!
+# @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
 def engravings_orders(event):
     engravings = get_engraving_order_lines()
     products_in_stock = []
@@ -155,7 +157,7 @@ def engravings_orders(event):
             send_email("!!!IMPORTANT: Internal shipments (product check result)",
                        f"problem with {product['id']} created internal shipment "
                        f"with values more then available on rubyhas (app.py:157)",
-                       dev_recipients=False)
+                       dev_recipients=True)
 
         if quantity is None:
             email_body.append(
@@ -209,7 +211,7 @@ def engravings_orders(event):
         email_body.append(f"No engravings orders found today")
 
     send_email("Fulfil Report: Internal shipments",
-               "<br />".join(email_body), dev_recipients=False)
+               "<br />".join(email_body), dev_recipients=True)
 
 
 @app.route('/rubyhas', methods=['POST'])
@@ -644,8 +646,9 @@ def set_shipped(ss_number):
 
     binary_path = os.path.join(BASE_DIR, 'bin', 'wkhtmltopdf')
     file = create_pdf(barcode_data, barcode['template'], binary_path=binary_path)
+    attachment = dict(name='barcode.pdf', data=file, type='application/pdf')
+    send_email('Checking barcodes', content="Test", file=attachment)
 
-    send_email('Checking barcodes', content="Test", attachment=file, email='srglvk3@gmail.com')
     s3.put_object(Body=file, Bucket=BUCKET, Key=f'{ss_number}_barcode.pdf')
     file_url = '%s/%s/%s' % (s3.meta.endpoint_url, BUCKET, f'{ss_number}_barcode.pdf')
     return Response(status_code=200, body={'file': file_url})
@@ -748,7 +751,7 @@ def merge_shipments_chunk(event, context):
     try:
         message = join_shipments(current)
     except Exception as e:
-        message = str(Exception)
+        message = str(e)
 
     if message:
         email_body.append(message)
@@ -880,7 +883,7 @@ def pull_sku_quantities(event, context):
     create_report = False
     data = event['data']
     i = 0
-    fields = ['quantity_available', 'quantity_on_hand', 'code', 'sale_order_count', 'list_price', 'long_description', 'landed_cost',  'price_list_lines', 'dimensions_uom', 'quantity_wip', 'categories', 'quantity_waiting_consumption', 'rec_name', 'name', 'average_price', 'create_date', 'weight', 'sequence', 'warehouse_quantities',  'cost_price_method', 'quantity_outbound',  'quantity_on_confirmed_purchase_orders', 'list_prices', 'active', 'box_type', 'length', 'cost_price_uom', 'height', 'quantity_returned', 'quantity_inbound',  'width', 'cost_price', 'weight_digits', 'average_daily_sales', 'brand', 'quantity_buildable', 'cost_value', 'customs_value_used', 'weight_uom', 'customs_value', 'variant_name', 'list_price_uom', 'warehouse_locations', 'quantity_sold', 'cost_prices', 'quantity',]
+    fields = ['id', 'quantity_available', 'quantity_on_hand', 'code', 'sale_order_count', 'list_price', 'long_description', 'landed_cost',  'price_list_lines', 'dimensions_uom', 'quantity_wip', 'categories', 'quantity_waiting_consumption', 'rec_name', 'name', 'average_price', 'create_date', 'weight', 'sequence', 'warehouse_quantities',  'cost_price_method', 'quantity_outbound',  'quantity_on_confirmed_purchase_orders', 'list_prices', 'active', 'box_type', 'length', 'cost_price_uom', 'height', 'quantity_returned', 'quantity_inbound',  'width', 'cost_price', 'weight_digits', 'average_daily_sales', 'brand', 'quantity_buildable', 'cost_value', 'customs_value_used', 'weight_uom', 'customs_value', 'variant_name', 'list_price_uom', 'warehouse_locations', 'quantity_sold', 'cost_prices', 'quantity',]
     Model = fulfill_client.model('product.product')
     products = Model.search_read_all(
         domain=['AND', [("active", "=", 'true'), ]],
@@ -888,36 +891,44 @@ def pull_sku_quantities(event, context):
         fields=fields,
         offset=offset)
 
-    def stop_moment():
-        # find moment before 500sec for safe invoke the function before timeout.
-        print("Stop moment achieved")
-        if datetime.now() - start_time > timedelta(seconds=470) and not i % 500:
-            return True
-
     def convert_product(p):
         for key, value in p.items():
             p[key] = json.dumps(value, cls=CustomJsonEncoder)
+        return p
 
-    while stop_moment():
+    while True:
         for p in products:
             i += 1
-            if p['quantity_available'] or p['quantity_on_hand']:
+            if p['quantity_available']: # or p['quantity_on_hand']:
                 data.append(convert_product(p))
-        create_report = True
-        print("Finish iterating in products.")
+            if datetime.now() - start_time > timedelta(seconds=470) \
+                    and i and not (i % 500):
+                print("Stop moment achieved")
+                break
+        else:
+            create_report = True
+            print("Finish iterating in products.")
         break
 
     if create_report:
+        writer_file = io.StringIO()
+        writer = csv.DictWriter(writer_file, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(data)
+        attachment = dict(name=f'sku_quantities-{date.today().isoformat()}.csv',
+                          data=str.encode(writer_file.getvalue()),
+                          type='text/csv')
         send_email(
             f"Fulfil Report: daily pull of SKU quantities (env {env_name})",
-            '<br>'.join(data), dev_recipients=True,
+            "'<br>'.join(data)", dev_recipients=True, file=attachment,
         )
-    else:
+    elif i:
+        # put the result to the S3 bucket.
         offset += i
         print(f'Invoke function again with {offset}. {len(data)} items pulled')
         boto_client = boto3.client('lambda')
         boto_client.invoke(
             FunctionName=get_lambda_name('pull_sku_quantities'),
             InvocationType='Event',
-            Payload=json.dumps({'offset': 0, 'data': data})
+            Payload=json.dumps({'offset': offset, 'data': data})
         )

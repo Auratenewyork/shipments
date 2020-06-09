@@ -8,7 +8,7 @@ default_email = os.environ.get('DEFAULT_EMAIL', None)
 env_name = os.environ.get('ENV', 'sandbox')
 
 
-def send_email(subject, content, email=default_email, attachment=None,
+def send_email(subject, content, email=default_email, file=None,
                dev_recipients=False):
     if type(email) == str:
         email = [email]
@@ -25,15 +25,14 @@ def send_email(subject, content, email=default_email, attachment=None,
                    to_emails=email,
                    subject=subject,
                    html_content=content)
-    if attachment:
-        encoded = base64.b64encode(attachment).decode()
+    if file:
+        encoded = base64.b64encode(file['data']).decode()
         attachment = Attachment()
         attachment.file_content = FileContent(encoded)
-        attachment.file_type = FileType('application/pdf')
-        attachment.file_name = FileName('barcode.pdf')
+        attachment.file_type = FileType(file['type'])
+        attachment.file_name = FileName(file['name'])
         attachment.disposition = Disposition('attachment')
         message.attachment = attachment
-
     try:
         sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
         sg.send(message)
