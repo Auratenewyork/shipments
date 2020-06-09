@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import requests
+from fulfil_client import ClientError
 from retrying import retry
 
 from chalicelib import (AURATE_STORAGE_ZONE)
@@ -197,7 +198,12 @@ def split_shipment(shipment):
 
         planned_date = instance['planned_date']
         shipment_id = instance['id']
-        new_shipment_id = Shipment.split(shipment_id, move_quantity_to_split, planned_date)
+        try:
+            new_shipment_id = Shipment.split(shipment_id, move_quantity_to_split, planned_date)
+        except ClientError as e:
+            return f"An error occurred during split shipment № {shipment_id} : " \
+                   + str(e)
+
         return (f'Modify shipment № {shipment_id}. '
                           f'Created new shipment № {new_shipment_id}. '
                           f'Movements moved to the new shipment: {move_quantity_to_split}')
