@@ -3,6 +3,7 @@ import io
 import json
 import math
 import os
+import pickle
 from datetime import date, datetime, timedelta
 from functools import lru_cache
 
@@ -37,7 +38,6 @@ env_name = os.environ.get('ENV', 'sandbox')
 
 app = Chalice(app_name=app_name)
 s3 = boto3.client('s3', region_name='us-east-2')
-BUCKET = 'auratebarcodes'
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 app.debug = True
 
@@ -628,6 +628,7 @@ def close_empty_shipments():
            methods=['GET'],
            api_key_required=False)
 def set_shipped(ss_number):
+    BUCKET = 'auratebarcodes'
     barcode = get_report_template(11)
     ss = get_supplier_shipment(ss_number)
     update_supplier_shipment(ss_number)
@@ -859,9 +860,9 @@ def pull_daily_shipments_api():
     return "\n".join([str(item) for item in result])
 
 
-# @app.schedule(Cron(30, 9, '?', '*', '*', '*'))
-# def pull_sku_quantities_event(event):
-#     pull_sku_quantities_api()
+@app.schedule(Cron(30, 9, '?', '*', '*', '*'))
+def pull_sku_quantities_event(event):
+    pull_sku_quantities_api()
 
 
 @app.route('/pull_sku_quantities', methods=['GET'])
@@ -870,7 +871,7 @@ def pull_sku_quantities_api():
     boto_client.invoke(
         FunctionName=get_lambda_name('pull_sku_quantities'),
         InvocationType='Event',
-        Payload=json.dumps({'offset': 0, 'data': []})
+        Payload=json.dumps({'offset': 0})
     )
     return f"Pull SKU quantities started."
 
@@ -880,8 +881,10 @@ def pull_sku_quantities_api():
 def pull_sku_quantities(event, context):
     start_time = datetime.now()
     offset = event['offset']
+    first_circle = (offset == 0)
     create_report = False
-    data = event['data']
+    data = []
+    BUCKET = 'aurate-sku'
     i = 0
     fields = ['id', 'quantity_available', 'quantity_on_hand', 'code', 'sale_order_count', 'list_price', 'long_description', 'landed_cost',  'price_list_lines', 'dimensions_uom', 'quantity_wip', 'categories', 'quantity_waiting_consumption', 'rec_name', 'name', 'average_price', 'create_date', 'weight', 'sequence', 'warehouse_quantities',  'cost_price_method', 'quantity_outbound',  'quantity_on_confirmed_purchase_orders', 'list_prices', 'active', 'box_type', 'length', 'cost_price_uom', 'height', 'quantity_returned', 'quantity_inbound',  'width', 'cost_price', 'weight_digits', 'average_daily_sales', 'brand', 'quantity_buildable', 'cost_value', 'customs_value_used', 'weight_uom', 'customs_value', 'variant_name', 'list_price_uom', 'warehouse_locations', 'quantity_sold', 'cost_prices', 'quantity',]
     Model = fulfill_client.model('product.product')
@@ -896,19 +899,26 @@ def pull_sku_quantities(event, context):
             p[key] = json.dumps(value, cls=CustomJsonEncoder)
         return p
 
-    while True:
-        for p in products:
-            i += 1
-            if p['quantity_available']: # or p['quantity_on_hand']:
-                data.append(convert_product(p))
-            if datetime.now() - start_time > timedelta(seconds=470) \
-                    and i and not (i % 500):
-                print("Stop moment achieved")
-                break
-        else:
-            create_report = True
-            print("Finish iterating in products.")
-        break
+    for p in products:
+        i += 1
+        if p['quantity_available']: # or p['quantity_on_hand']:
+            data.append(convert_product(p))
+        if datetime.now() - start_time > timedelta(seconds=4) \
+                and i and not (i % 500):
+            print("Stop moment achieved")
+            break
+    else:
+        create_report = True
+        print("Finish iterating in products.")
+
+    if first_circle:
+        previous_data = []
+    else:
+        # read previous result from the S3 bucket.
+        response = s3.get_object(Bucket=BUCKET, Key=f'sku_quantities')
+        previous_data = pickle.loads(response['Body'].read())
+
+    data = previous_data + data
 
     if create_report:
         writer_file = io.StringIO()
@@ -920,15 +930,20 @@ def pull_sku_quantities(event, context):
                           type='text/csv')
         send_email(
             f"Fulfil Report: daily pull of SKU quantities (env {env_name})",
-            "'<br>'.join(data)", dev_recipients=True, file=attachment,
+            "SKU quantities are in the attached csv file", dev_recipients=True,
+            file=attachment,
+            # email='roman.borodinov@uadevelopers.com'
         )
     elif i:
         # put the result to the S3 bucket.
+        s3.put_object(Body=pickle.dumps(data), Bucket=BUCKET, Key=f'sku_quantities')
         offset += i
-        print(f'Invoke function again with {offset}. {len(data)} items pulled')
+        print(f'Invoke function again with offset {offset}.'
+              f' {len(data)} items pulled')
+
         boto_client = boto3.client('lambda')
         boto_client.invoke(
             FunctionName=get_lambda_name('pull_sku_quantities'),
             InvocationType='Event',
-            Payload=json.dumps({'offset': offset, 'data': data})
+            Payload=json.dumps({'offset': offset})
         )
