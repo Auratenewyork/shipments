@@ -62,8 +62,8 @@ def join_shipments(candidates):
             "params": [{}]}
         response = requests.post(url=client.host, headers=headers,
                                  json=create_payload)
-        if response.status_code != 200 or 'error' in response.json:
-            return result_message(response.json['error'])
+        if response.status_code != 200 or 'error' in response.json():
+            return result_message(response.json()['error'])
         join_id = response.json()['result'][0]
         execute_payload = {
             "method": "wizard.stock.shipment.out.merge.execute",
@@ -83,8 +83,8 @@ def join_shipments(candidates):
         requests.post(url=client.host, headers=headers,
                       json=delete_payload)
 
-        if response.status_code != 200 or 'error' in response.json:
-            return result_message(response.json['error'])
+        if response.status_code != 200 or 'error' in response.json():
+            return result_message(response.json()['error'])
 
         return result_message()
 
@@ -207,7 +207,8 @@ def split_shipment(shipment):
                           f'Created new shipment № {new_shipment_id}. '
                           f'Movements moved to the new shipment: {move_quantity_to_split}')
     else:
-        return (f"Shipment № {instance['id']} don't need split.")
+        print(f"Shipment № {instance['id']} don't need split.")
+        return None
 
 
 def run_split_shipments():

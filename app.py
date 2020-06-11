@@ -35,6 +35,7 @@ from chalicelib.shipments import (
 
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
+TIMEOUT = int(os.environ.get('TIMEOUT', 500))
 
 app = Chalice(app_name=app_name)
 s3 = boto3.client('s3', region_name='us-east-2')
@@ -704,7 +705,8 @@ def split_customer_shipments_chunk(event, context):
     shipment = shipments.pop()
 
     split_result = split_shipment(shipment)
-    email_body.append(split_result)
+    if split_result:
+        email_body.append(split_result)
 
     if len(email_body) == 20 or not shipments:
         email_body.append(f'{len(shipments)} records in process')
@@ -903,7 +905,7 @@ def pull_sku_quantities(event, context):
         i += 1
         if p['quantity_available']: # or p['quantity_on_hand']:
             data.append(convert_product(p))
-        if datetime.now() - start_time > timedelta(seconds=4) \
+        if datetime.now() - start_time > timedelta(seconds=TIMEOUT - 30) \
                 and i and not (i % 500):
             print("Stop moment achieved")
             break
