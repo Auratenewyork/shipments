@@ -18,7 +18,8 @@ headers = {
     'Content-Type': 'application/json'
 }
 
-client = Client(os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox'), os.environ.get('FULFIL_API_KEY'))
+client = Client(os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox'),
+                os.environ.get('FULFIL_API_KEY', ''))
 
 
 def get_engraving_order_lines():

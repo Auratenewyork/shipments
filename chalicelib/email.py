@@ -10,7 +10,7 @@ env_name = os.environ.get('ENV', 'sandbox')
 
 def send_email(subject, content, email=default_email, file=None,
                dev_recipients=False):
-    if type(email) == str:
+    if email and type(email) == str:
         email = [email]
 
     if dev_recipients:

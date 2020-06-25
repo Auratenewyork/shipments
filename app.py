@@ -25,7 +25,8 @@ from chalicelib.fulfil import (
     get_supplier_shipment, update_supplier_shipment,
     get_contact_from_supplier_shipment, create_pdf,
     get_po_from_shipment, get_line_from_po,
-    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment, client as fulfill_client)
+    get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
+    client as fulfill_client)
 from chalicelib.rubyhas import (
     api_call, build_purchase_order, create_purchase_order, get_item_quantity)
 from chalicelib.shipments import (
@@ -329,7 +330,7 @@ def handle_global_orders(event):
         email_body.append("Failed to get global orders. See logs on AWS.")
 
     send_email(f"Fulfil Report: Global orders",
-               "<br />".join(email_body))
+               "<br />".join(email_body), dev_recipients=True)
 
     return Response(status_code=200, body=None)
 
@@ -822,6 +823,7 @@ def easypost_in_transit_chuck(event, context):
         send_email(
             f"Easypost Report: Pull late in_transit shipments (env {env_name})",
             str(listDictsToHTMLTable(shipments)), dev_recipients=True,
+            email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com'],
         )
     return None
 
@@ -836,6 +838,7 @@ def pull_daily_shipments_event(event):
     send_email(
         f"Fulfil Report: Pull daily shipments (env {env_name})",
         message, dev_recipients=True,
+        email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com'],
     )
     return message
 
@@ -876,7 +879,6 @@ def pull_sku_quantities_api():
         Payload=json.dumps({'offset': 0})
     )
     return f"Pull SKU quantities started."
-
 
 
 @app.lambda_function(name='pull_sku_quantities')
@@ -932,9 +934,10 @@ def pull_sku_quantities(event, context):
                           type='text/csv')
         send_email(
             f"Fulfil Report: daily pull of SKU quantities (env {env_name})",
-            "SKU quantities are in the attached csv file", dev_recipients=True,
+            "SKU quantities are in the attached csv file",
+            email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com'],
             file=attachment,
-            # email='roman.borodinov@uadevelopers.com'
+            dev_recipients=True,
         )
     elif i:
         # put the result to the S3 bucket.
