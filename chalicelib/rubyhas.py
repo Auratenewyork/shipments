@@ -144,5 +144,4 @@ def get_full_inventory():
                     i['facilityInventory']['inventory']['total'])
 
             page += 1
-            break
     return inventories

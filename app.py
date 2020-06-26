@@ -931,7 +931,8 @@ def pull_sku_quantities(event, context):
         )
 
 @app.schedule(Cron(30, 9, '?', '*', '*', '*'))
-def pull_rubyhas_inventories_event(event):
+def rubyhas_quantity_event(event):
+    # pull_rubyhas_inventories_event
     pull_rubyhas_inventories_api()
 
 @app.route('/pull_rubyhas_inventories', methods=['GET'])
