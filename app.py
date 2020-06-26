@@ -28,7 +28,8 @@ from chalicelib.fulfil import (
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     client as fulfill_client)
 from chalicelib.rubyhas import (
-    api_call, build_purchase_order, create_purchase_order, get_item_quantity)
+    api_call, build_purchase_order, create_purchase_order, get_item_quantity,
+    get_full_inventory)
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
     pull_shipments_by_date)
@@ -341,37 +342,7 @@ def get_full_inventory_rubyhas(event, context):
         items = dictionary.items()
         return (dict(items[i:i + size]) for i in range(0, len(items), size))
 
-    page = 1
-    inventories = {}
-    while True:
-        res = api_call('inventory/full',
-                       method='get',
-                       payload={
-                           'pageNo': page,
-                           'pageSize': 999,
-                           'facilityNumber': 'RHNY'
-                       })
-
-        if res.status_code == 200:
-            itemsinventory = res.json()
-
-            if not itemsinventory:
-                break
-
-            for i in itemsinventory['itemInventory']:
-                if i['itemNumber'].startswith('C-'):
-                    continue
-
-                if i['itemNumber'] in inventories:
-                    inventories[i['itemNumber']]['rubyhas'] = int(
-                        i['facilityInventory']['inventory']['total'])
-                else:
-                    inventories[i['itemNumber']] = {'rubyhas': 0}
-                    inventories[i['itemNumber']]['rubyhas'] += int(
-                        i['facilityInventory']['inventory']['total'])
-
-            page += 1
-
+    inventories = get_full_inventory()
     client = boto3.client('lambda')
 
     send_email("Fulfil Report: Sync Pipeline",
@@ -890,7 +861,12 @@ def pull_sku_quantities(event, context):
     data = []
     BUCKET = 'aurate-sku'
     i = 0
-    fields = ['id', 'quantity_available', 'quantity_on_hand', 'code', 'sale_order_count', 'list_price', 'long_description', 'landed_cost',  'price_list_lines', 'dimensions_uom', 'quantity_wip', 'categories', 'quantity_waiting_consumption', 'rec_name', 'name', 'average_price', 'create_date', 'weight', 'sequence', 'warehouse_quantities',  'cost_price_method', 'quantity_outbound',  'quantity_on_confirmed_purchase_orders', 'list_prices', 'active', 'box_type', 'length', 'cost_price_uom', 'height', 'quantity_returned', 'quantity_inbound',  'width', 'cost_price', 'weight_digits', 'average_daily_sales', 'brand', 'quantity_buildable', 'cost_value', 'customs_value_used', 'weight_uom', 'customs_value', 'variant_name', 'list_price_uom', 'warehouse_locations', 'quantity_sold', 'cost_prices', 'quantity',]
+    fields = ['id', 'quantity_available', 'quantity_on_hand', 'code',
+              'sale_order_count', 'categories', 'quantity_waiting_consumption',
+              'rec_name', 'name', 'average_price', 'quantity_outbound',
+              'quantity_on_confirmed_purchase_orders', 'quantity_returned',
+              'quantity_inbound', 'cost_price', 'average_daily_sales',
+              'cost_value', 'customs_value_used', ]
     Model = fulfill_client.model('product.product')
     products = Model.search_read_all(
         domain=['AND', [("active", "=", 'true'), ]],
@@ -935,7 +911,8 @@ def pull_sku_quantities(event, context):
         send_email(
             f"Fulfil Report: daily pull of SKU quantities (env {env_name})",
             "SKU quantities are in the attached csv file",
-            email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com'],
+            email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com',
+                   'inventory@emailitin.com'],
             file=attachment,
             dev_recipients=True,
         )
@@ -952,3 +929,34 @@ def pull_sku_quantities(event, context):
             InvocationType='Event',
             Payload=json.dumps({'offset': offset})
         )
+
+@app.schedule(Cron(30, 9, '?', '*', '*', '*'))
+def pull_rubyhas_inventories_event(event):
+    pull_rubyhas_inventories_api()
+
+@app.route('/pull_rubyhas_inventories', methods=['GET'])
+def pull_rubyhas_inventories_api():
+    inventories = get_full_inventory()
+    fields = ['№', 'code', 'total_quantity']
+    writer_file = io.StringIO()
+    writer = csv.writer(writer_file)
+    writer.writerow(fields)
+    i = 0
+    converted_inventories = []
+    for key, value in inventories.items():
+        if 'rubyhas' in value and value['rubyhas']:
+            i += 1
+            converted_inventories.append((i, key, value['rubyhas']))
+    writer.writerows(converted_inventories)
+    attachment = dict(name=f'rubyhas_quantities-{date.today().isoformat()}.csv',
+                      data=str.encode(writer_file.getvalue()),
+                      type='text/csv')
+    send_email(
+        f"Rubyhas Report: daily pull of quantities (env {env_name})",
+        "Rubyhas quantities are in the attached csv file",
+        email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com',
+               'inventory@emailitin.com'],
+        file=attachment,
+        dev_recipients=True,
+    )
+    return f"Pull rubyhas quantities finished."

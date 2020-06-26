@@ -116,3 +116,33 @@ def get_item_quantity(item_number):
         print(str(e))
 
     return None
+
+
+def get_full_inventory():
+    page = 1
+    inventories = {}
+    while True:
+        res = api_call('inventory/full',
+                       method='get',
+                       payload={
+                           'pageNo': page,
+                           'pageSize': 999,
+                           'facilityNumber': 'RHNY'
+                       })
+
+        if res.status_code == 200:
+            itemsinventory = res.json()
+            if not itemsinventory:
+                break
+
+            for i in itemsinventory['itemInventory']:
+                if i['itemNumber'].startswith('C-'):
+                    continue
+                if not i['itemNumber'] in inventories.keys():
+                    inventories[i['itemNumber']] = {'rubyhas': 0}
+                inventories[i['itemNumber']]['rubyhas'] = int(
+                    i['facilityInventory']['inventory']['total'])
+
+            page += 1
+            break
+    return inventories
