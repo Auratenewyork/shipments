@@ -912,7 +912,7 @@ def pull_sku_quantities(event, context):
             f"Fulfil Report: daily pull of SKU quantities (env {env_name})",
             "SKU quantities are in the attached csv file",
             email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com',
-                   'inventory@emailitin.com'],
+                   'operations.aurate+Inventory@emailitin.com'],
             file=attachment,
             dev_recipients=True,
         )
@@ -956,7 +956,7 @@ def pull_rubyhas_inventories_api():
         f"Rubyhas Report: daily pull of quantities (env {env_name})",
         "Rubyhas quantities are in the attached csv file",
         email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com',
-               'inventory@emailitin.com'],
+               'operations.aurate+Inventory@emailitin.com'],
         file=attachment,
         dev_recipients=True,
     )

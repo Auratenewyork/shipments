@@ -149,7 +149,7 @@ def get_split_candidates():
         domain=['AND', [("state", "=", "waiting")]],
         order=None,
         fields=["number", "moves", "delivery_address", "customer",
-                'order_numbers', 'number']
+                'order_numbers', 'number', 'sales']
     )
     split_candidates = []
     for shipment in res:
@@ -159,9 +159,17 @@ def get_split_candidates():
 
 
 def split_shipment(shipment):
-    if 'GE' in shipment['order_numbers']:
-        return f"Skip product {shipment['number']} as it have GE-tag " \
-               f"in sale order {shipment['order_numbers']}"
+
+    # check Has Engraving
+    Sale = client.model('sale.sale')
+    for number in shipment['sales']:
+        sale = Sale.get(number)
+        print(shipment['order_numbers'])
+        if 'Has Engraving' in sale['comment']:
+            print(sale['comment'])
+            return f"Skip product {shipment['number']} as it have " \
+                   f"'Has Engraving' comment " \
+                   f"in sale order {shipment['order_numbers']}"
 
     Shipment = client.model('stock.shipment.out')
     instance = Shipment.get(shipment['id'])
