@@ -164,9 +164,7 @@ def split_shipment(shipment):
     Sale = client.model('sale.sale')
     for number in shipment['sales']:
         sale = Sale.get(number)
-        print(shipment['order_numbers'])
         if 'Has Engraving' in sale['comment']:
-            print(sale['comment'])
             return f"Skip product {shipment['number']} as it have " \
                    f"'Has Engraving' comment " \
                    f"in sale order {shipment['order_numbers']}"

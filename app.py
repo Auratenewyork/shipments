@@ -333,7 +333,7 @@ def handle_global_orders(event):
     send_email(f"Fulfil Report: Global orders",
                "<br />".join(email_body), dev_recipients=True)
 
-    return Response(status_code=200, body=None)
+    return None
 
 
 @app.lambda_function(name='get_full_inventory_rubyhas')
@@ -794,7 +794,8 @@ def easypost_in_transit_chuck(event, context):
         send_email(
             f"Easypost Report: Pull late in_transit shipments (env {env_name})",
             str(listDictsToHTMLTable(shipments)), dev_recipients=True,
-            email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com'],
+            email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com',
+                   'nancy@auratenewyork.com'],
         )
     return None
 
