@@ -32,7 +32,7 @@ from chalicelib.rubyhas import (
     get_full_inventory)
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
-    pull_shipments_by_date)
+    pull_shipments_by_date, weekly_pull_shipments)
 
 
 app_name = 'aurate-webhooks'
@@ -428,7 +428,7 @@ def syncinventories_all():
 def syncinventories_id(item_number):
     page = 1
     inventory = 0
-    while True:
+    while page < 100:
         res = api_call('inventory/full',
                        method='get',
                        payload={
@@ -451,6 +451,12 @@ def syncinventories_id(item_number):
 
         if inventory:
             break
+        page += 1
+    else:
+        send_email(
+            f"!!!!!!!!!!!!!!! syncinventories failed after 100 pages",
+            f'item_number {item_number}',  dev_recipients=True
+        )
 
     product = get_fulfil_product_api(
         'code', item_number, 'id,quantity_on_hand,quantity_available',
@@ -835,6 +841,21 @@ def pull_daily_shipments_api():
         result += res
         result.append("")
     return "\n".join([str(item) for item in result])
+
+
+@app.schedule(Cron(59, 3, '?', '*', '*', '1'))
+def weekly_pull_shipments_event(event):
+    message = weekly_pull_shipments()
+    send_email(
+        f"Fulfil Report: Weekly pull of customer shipments (env {env_name})",
+        message, dev_recipients=True,
+        email=['maxwell@auratenewyork.com'],
+    )
+    return "Done"
+
+@app.route('/weekly_pull_shipments', methods=['GET'])
+def weekly_pull_shipments_api():
+    return weekly_pull_shipments()
 
 
 @app.schedule(Cron(30, 9, '?', '*', '*', '*'))

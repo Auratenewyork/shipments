@@ -1,10 +1,11 @@
 from datetime import timedelta
-
+import datetime
 import requests
 from fulfil_client import ClientError
 from retrying import retry
 
 from chalicelib import (AURATE_STORAGE_ZONE)
+from chalicelib.common import listDictsToHTMLTable
 from .fulfil import client, headers, check_in_stock, get_movement
 
 
@@ -227,3 +228,33 @@ def run_split_shipments():
     return "\n".join(email_body)
 
 
+def weekly_pull_shipments():
+    today = datetime.date.today()
+    idx = (today.weekday() + 1) % 7
+    end_date = today - datetime.timedelta(idx-1)
+    start_date = end_date - timedelta(days=9)
+
+    fields = ['state', 'number', 'planned_date', 'assigned_time','carrier', 'carrier_service', 'company', 'create_date', 'delivery_address_datetime', 'delivery_mode', 'full_delivery_address', 'id',  'insurance_amount', 'is_international_shipping', 'is_shippo', 'on_hold', 'order_confirmation_time', 'requested_delivery_date', 'requested_shipping_service', 'sale_date', 'tracking_number', 'warehouse']
+    Model = client.model('stock.shipment.out')
+    res = Model.search_read_all(
+        domain=['AND', [
+            ["planned_date", ">=",
+             {"__class__": "date", "year": start_date.year,
+              "month": start_date.month, "day": start_date.day,}],
+            ["planned_date", "<",
+             {"__class__": "date", "year": end_date.year,
+              "month": end_date.month, "day": end_date.day,}]
+        ]],
+        order=None,
+        fields=fields)
+    result = list(res)
+    for item in result:
+        if item['state'] == 'done':
+            item['delay'] = ''
+        else:
+            delay = datetime.date.today() - item['planned_date']
+            item['delay'] = delay.days
+    result = str(listDictsToHTMLTable(result))
+
+    prefix = f'Weekly pull of shipments from {start_date} to {end_date} </br>'
+    return prefix + result
