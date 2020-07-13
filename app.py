@@ -32,7 +32,7 @@ from chalicelib.rubyhas import (
     get_full_inventory)
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
-    pull_shipments_by_date, weekly_pull_shipments)
+    pull_shipments_by_date, weekly_pull)
 
 
 app_name = 'aurate-webhooks'
@@ -465,21 +465,16 @@ def syncinventories_id(item_number):
     if 'quantity_on_hand' not in product:
         send_email(
             f'Unabled to sync inventory for {item_number} at {datetime.today().strftime("%d/%m/%y")}',
-            'Server unabled to run query')
-
-    fulfil_inventory = product['quantity_on_hand']
-
-    # No need to update
-    if inventory != fulfil_inventory:
-        stock_inventory = update_fulfil_inventory_api(product['id'],
-                                                      i['rubyhas'])
-        if stock_inventory:
-            update_stock_api(stock_inventory)
+            'Server unabled to run query', dev_recipients=True)
     else:
-        send_email(
-            f'No need to sync for {item_number} at {datetime.today().strftime("%d/%m/%y")}',
-            f'Stocks are match ( fulfil - {fulfil_inventory} | rubyhas - {inventory}'
-        )
+        fulfil_inventory = product['quantity_on_hand']
+
+        # No need to update
+        if inventory != fulfil_inventory:
+            stock_inventory = update_fulfil_inventory_api(product['id'],
+                                                          i['rubyhas'])
+            if stock_inventory:
+                update_stock_api(stock_inventory)
 
 
 @app.route('/waiting-ruby/re-assign', methods=['GET'])
@@ -844,18 +839,41 @@ def pull_daily_shipments_api():
 
 
 @app.schedule(Cron(59, 3, '?', '*', '*', '1'))
-def weekly_pull_shipments_event(event):
-    message = weekly_pull_shipments()
-    send_email(
-        f"Fulfil Report: Weekly pull of customer shipments (env {env_name})",
-        message, dev_recipients=True,
-        email=['maxwell@auratenewyork.com'],
-    )
-    return "Done"
+def weekly_pull_shipments_ev(event):
+    return weekly_pull_shipments()
 
-@app.route('/weekly_pull_shipments', methods=['GET'])
+
+@app.route('/weekly_pull_shipments_run', methods=['GET'])
 def weekly_pull_shipments_api():
     return weekly_pull_shipments()
+
+
+def weekly_pull_shipments():
+    finished, unfinished, fields, prefix = weekly_pull()
+
+    writer_file = io.StringIO()
+    writer = csv.DictWriter(writer_file, fieldnames=fields)
+    writer.writeheader()
+    writer.writerows(finished)
+    attachment_1 = dict(name=f'weekly-done-shipments-{prefix}.csv',
+                      data=str.encode(writer_file.getvalue()),
+                      type='text/csv')
+    writer_file.close()
+
+    writer_file = io.StringIO()
+    writer = csv.DictWriter(writer_file, fieldnames=['delay']+fields)
+    writer.writeheader()
+    writer.writerows(unfinished)
+    attachment_2 = dict(name=f'weekly-delayed-shipments-{prefix}.csv',
+                      data=str.encode(writer_file.getvalue()),
+                      type='text/csv')
+    writer_file.close()
+    send_email(
+        f"Fulfil Report: Weekly pull of customer shipments (env {env_name})",
+        prefix, dev_recipients=True, file=[attachment_1, attachment_2],
+        email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com'],
+    )
+    return "Done"
 
 
 @app.schedule(Cron(30, 9, '?', '*', '*', '*'))

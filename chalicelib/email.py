@@ -26,13 +26,16 @@ def send_email(subject, content, email=default_email, file=None,
                    subject=subject,
                    html_content=content)
     if file:
-        encoded = base64.b64encode(file['data']).decode()
-        attachment = Attachment()
-        attachment.file_content = FileContent(encoded)
-        attachment.file_type = FileType(file['type'])
-        attachment.file_name = FileName(file['name'])
-        attachment.disposition = Disposition('attachment')
-        message.attachment = attachment
+        if type(file) == dict:
+            file = [file]
+        for f in file:
+            encoded = base64.b64encode(f['data']).decode()
+            attachment = Attachment()
+            attachment.file_content = FileContent(encoded)
+            attachment.file_type = FileType(f['type'])
+            attachment.file_name = FileName(f['name'])
+            attachment.disposition = Disposition('attachment')
+            message.attachment = attachment
     try:
         sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
         sg.send(message)

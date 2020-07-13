@@ -228,7 +228,7 @@ def run_split_shipments():
     return "\n".join(email_body)
 
 
-def weekly_pull_shipments():
+def weekly_pull():
     today = datetime.date.today()
     idx = (today.weekday() + 1) % 7
     end_date = today - datetime.timedelta(idx-1)
@@ -247,14 +247,14 @@ def weekly_pull_shipments():
         ]],
         order=None,
         fields=fields)
-    result = list(res)
-    for item in result:
+    finished, unfinished = [], []
+    for item in res:
         if item['state'] == 'done':
-            item['delay'] = ''
+            finished.append(item)
         else:
             delay = datetime.date.today() - item['planned_date']
             item['delay'] = delay.days
-    result = str(listDictsToHTMLTable(result))
+            unfinished.append(item)
+    prefix = f'{start_date}-{end_date}'
 
-    prefix = f'Weekly pull of shipments from {start_date} to {end_date} </br>'
-    return prefix + result
+    return finished, unfinished, fields, prefix
