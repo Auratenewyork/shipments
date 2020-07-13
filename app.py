@@ -250,7 +250,16 @@ def purchase_order_webhook():
 
     elif order.get('type') == 'SALES_ORDER':
         number = order.get('number')
-        syncinventories_id(number)
+        Model = fulfill_client.model('stock.shipment.out')
+        shipment = Model.get(int(number.replace("CS", "", 1)))
+        moves = shipment['moves']
+        product_ids = set()
+        for movement_id in moves:
+            movement = get_movement(movement_id)
+            for item in movement['item_blurb']['subtitle']:
+                product_ids.add(item[1])
+        for number in product_ids:
+            syncinventories_id(number)
 
     return Response(status_code=200, body=None)
 
@@ -372,7 +381,7 @@ def sync_fullfill_rubyhas(inventories):
         fulfil_inventory = product['quantity_on_hand']
 
         # No need to update
-        if i['rubyhas'] == fulfil_inventory:
+        if int(i['rubyhas']) == int(fulfil_inventory):
             continue
 
         stock_inventory = update_fulfil_inventory_api(product['id'],
@@ -428,7 +437,8 @@ def syncinventories_all():
 def syncinventories_id(item_number):
     page = 1
     inventory = 0
-    while page < 100:
+    need_stop = False
+    while not need_stop:
         res = api_call('inventory/full',
                        method='get',
                        payload={
@@ -448,15 +458,11 @@ def syncinventories_id(item_number):
                     continue
                 if i['itemNumber'] == item_number:
                     inventory = i['facilityInventory']['inventory']['total']
+                    need_stop = True
 
         if inventory:
             break
         page += 1
-    else:
-        send_email(
-            f"!!!!!!!!!!!!!!! syncinventories failed after 100 pages",
-            f'item_number {item_number}',  dev_recipients=True
-        )
 
     product = get_fulfil_product_api(
         'code', item_number, 'id,quantity_on_hand,quantity_available',
@@ -470,7 +476,7 @@ def syncinventories_id(item_number):
         fulfil_inventory = product['quantity_on_hand']
 
         # No need to update
-        if inventory != fulfil_inventory:
+        if int(inventory) != int(fulfil_inventory):
             stock_inventory = update_fulfil_inventory_api(product['id'],
                                                           i['rubyhas'])
             if stock_inventory:
