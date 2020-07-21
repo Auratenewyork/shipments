@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 
 API_ENDPOINT = 'https://rby-int.deposco.com/integration/rby'
-headers = {'Accept': 'application/json'}
+headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
 
 
 def api_call(url, method='post', payload=None):
@@ -98,9 +98,7 @@ def get_item_quantity(item_number):
     url = f'{API_ENDPOINT}/items/AURate/{item_number}'
 
     response = requests.get(url,
-                            headers={
-                                **headers, 'Accept': 'application/json'
-                            },
+                            headers={'Accept': 'application/json'},
                             auth=(os.environ.get('RUBYHAS_USERNAME'),
                                   os.environ.get('RUBYHAS_PASSWORD')))
 

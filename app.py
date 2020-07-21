@@ -66,12 +66,12 @@ def get_lambda_name(name, boto_client=None):
 def create_pos(event):
     internal_shipments = get_internal_shipments()
     orders = []
-    state = 'assigned'
     errors = []
     success = []
     email_body = []
 
     for shipment in internal_shipments:
+        state = 'assigned'
         products = []
         for movement_id in shipment.get('moves'):
             movement = get_movement(movement_id)
@@ -112,6 +112,8 @@ def create_pos(event):
         response = create_purchase_order(order)
 
         if response.status_code > 207:
+            print('response.status_code', response.status_code)
+            print('response.text', response.text)
             errors.append(order)
         else:
             success.append(order)
@@ -130,7 +132,8 @@ def create_pos(event):
         email_body.append("No Purchase orders created. No errors.")
 
     send_email(f"Ruby Has Report: Purchase orders",
-               "<br />".join(email_body))
+               "<br />".join(email_body), dev_recipients=True)
+
 
 # Terminated!!!!
 # @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
