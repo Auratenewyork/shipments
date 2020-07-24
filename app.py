@@ -28,7 +28,7 @@ from chalicelib.fulfil import (
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     client as fulfill_client)
 from chalicelib.rubyhas import (
-    api_call, build_purchase_order, create_purchase_order, get_item_quantity,
+    api_call, build_sales_order, create_purchase_order, get_item_quantity,
     get_full_inventory)
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
@@ -71,6 +71,11 @@ def create_pos(event):
     email_body = []
 
     for shipment in internal_shipments:
+
+        # Hack to awoid dublicate remove in next deploy
+        if shipment['id'] == 3097:
+            continue
+
         state = 'assigned'
         products = []
         for movement_id in shipment.get('moves'):
@@ -102,11 +107,11 @@ def create_pos(event):
             shipment = update_internal_shipment(shipment.get('id'),
                                                 {'state': state})
 
-        purchase_order = build_purchase_order(
+        sales_order = build_sales_order(
             shipment.get('reference'),
             shipment.get('create_date').get('iso_string'), products)
 
-        orders.append(purchase_order)
+        orders.append(sales_order)
 
     for order in orders:
         response = create_purchase_order(order)

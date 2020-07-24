@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 
 API_ENDPOINT = 'https://rby-int.deposco.com/integration/rby'
-headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
+headers = {'Content-Type': 'application/json'}
 
 
 def api_call(url, method='post', payload=None):
@@ -34,11 +34,11 @@ def api_call(url, method='post', payload=None):
     return _method(**kwargs)
 
 
-def build_purchase_order(reference, created_at, products):
+def build_sales_order(reference, created_at, products):
     order_bluprint = [{
         "businessUnit": "AURate",
         "number": None,
-        "type": "Purchase Order",
+        "type": "Sales Order",
         "status": "New",
         "orderPriority": "0",
         "createdDateTime": None,
@@ -50,6 +50,20 @@ def build_purchase_order(reference, created_at, products):
             "@nil": "true"
         },
         "shippingStatus": "0",
+        "shipToAddress": {
+            "name": "Nick",
+            "contactName": "Nick",
+            "attention": "Nick",
+            "email": "Nick@auratenewyork.com",
+            "phone": "2012890154",
+            "addressLine1": "580 5th Ave",
+            "addressLine2": "Suite 2300",
+            "addressLine3": "",
+            "city": "New York",
+            "stateProvinceCode": "NY",
+            "postalCode": "10036",
+            "countryCode": "US"
+        },
     }]
 
     order_line_bluprint = {
