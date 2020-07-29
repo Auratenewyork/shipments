@@ -49,6 +49,7 @@ def build_sales_order(reference, created_at, products):
         "customMappings": {
             "@nil": "true"
         },
+        "shipVia": "UPS Next Day Air Saver",
         "shippingStatus": "0",
         "shipToAddress": {
             "name": "Nick",

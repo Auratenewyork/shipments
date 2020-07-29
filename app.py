@@ -62,7 +62,7 @@ def get_lambda_name(name, boto_client=None):
             return fn['FunctionName']
 
 
-@app.schedule(Cron(0, 21, '*', '*', '?', '*'))
+@app.schedule(Cron(0, 8, '*', '*', '?', '*'))
 def create_pos(event):
     internal_shipments = get_internal_shipments()
     orders = []
@@ -71,11 +71,6 @@ def create_pos(event):
     email_body = []
 
     for shipment in internal_shipments:
-
-        # Hack to awoid dublicate remove in next deploy
-        if shipment['id'] == 3097:
-            continue
-
         state = 'assigned'
         products = []
         for movement_id in shipment.get('moves'):

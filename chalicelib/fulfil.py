@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 import pdfkit
 import requests
@@ -92,7 +92,7 @@ def check_if_has_engraving(order_line):
 def get_internal_shipments():
     url = f'{FULFIL_API_URL}/model/stock.shipment.internal/search_read'
     internal_shipments = []
-    yesterday = date.today() - timedelta(days=1)
+    yesterday = datetime.utcnow() - timedelta(days=1)
 
     payload = [[
         "AND",
@@ -102,8 +102,8 @@ def get_internal_shipments():
             "year": yesterday.year,
             "month": yesterday.month,
             "day": yesterday.day,
-            "hour": 17,
-            "minute": 0,
+            "hour": yesterday.hour,
+            "minute": yesterday.minute,
             "second": 0,
             "microsecond": 0
         }
