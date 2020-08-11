@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 
 API_ENDPOINT = 'https://rby-int.deposco.com/integration/rby'
-headers = {'Content-Type': 'application/json'}
+headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 
 
 def api_call(url, method='post', payload=None):

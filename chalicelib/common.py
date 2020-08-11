@@ -42,6 +42,8 @@ class HTML:
 
 
 def listDictsToHTMLTable(data: list):
+    if not data:
+        return "Empty result"
     header = [""] + list(data[0].keys())
     html = HTML(Header=header,
                 tableStyles={'margin': '3px'},

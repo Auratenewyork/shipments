@@ -26,7 +26,7 @@ from chalicelib.fulfil import (
     get_contact_from_supplier_shipment, create_pdf,
     get_po_from_shipment, get_line_from_po,
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
-    client as fulfill_client)
+    client as fulfill_client, get_late_shipments, get_items_waiting_allocation)
 from chalicelib.rubyhas import (
     api_call, build_sales_order, create_purchase_order, get_item_quantity,
     get_full_inventory)
@@ -979,10 +979,12 @@ def pull_sku_quantities(event, context):
             Payload=json.dumps({'offset': offset})
         )
 
+
 @app.schedule(Cron(30, 9, '?', '*', '*', '*'))
 def rubyhas_quantity_event(event):
     # pull_rubyhas_inventories_event
     pull_rubyhas_inventories_api()
+
 
 @app.route('/pull_rubyhas_inventories', methods=['GET'])
 def pull_rubyhas_inventories_api():
@@ -1010,3 +1012,41 @@ def pull_rubyhas_inventories_api():
         dev_recipients=True,
     )
     return f"Pull rubyhas quantities finished."
+
+
+@app.schedule(Cron(0, 10, '?', '*', '*', '*'))
+def late_shipments_event(event):
+    late_shipments_api()
+
+
+@app.route('/late_shipments', methods=['GET'])
+def late_shipments_api():
+    csv_data = get_late_shipments()
+    attachment = dict(name=f'late_shipments-{date.today().isoformat()}.csv',
+                      data=str.encode(csv_data),
+                      type='text/csv')
+    send_email(
+        f"Fulfil Report: late customer shipments (env {env_name})",
+        "Customer shipments with are in the attached csv file",
+        email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com',],
+        file=attachment,
+        dev_recipients=True,
+    )
+    return f"Pull late customer shipments finished"
+
+
+@app.schedule(Cron(0, 6, '?', '*', '*', '*'))
+def items_waiting_allocation(event):
+    items_waiting_allocation_api()
+
+
+@app.route('/items_waiting_allocation', methods=['GET'])
+def items_waiting_allocation_api():
+    d = date.today() - timedelta(days=1)
+    items = get_items_waiting_allocation(d)
+    send_email(
+        f"items_waiting_allocation.ireport {d}",
+        str(listDictsToHTMLTable(items)), dev_recipients=True,
+        email=['maxwell@auratenewyork.com', 'operations+allocation@emailitin.com'],
+    )
+    return None

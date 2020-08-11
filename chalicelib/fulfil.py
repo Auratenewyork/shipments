@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 import os
 from datetime import date, timedelta, datetime
@@ -641,3 +643,49 @@ def create_customer_shipment(number, delivery_address, customer, products, **kwa
     print(response.status_code, response.reason)
     return None
 
+def get_late_shipments():
+    Shipment = client.model('stock.shipment.out')
+    day_before = date.today() - timedelta(days=1)
+    fields = ['id','state','planned_date', 'require_customs', 'ups_saturday_delivery',
+     'requested_delivery_date', 'picked_date', 'packed_date', 'order_confirmation_time',
+     'create_return_label',  'incoterm',
+     'available_carrier_services',
+     'shipped_at', 'shipping_label_date', 'rec_name', 'picker', 'create_date',
+     'reference', 'packer', 'delivery_mode', 'tpl_status',
+     'cost', 'is_shippo', 'picking_status',
+     'assigned_time', 'tracking_export_status', 'shipping_instructions', 'picked_at',
+     'delivery_address_datetime', 'requested_shipping_service', 'packages',
+     'delivery_address', 'shipper', 'request_confirmation', 'origins',
+     'payment_status', 'number', 'channels', 'customer_location',
+     'default_box_type', 'create_uid', 'weight', 'carrier_service', 'sscc_code',
+     'priority', 'contact_categories', 'effective_date',
+     'weight_digits', 'warehouse_output', 'company', 'carrier_cost_method',
+     'shipping_batch', 'sales', 'customs_items', 'customer', 'weight_uom', 'insurance_amount',
+     'weight_uom_symbol', 'tracking_number', 'productions', 'avg_cycle_time',
+     'public_notes', 'has_gift_message',
+     'shipping_manifest', 'sent_to_3pl_at', 'moves',
+     'on_hold', 'total_quantity', 'warehouse_type', 'order_numbers',
+     'sale_date', 'outgoing_moves', 'warehouse', 'checklists', 'aes_itn',
+     'private_notes', 'warehouse_storage', 'eel_pfc', 'write_date',
+     'shipping_label_printed', 'gift_message', 'is_international_shipping',
+     'full_delivery_address']
+    shipments = Shipment.search_read_all(
+        domain=['AND', [["state", "!=","done"],["state","!=","cancel"],
+                        ["planned_date","<",{"__class__":"date","year":day_before.year,"month":day_before.month,"day":day_before.day}],
+                        ]],
+        order=None,
+        fields=fields
+    )
+    writer_file = io.StringIO()
+    writer = csv.DictWriter(writer_file, fieldnames=fields)
+    writer.writeheader()
+    writer.writerows(shipments)
+    return writer_file.getvalue()
+
+
+def get_items_waiting_allocation(d):
+    url = 'https://aurate.fulfil.io/'
+    data = {"method":"model.shipment.items_waiting_allocation.ireport.execute","params":[{"category":None,"end_date":{"__class__":"date","year":d.year,"month":d.month,"day":d.day},"template":None,"warehouse":None,"start_date":{"__class__":"date","year":d.year,"month":d.month,"day":d.day}},{"company":1,"allowed_read_channels":[1,3],"company.rec_name":"AUrate New York"}]}
+    response = requests.post(url, headers=headers, json=data)
+    a = response.json()
+    return a['result']['data']
