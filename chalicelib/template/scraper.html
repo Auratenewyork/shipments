@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Scraper</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <style>
+        label.btn {
+            width: 110px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="row justify-content-md-center">
+
+        <div class="col-sm-12 col-md-6">
+            <div class="btn-group btn-group-toggle" data-toggle="buttons">
+              <label class="btn btn-primary" v-on:click="site = 'mejuri'">
+                <input type="radio" name="options"> mejuri
+              </label>
+              <label class="btn btn-secondary"  v-on:click="site = 'vrai'">
+                <input type="radio" name="options"> vrai
+              </label>
+              <label class="btn btn-success"  v-on:click="site = 'catbirdnyc'">
+                <input type="radio" name="options"> catbirdnyc
+              </label>
+              <label class="btn btn-info"  v-on:click="site = 'thisisthelast'">
+                <input type="radio" name="options"> thisisthelast
+              </label>
+              <label class="btn btn-light"  v-on:click="site = undefined">
+                <input type="radio" name="options"> ALL
+              </label>
+            </div>
+        </div>
+
+        <div class="col-sm-12 col-md-6">
+            <div class="btn-group btn-group-toggle" data-toggle="buttons">
+              Results per site
+
+              <label class="btn btn-light active" v-on:click="number_of_results = 25">
+                <input type="radio" name="options"> 25
+              </label>
+              <label class="btn btn-light"  v-on:click="number_of_results = 50">
+                <input type="radio" name="options"> 50
+              </label>
+              <label class="btn btn-light"  v-on:click="number_of_results = 100">
+                <input type="radio" name="options"> 100
+              </label>
+              <label class="btn btn-light"  v-on:click="number_of_results = 5000">
+                <input type="radio" name="options"> all
+              </label>
+            </div>
+        </div>
+        <div class="col-sm-12"><input type="text" v-model="search" v-on:input="filteredItems"></div>
+    </div>
+    <div class="row">
+        <div class="col-sm-12, col-md-4"><h4>results: {{ show_data.length }} of ({{ all_results_length }})</h4></div>
+        <div class="col-sm-12, col-md-4"><h4>site: {{ site }}</h4></div>
+        <div class="col-sm-12, col.md-4"><h4>search: {{ search }} </h4></div>
+    </div>
+    <div class="row">
+        <div v-for="item in show_data" class="col-sm-6, col-md-3 list-group-item">
+                <img v-bind:src="item.image"  style="width:75%">
+                <p>{{ item.name }}</p>
+                <p>{{ item.price }}  [{{ item.site }}]</p>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.0.3/vue.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+
+<script>
+
+new Vue({
+  el: '#app',
+
+  data () {
+    return {
+      number_of_results: 25,
+      site: undefined,
+      search: '',
+      show_data: [],
+      all_results_length: 0,
+      data: {}
+    }
+  },
+  mounted () {
+    const self = this;
+    axios
+      .get('http://127.0.0.1:8000/scraper_data')
+      .then(function(response) {
+          console.log('response.data');
+          self.data = response.data;
+          show_data = []
+          all_results_length = 0
+          Object.entries(self.data).forEach(entry => {
+            const [key, value] = entry;
+            show_data.push(...value.slice(0, self.number_of_results));
+            all_results_length += value.length
+          });
+          self.show_data = show_data
+          self.all_results_length = all_results_length
+
+      })
+  },
+  methods: {
+    filteredItems() {
+        const self = this;
+        if (!(Object.keys(self.data).length === 0 && self.data.constructor === Object)){
+                show_data=[]
+                filtered_items = {}
+                all_results_length = 0
+
+                let all_results
+                Object.entries(self.data).forEach(function(entry) {
+                    const [key, value] = entry;
+                    all_results = value.filter(item => {
+                        let lowerCase = item.name.toLowerCase()
+                        return lowerCase.indexOf(self.search.toLowerCase()) > -1
+                    });
+                    filtered_items[key]=all_results
+                });
+                Object.entries(filtered_items).forEach(function(entry) {
+                    const [key, value] = entry;
+                    if (self.site === undefined || self.site === key) {
+                        show_data.push(...value.slice(0, self.number_of_results));
+                        all_results_length += value.length
+                    }
+                });
+                self.show_data = show_data;
+                self.all_results_length = all_results_length
+                return show_data
+            }
+
+    }
+  },
+  watch: {
+    site: {
+        handler: function(val, oldVal) {
+            this.filteredItems();
+        },
+        deep: true
+    },
+    number_of_results: {
+        handler: function(val, oldVal) {
+            this.filteredItems();
+        },
+        deep: true
+    }
+}
+
+})
+ </script>
+</body>
+</html>

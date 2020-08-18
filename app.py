@@ -33,7 +33,7 @@ from chalicelib.rubyhas import (
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
     pull_shipments_by_date, weekly_pull)
-
+from chalicelib import web_scraper
 
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
@@ -1021,15 +1021,11 @@ def late_shipments_event(event):
 
 @app.route('/late_shipments', methods=['GET'])
 def late_shipments_api():
-    csv_data = get_late_shipments()
-    attachment = dict(name=f'late_shipments-{date.today().isoformat()}.csv',
-                      data=str.encode(csv_data),
-                      type='text/csv')
+    items = get_late_shipments()
     send_email(
         f"Fulfil Report: late customer shipments (env {env_name})",
-        "Customer shipments with are in the attached csv file",
+        str(listDictsToHTMLTable(items)),
         email=['maxwell@auratenewyork.com', 'operations@auratenewyork.com',],
-        file=attachment,
         dev_recipients=True,
     )
     return f"Pull late customer shipments finished"
@@ -1045,8 +1041,73 @@ def items_waiting_allocation_api():
     d = date.today() - timedelta(days=1)
     items = get_items_waiting_allocation(d)
     send_email(
-        f"items_waiting_allocation.ireport {d}",
+        f"Fulfil Report: items_waiting_allocation.ireport {d}",
         str(listDictsToHTMLTable(items)), dev_recipients=True,
         email=['maxwell@auratenewyork.com', 'operations+allocation@emailitin.com'],
     )
     return None
+
+
+@app.schedule(Cron(0, 5, '?', '*', '*', 0))
+def parse_sites_event(event):
+    parse_sites()
+
+
+@app.route('/parse_sites', methods=['GET'])
+def parse_sites():
+    sites = ['mejuri', 'vrai', 'catbirdnyc', 'thisisthelast']
+    for site in sites:
+        boto_client = boto3.client('lambda')
+        boto_client.invoke(
+            FunctionName=get_lambda_name('run_parse_task'),
+            InvocationType='Event',
+            Payload=json.dumps({'site': site})
+        )
+
+
+@app.lambda_function(name='run_parse_task')
+def run_parse_task(event, context):
+    scripts = dict(
+        mejuri=web_scraper.mejuri,
+        vrai=web_scraper.vrai,
+        catbirdnyc=web_scraper.catbirdnyc,
+        thisisthelast=web_scraper.thisisthelast,
+    )
+    site = event['site']
+    print(site, 'parsing started')
+    scripts[site]()
+    print(site, 'parsing finished')
+
+
+@app.route('/scraper_data', methods=['GET'])
+def scraper_data():
+    def get_data(key):
+        response = s3.get_object(Bucket=web_scraper.BUCKET, Key=key)
+        return pickle.loads(response['Body'].read())
+
+    mejuri = get_data('mejuri')
+    vrai = get_data('vrai')
+    catbirdnyc = get_data('catbirdnyc')
+    thisisthelast = get_data('thisisthelast')
+
+    result = dict(
+        mejuri=mejuri,
+        vrai=vrai,
+        catbirdnyc=catbirdnyc,
+        thisisthelast=thisisthelast,
+    )
+    for key, value in result.items():
+        for item in value:
+            item['site'] = key
+    return json.dumps(result)
+
+@app.route('/scraper', methods=['GET'])
+def scraper_api():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    template_path = os.path.join(dir_path, 'chalicelib', 'template', 'scraper.html')
+    with open(template_path, 'r') as f:
+        page = f.read()
+    page = page.replace('http://127.0.0.1:8000', 'https://4p9vek36rc.execute-api.us-east-2.amazonaws.com/api')
+    return Response(body=page,
+                    status_code=200,
+                    headers={'Content-Type': 'text/html'})
