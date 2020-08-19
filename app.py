@@ -26,7 +26,8 @@ from chalicelib.fulfil import (
     get_contact_from_supplier_shipment, create_pdf,
     get_po_from_shipment, get_line_from_po,
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
-    client as fulfill_client, get_late_shipments, get_items_waiting_allocation)
+    client as fulfill_client, get_late_shipments, get_items_waiting_allocation,
+    sale_with_discount)
 from chalicelib.rubyhas import (
     api_call, build_sales_order, create_purchase_order, get_item_quantity,
     get_full_inventory)
@@ -1101,6 +1102,7 @@ def scraper_data():
             item['site'] = key
     return json.dumps(result)
 
+
 @app.route('/scraper', methods=['GET'])
 def scraper_api():
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -1111,3 +1113,21 @@ def scraper_api():
     return Response(body=page,
                     status_code=200,
                     headers={'Content-Type': 'text/html'})
+
+
+@app.schedule(Cron('*', '/30', '?', '*', '*', 0))
+def investor_order_event():
+    sales = sale_with_discount(code='F&FLOVE20', time_delta=timedelta(minutes=30))
+    message = ''
+    for s in sales:
+        message += f"Shopify order: {s['reference']}, Sales order: {s['number']}, <br>"
+
+    if message:
+        send_email(
+            f"INVESTOR ORDER",
+            "",
+            email=['operations@auratenewyork.com', 'tai@auratenewyork.com'],
+            dev_recipients=True,
+        )
+    else:
+        print("No Sales orders was found with such discount code")

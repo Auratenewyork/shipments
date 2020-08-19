@@ -1,5 +1,3 @@
-import csv
-import io
 import json
 import os
 from datetime import date, timedelta, datetime
@@ -8,11 +6,10 @@ import pdfkit
 import requests
 from fulfil_client import Client
 from jinja2 import Template
-from retrying import retry
 
 from chalicelib import (
     AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
-    RUBYHAS_WAREHOUSE, AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE)
+    RUBYHAS_WAREHOUSE, AURATE_OUTPUT_ZONE)
 from chalicelib.email import send_email
 
 headers = {
@@ -383,15 +380,15 @@ def get_global_order_lines():
         "AND", ["reference", "like", "GE%"], ["state", "in", ["processing"]],
         [
             "create_date", ">=", {
-            "__class__": "datetime",
-            "year": yesterday.year,
-            "month": yesterday.month,
-            "day": yesterday.day,
-            "hour": 15,
-            "minute": 0,
-            "second": 0,
-            "microsecond": 0
-        }
+                "__class__": "datetime",
+                "year": yesterday.year,
+                "month": yesterday.month,
+                "day": yesterday.day,
+                "hour": 15,
+                "minute": 0,
+                "second": 0,
+                "microsecond": 0
+            }
         ]
     ], None, None, None, ["reference", "lines"]]
 
@@ -682,3 +679,23 @@ def get_items_waiting_allocation(d):
     response = requests.post(url, headers=headers, json=data)
     a = response.json()
     return a['result']['data']
+
+
+def sale_with_discount(code, time_delta):
+    d = datetime.utcnow() - time_delta + timedelta(seconds=2)
+    result = []
+    Sale = client.model('sale.sale')
+    fields = ['id', 'rec_name', 'reference', 'comment', 'create_date', 'number']
+    sales = Sale.search_read_all(
+        domain=['AND', ["create_date", ">",
+                        {"__class__": "datetime", "year": d.year,
+                         "month": d.month, "day": d.day, "hour": d.hour,
+                         "minute": d.minute, "second": d.seconds,
+                         "microsecond": 0}]],
+        order=[["create_date", "DESC"]],
+        fields=fields
+    )
+    for sale in sales:
+        if sale['comment'] and code in sale['comment']:
+            result.append(sale)
+    return result
