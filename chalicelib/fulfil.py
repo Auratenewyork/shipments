@@ -1,5 +1,6 @@
 import json
 import os
+import traceback
 from datetime import date, timedelta, datetime
 
 import pdfkit
@@ -191,6 +192,8 @@ def get_internal_shipment(params):
 
 
 def create_internal_shipment(reference, products, **kwargs):
+    if not products:
+        return None
     url = f'{FULFIL_API_URL}/model/stock.shipment.internal'
     current_date = date.today().isoformat()
     moves = []
@@ -690,7 +693,7 @@ def sale_with_discount(code, time_delta):
         domain=['AND', ["create_date", ">",
                         {"__class__": "datetime", "year": d.year,
                          "month": d.month, "day": d.day, "hour": d.hour,
-                         "minute": d.minute, "second": d.seconds,
+                         "minute": d.minute, "second": d.second,
                          "microsecond": 0}]],
         order=[["create_date", "DESC"]],
         fields=fields

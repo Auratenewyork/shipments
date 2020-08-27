@@ -1,4 +1,5 @@
 import csv
+import csv
 import io
 import json
 import math
@@ -12,7 +13,8 @@ from chalice import Chalice, Cron, Response
 
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
-    RUBYHAS_WAREHOUSE, easypost)
+    RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE)
+from chalicelib import web_scraper
 from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
@@ -34,7 +36,9 @@ from chalicelib.rubyhas import (
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
     pull_shipments_by_date, weekly_pull)
-from chalicelib import web_scraper
+from chalicelib.sync_sku import get_inventory_positions, \
+    sku_for_update, dump_inventory_positions, \
+    complete_inventory, confirm_inventory, new_inventory
 
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
@@ -63,7 +67,17 @@ def get_lambda_name(name, boto_client=None):
             return fn['FunctionName']
 
 
-@app.schedule(Cron(0, 8, '*', '*', '?', '*'))
+def invoke_lambda(name, payload):
+    boto_client = boto3.client('lambda')
+    boto_client.invoke(
+        FunctionName=get_lambda_name(name),
+        InvocationType='Event',
+        Payload=json.dumps(payload)
+    )
+
+
+# Terminated until internal shipments will be fixed!
+# @app.schedule(Cron(0, 8, '*', '*', '?', '*'))
 def create_pos(event):
     internal_shipments = get_internal_shipments()
     orders = []
@@ -244,13 +258,16 @@ def purchase_order_webhook():
                                      {'state': status_mapping[order_status]})
             send_email(
                 "Fulfil Report: Internal shipment status changed",
-                f"\"{number}\" IS status has been changed to {status_mapping[order_status]}"
+                f"\"{number}\" IS status has been changed to {status_mapping[order_status]}",
+                email=['roman.borodinov@uadevelopers.com']
             )
 
         else:
             send_email(
                 "Fulfil Report: Failed to update Internal shipment status",
-                f"Can't find {number} IS to update the status.")
+                f"Can't find {number} IS to update the status.",
+                email = ['roman.borodinov@uadevelopers.com']
+            )
 
     elif order.get('type') == 'SALES_ORDER':
         number = order.get('number')
@@ -347,92 +364,6 @@ def handle_global_orders(event):
                "<br />".join(email_body), dev_recipients=True)
 
     return None
-
-
-@app.lambda_function(name='get_full_inventory_rubyhas')
-def get_full_inventory_rubyhas(event, context):
-    def chunks(dictionary, size):
-        items = dictionary.items()
-        return (dict(items[i:i + size]) for i in range(0, len(items), size))
-
-    inventories = get_full_inventory()
-    client = boto3.client('lambda')
-
-    send_email("Fulfil Report: Sync Pipeline",
-               "Parsed succesfully. Going to sync. You will be notified about the results via email.")
-
-    for sub_inventory in chunks(inventories, 50):
-        client.invoke(
-            FunctionName=get_lambda_name('sync_fullfill_rubyhas'),
-            InvocationType='Event',
-            Payload=json.dumps(sub_inventory)
-        )
-
-
-@app.lambda_function(name='sync_fullfill_rubyhas')
-def sync_fullfill_rubyhas(inventories):
-    synced = 0
-    not_founded_sku = []
-    for _id, i in inventories.items():
-        product = get_fulfil_product_api(
-            'code', _id, 'id,quantity_on_hand,quantity_available',
-            {"locations": [RUBYHAS_WAREHOUSE, ]})
-
-        if 'quantity_on_hand' not in product:
-            not_founded_sku.append(_id)
-            continue
-
-        fulfil_inventory = product['quantity_on_hand']
-
-        # No need to update
-        if int(i['rubyhas']) == int(fulfil_inventory):
-            continue
-
-        stock_inventory = update_fulfil_inventory_api(product['id'],
-                                                      i['rubyhas'])
-        if stock_inventory:
-            update_stock_api(stock_inventory)
-            synced += 1
-
-    data = {
-        synced:
-            f'Finished inventory update script - updated {synced} stock levels in Fulfil'
-    }
-    if not_founded_sku:
-        data['not_founded'] = ':'.join([
-            'List SKU of not founded in fulfil products',
-            ', '.join(not_founded_sku)
-        ])
-
-    send_email(
-        f'Results for syncing inventories at {datetime.today().strftime("%d/%m/%y")}',
-        '\r\n'.join(
-            '{} : {}'.format(key, value) for key, value in data.items()))
-
-
-@app.schedule(Cron(59, 23, '?', '*', '*', '*'))
-def syncinventories_event(event):
-    syncinventories_all()
-
-
-@app.route('/syncinventories', methods=['GET'])
-def syncinventories_all():
-    client = boto3.client('lambda')
-
-    response = client.invoke(
-        FunctionName=get_lambda_name('get_full_inventory_rubyhas'),
-        InvocationType='Event',
-    )
-
-    if response['StatusCode'] == 202:
-        body = "The function has been successfully started. You will be notified about the results via email."
-    else:
-        body = f"Something went wrong during the function invokaction. See logs on AWS. Response : \n " \
-               f"Status : {response['StatusCode']}" \
-               f"LogResult : {response['LogResult']}" \
-               f"FunctionError : {response['FunctionError']}"
-
-    return Response(status_code=200, body=body)
 
 
 @app.route('/syncinventories/{item_number}',
@@ -1115,8 +1046,8 @@ def scraper_api():
                     headers={'Content-Type': 'text/html'})
 
 
-@app.schedule(Cron('*', '/30', '?', '*', '*', 0))
-def investor_order_event():
+@app.schedule(Cron('0/30', '*', '*', '*', '?', '*'))
+def investor_order_event(event):
     sales = sale_with_discount(code='F&FLOVE20', time_delta=timedelta(minutes=30))
     message = ''
     for s in sales:
@@ -1131,3 +1062,67 @@ def investor_order_event():
         )
     else:
         print("No Sales orders was found with such discount code")
+
+
+@app.schedule(Cron(59, 23, '?', '*', '*', '*'))
+def sync_inventory_event(event):
+    sync_inventory_api()
+
+
+@app.route('/sync_inventory', methods=['GET'])
+def sync_inventory_api():
+    inventory = get_full_inventory()
+    dump_inventory_positions(inventory)
+    invoke_lambda(name='sync_inventory_rubyhas',
+                  payload={'updated_sku': []})
+
+
+@app.lambda_function(name='sync_inventory_rubyhas')
+def pull_sku_quantities(event, context):
+    updated_sku = event['updated_sku']
+    sync_inventory(updated_sku)
+
+
+@app.route('/sync_inventory_sku', methods=['GET'])
+def sync_inventory(updated_sku=[]):
+    inventory = get_inventory_positions()
+    for item in sku_for_update(inventory):
+        if item:
+            updated_sku.append(item)
+
+    if inventory:
+        dump_inventory_positions(inventory)
+        invoke_lambda(name='sync_inventory_rubyhas',
+                      payload={'updated_sku': updated_sku})
+    else:
+        if updated_sku:
+            count = new_inventory(updated_sku)
+            complete_inventory(count)
+            confirm_inventory(count)
+
+            for item in updated_sku:
+                item['warehouse'] = RUBYHAS_HQ_STORAGE
+                item['inventory'] = count
+        send_email(
+            f"Sync inventories {date.today().strftime('%Y-%m-%d')}",
+            str(listDictsToHTMLTable(updated_sku)),
+            email=['maxwell@auratenewyork.com'],
+            dev_recipients=True,
+        )
+
+# @app.route('/r', methods=['GET'])
+# def r():
+#     updated_sku = [{'code':'AU0014D00600', '_to':6},{'code':'AU0015B00100', '_to':0},{'code':'AU0035G00650', '_to':0},{'code':'AU0035G00950', '_to':1},]
+#     for item in updated_sku:
+#         key = item['code']
+#         product = get_fulfil_product_api(
+#             'code', key, 'id,quantity_on_hand,quantity_available',
+#             {"locations": [RUBYHAS_HQ_STORAGE, ]}
+#         )
+#         item['_id'] = product['id']
+#         print(product['id'], key, product['quantity_on_hand'])
+#
+#     count = new_inventory(updated_sku)
+#     a = complete_inventory(count)
+#     b = confirm_inventory(count)
+#     print()

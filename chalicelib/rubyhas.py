@@ -127,7 +127,6 @@ def get_item_quantity(item_number):
     except Exception as e:
         print(response.text)
         print(str(e))
-
     return None
 
 
