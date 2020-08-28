@@ -1,8 +1,6 @@
 import pickle
 from datetime import datetime, timedelta
-
 from chalicelib.fulfil import client, get_fulfil_product_api
-
 from chalicelib import RUBYHAS_HQ_STORAGE
 
 BUCKET = 'aurate-sku'
@@ -65,26 +63,6 @@ def new_inventory(for_update):
     stock_inventory = client.model('stock.inventory')
     res = stock_inventory.create(params)
     return res
-
-# def new_inventory(for_update):
-#     # create inventory record in fullfill
-#     IA = client.model('stock.inventory')
-#     inventory = IA.create([
-#         {
-#             'date': client.today(),
-#             'location': RUBYHAS_HQ_STORAGE,
-#             'lost_found': 7,
-#             'type': 'cycle',
-#         }
-#     ])
-#
-#     lines = [{'product': i['_id'], 'quantity': i['_to'],
-#               'inventory': inventory[0]}
-#              for i in for_update]
-#     IAL = client.model('stock.inventory.line')
-#     IAL.create(lines)
-#     return inventory
-
 
 
 def complete_inventory(inventory):

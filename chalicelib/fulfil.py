@@ -260,27 +260,30 @@ def get_fulfil_product_api(field, value, fieldsString, context):
         res = res_json[0] if len(res_json) > 0 else {}
     return res
 
-
-def update_fulfil_inventory_api(product_id, product_quantity):
-    params = [
-        {
-            'date': client.today(),
-            'type': 'cycle',
-            'lost_found': 7,
-            'location': RUBYHAS_WAREHOUSE,
-            'lines': [['create', [{'product': product_id, 'quantity': product_quantity}]]],
-        }
-    ]
-
-    stock_inventory = client.model('stock.inventory')
-    res = stock_inventory.create(params)
-    return res
-
-
-def update_stock_api(params):
-    inventory = client.model('stock.inventory')
-    inventory.complete(params)
-    inventory.confirm(params)
+      # functionality moved into ""sync_sku""
+# def update_fulfil_inventory_api(product_id, product_quantity):
+#     params = [
+#         {
+#             'date': client.today(),
+#             'type': 'cycle',
+#             'lost_found': 7,
+#             'location': RUBYHAS_HQ_STORAGE,
+#             'lines': [['create', [{'product': product_id, 'quantity': product_quantity}]]],
+#         }
+#     ]
+#
+#     stock_inventory = client.model('stock.inventory')
+#     res = stock_inventory.create(params)
+#     stock_inventory.complete(res)
+#     stock_inventory.confirm(res)
+#
+#     return res
+#
+#
+# def update_stock_api(params):
+#     inventory = client.model('stock.inventory')
+#     inventory.complete(params)
+#     inventory.confirm(params)
 
 
 def find_late_orders():

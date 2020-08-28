@@ -122,7 +122,6 @@ def get_item_quantity(item_number):
 
     try:
         item = response.json().get('item')[0]
-
         return int(item.get('packs')['pack']['readyToShip'])
     except Exception as e:
         print(response.text)
