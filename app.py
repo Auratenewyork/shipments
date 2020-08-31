@@ -273,14 +273,23 @@ def purchase_order_webhook():
     elif order.get('type') == 'SALES_ORDER':
         number = order.get('number')
         Model = fulfill_client.model('stock.shipment.out')
-        shipment = Model.get(int(number.replace("CS", "", 1)))
-        moves = shipment['moves']
-        product_ids = set()
-        for movement_id in moves:
-            movement = get_movement(movement_id)
-            for item in movement['item_blurb']['subtitle']:
-                product_ids.add(item[1])
-        syncinventories_ids(product_ids)
+        try:
+            shipment = Model.get(int(number.replace("CS", "", 1)))
+        except ValueError:
+            send_email(
+                "Webhook",
+                f"Can't find {number} customer shipment ",
+                email = ['roman.borodinov@uadevelopers.com']
+            )
+            shipment = None
+        if shipment:
+            moves = shipment['moves']
+            product_ids = set()
+            for movement_id in moves:
+                movement = get_movement(movement_id)
+                for item in movement['item_blurb']['subtitle']:
+                    product_ids.add(item[1])
+            syncinventories_ids(product_ids)
     return Response(status_code=200, body=None)
 
 
@@ -288,11 +297,11 @@ def purchase_order_webhook():
            methods=['GET'],
            api_key_required=False)
 def syncinventories_ids(product_ids):
-    inventory = []
+    inventory = {}
     for item_number in product_ids:
         ruby_quantity = get_item_quantity(item_number)
         if ruby_quantity is not None:
-            inventory.append({item_number: {'rubyhas': ruby_quantity}})
+            inventory[item_number] = {'rubyhas': ruby_quantity}
     if inventory:
         updated_sku = []
         for item in sku_for_update(inventory):
@@ -1140,18 +1149,14 @@ def sync_inventory(updated_sku=[]):
             dev_recipients=True,
         )
 
-# @app.route('/r', methods=['GET'])
-# def r():
-#     d = datetime.today() - timedelta(days=1)
-    # p = ProcessInternalShipment(d, 'engraving')
-    # p.process_internal_shipments()
-    # p = ProcessInternalShipment(d, 'global_order')
-    # p.process_internal_shipments()
-    # p = ProcessInternalShipment(d, 'sets_and_bundles')
-    # p.process_internal_shipments()
 
-# try:
-#     data['comment'] += ('\n' + str(raw_data.get('note_attributes', [])))
-#     data['comment'] += ('\n' + str(list(raw_data.keys())))
-# except Exception:
-#     pass
+@app.schedule(Cron(0, 2, '?', '*', '*', '*'))
+def internal_shipments_event(event):
+    internal_shipments_api()
+
+
+@app.route('/internal_shipments', methods=['GET'])
+def internal_shipments_api():
+    d = datetime.today() - timedelta(days=1)
+    p = ProcessInternalShipment(d)
+    p.process_internal_shipments()

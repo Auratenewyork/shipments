@@ -260,7 +260,7 @@ def get_fulfil_product_api(field, value, fieldsString, context):
         res = res_json[0] if len(res_json) > 0 else {}
     return res
 
-      # functionality moved into ""sync_sku""
+      # functionality moved into ""sync_sku"" REMOVE
 # def update_fulfil_inventory_api(product_id, product_quantity):
 #     params = [
 #         {
@@ -284,6 +284,7 @@ def get_fulfil_product_api(field, value, fieldsString, context):
 #     inventory = client.model('stock.inventory')
 #     inventory.complete(params)
 #     inventory.confirm(params)
+       # TO REMOVE TO
 
 
 def find_late_orders():

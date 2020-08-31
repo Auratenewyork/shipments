@@ -110,7 +110,7 @@ def create_purchase_order(order):
 
 
 def get_item_quantity(item_number):
-    url = f'{API_ENDPOINT}/items/AURate/{item_number}'
+    url = f'{API_ENDPOINT}/items/AURate/{item_number}/atps'
 
     response = requests.get(url,
                             headers={'Accept': 'application/json'},
@@ -121,8 +121,8 @@ def get_item_quantity(item_number):
         print(response.text)
 
     try:
-        item = response.json().get('item')[0]
-        return int(item.get('packs')['pack']['readyToShip'])
+        item = response.json()
+        return int(item.get('@availableToPromise'))
     except Exception as e:
         print(response.text)
         print(str(e))
@@ -152,7 +152,7 @@ def get_full_inventory():
                 if not i['itemNumber'] in inventories.keys():
                     inventories[i['itemNumber']] = {'rubyhas': 0}
                 inventories[i['itemNumber']]['rubyhas'] = int(
-                    i['facilityInventory']['inventory']['total'])
+                    i['facilityInventory']['inventory']['availableToPromise'])
 
             page += 1
     return inventories
