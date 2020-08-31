@@ -1026,7 +1026,7 @@ def parse_sites_event(event):
 
 @app.route('/parse_sites', methods=['GET'])
 def parse_sites():
-    sites = ['mejuri', 'vrai', 'catbirdnyc', 'thisisthelast']
+    sites = ['mejuri', 'vrai', 'catbirdnyc', 'thisisthelast', 'stoneandstrand']
     for site in sites:
         boto_client = boto3.client('lambda')
         boto_client.invoke(
@@ -1043,6 +1043,7 @@ def run_parse_task(event, context):
         vrai=web_scraper.vrai,
         catbirdnyc=web_scraper.catbirdnyc,
         thisisthelast=web_scraper.thisisthelast,
+        stoneandstrand=web_scraper.stoneandstrand,
     )
     site = event['site']
     print(site, 'parsing started')
@@ -1060,12 +1061,14 @@ def scraper_data():
     vrai = get_data('vrai')
     catbirdnyc = get_data('catbirdnyc')
     thisisthelast = get_data('thisisthelast')
+    stoneandstrand = get_data('stoneandstrand')
 
     result = dict(
         mejuri=mejuri,
         vrai=vrai,
         catbirdnyc=catbirdnyc,
         thisisthelast=thisisthelast,
+        stoneandstrand=stoneandstrand,
     )
     for key, value in result.items():
         for item in value:
@@ -1160,3 +1163,4 @@ def internal_shipments_api():
     d = datetime.today() - timedelta(days=1)
     p = ProcessInternalShipment(d)
     p.process_internal_shipments()
+
