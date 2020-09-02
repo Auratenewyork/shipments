@@ -38,7 +38,7 @@ from chalicelib.shipments import (
     pull_shipments_by_date, weekly_pull)
 from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
-    complete_inventory, confirm_inventory, new_inventory
+    complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
 
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
@@ -1138,10 +1138,17 @@ def sync_inventory(updated_sku=[]):
                       payload={'updated_sku': updated_sku})
     else:
         if updated_sku:
-            count = new_inventory(updated_sku)
-            complete_inventory(count)
-            confirm_inventory(count)
-
+            dump_updated_sku(updated_sku)
+            try:
+                count = new_inventory(updated_sku)
+                complete_inventory(count)
+                confirm_inventory(count)
+            except Exception:
+                send_email(
+                    f"Fail: Sync inventories {date.today().strftime('%Y-%m-%d')}",
+                    'dump of info "ryby_updated_sky"',
+                    email=['roman.borodinov@uadevelopers.com'],
+                )
             for item in updated_sku:
                 item['warehouse'] = RUBYHAS_HQ_STORAGE
                 item['inventory'] = count
@@ -1163,4 +1170,3 @@ def internal_shipments_api():
     d = datetime.today() - timedelta(days=1)
     p = ProcessInternalShipment(d)
     p.process_internal_shipments()
-

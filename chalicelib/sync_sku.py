@@ -21,6 +21,13 @@ def get_inventory_positions():
     return inventory
 
 
+def dump_updated_sku(inventory):
+    # save inventory to s3
+    from app import s3
+    s3.put_object(Body=pickle.dumps(inventory),
+                  Bucket=BUCKET, Key=f'ryby_updated_sky')
+
+
 def sku_for_update(inventory):
     # Modify inventory one by one removing from list and check it quantity
     # check time to avoid lambda timeout

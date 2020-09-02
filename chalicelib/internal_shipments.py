@@ -60,7 +60,7 @@ class ProcessInternalShipment:
                 if line['product.code'] != 'SHIPPING':
                     line['ruby_quantity'] = get_item_quantity(line['product.code'])
                     if line['ruby_quantity']:
-                        self.ruby_quantities[line['product.code']] = line['ruby_quantity']
+                        self.ruby_quantities[line['product']] = line['ruby_quantity']
                 else:
                     line['ruby_quantity'] = 0
         return sales
