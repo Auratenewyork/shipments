@@ -1,6 +1,5 @@
 import json
 import os
-import traceback
 from datetime import date, timedelta, datetime
 
 import pdfkit
@@ -90,65 +89,49 @@ def check_if_has_engraving(order_line):
 
 
 def get_internal_shipments():
-    url = f'{FULFIL_API_URL}/model/stock.shipment.internal/search_read'
-    internal_shipments = []
+    Model = client.model('stock.shipment.internal')
+
     yesterday = datetime.utcnow() - timedelta(days=1)
-
-    payload = [[
-        "AND",
-        [
-            "create_date", ">=", {
-            "__class__": "datetime",
-            "year": yesterday.year,
-            "month": yesterday.month,
-            "day": yesterday.day,
-            "hour": yesterday.hour,
-            "minute": yesterday.minute,
-            "second": 0,
-            "microsecond": 0
-        }
-        ], ["state", "in", ["waiting", "assigned"]]
-    ], None, None, None, ["reference", "state", "moves", "create_date"]]
-
-    response = requests.put(url, headers=headers, data=json.dumps(payload))
-
-    if response.status_code != 200:
-        send_email("Fulfil: failed to get internal shipments",
-                   "Failed to get internal shipments via API")
-        print(response.text)
-        return []
-
-    shipments = response.json()
-    ids = [shipment['id'] for shipment in shipments]
-
-    for shipment_id in ids:
-        shipment = get_internal_shipment({'id': shipment_id})
-
-        if shipment:
-            internal_shipments.append(shipment)
-
-    return internal_shipments
+    fields = ["reference", "state", "moves", "create_date"]
+    internal_shipments = Model.search_read_all(
+        domain=["AND",
+                ["create_date", ">=", {
+                    "__class__": "datetime",
+                    "year": yesterday.year,
+                    "month": yesterday.month,
+                    "day": yesterday.day,
+                    "hour": yesterday.hour,
+                    "minute": yesterday.minute,
+                    "second": 0,
+                    "microsecond": 0
+                }],
+                ["state", "in", ["assigned"]],
+                ["reference", "ilike", "automatic%"], ],
+        order=None,
+        fields=fields
+    )
+    return list(internal_shipments)
 
 
-def get_product(item):
-    product_id = item.get('product')
-    quantity = int(item.get('quantity'))
-    note = item.get('note')
-    url = f'{FULFIL_API_URL}/model/product.product/{product_id}'
-
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        product = response.json()
-
-        return {
-            'id': product_id,
-            'sku': product['code'],
-            'quantity': quantity,
-            'note': note
-        }
-
-    return None
+# def get_product(item):
+#     product_id = item.get('product')
+#     quantity = int(item.get('quantity'))
+#     note = item.get('note')
+#     url = f'{FULFIL_API_URL}/model/product.product/{product_id}'
+#
+#     response = requests.get(url, headers=headers)
+#
+#     if response.status_code == 200:
+#         product = response.json()
+#
+#         return {
+#             'id': product_id,
+#             'sku': product['code'],
+#             'quantity': quantity,
+#             'note': note
+#         }
+#
+#     return None
 
 
 def get_movement(movement_id):

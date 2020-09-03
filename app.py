@@ -76,8 +76,7 @@ def invoke_lambda(name, payload):
     )
 
 
-# Terminated until internal shipments will be fixed!
-# @app.schedule(Cron(0, 8, '*', '*', '?', '*'))
+@app.schedule(Cron(0, 8, '*', '*', '?', '*'))
 def create_pos(event):
     internal_shipments = get_internal_shipments()
     orders = []
@@ -86,41 +85,26 @@ def create_pos(event):
     email_body = []
 
     for shipment in internal_shipments:
-        state = 'assigned'
         products = []
         for movement_id in shipment.get('moves'):
             movement = get_movement(movement_id)
-            product = get_product(movement)
-
-            if not product:
-                email_body.append(
-                    f"Failed to get the product [{movement.get('product')}]")
-                continue
-
+            product = {
+                'id': movement['product'],
+                'sku': movement['listing_sku'],
+                'quantity': int(movement.get('quantity')),
+                'note': movement['note'],
+            }
+            # dont know why we are
             quantity = get_item_quantity(product['sku'])
-
             if quantity is None:
-                email_body.append(
-                    f"Failed to get the product [{movement.get('product')}] quantity"
-                )
                 continue
-
-            # if at least one product out of stock
-            # then set state of IS to waiting
-            if quantity < product.get('quantity'):
-                state = 'waiting'
-
+            if quantity < product['quantity']:
+                product['quantity'] = quantity
             products.append(product)
-
-        # update IS status if all products are in stock
-        if state == 'assigned' and state != shipment.get('state'):
-            shipment = update_internal_shipment(shipment.get('id'),
-                                                {'state': state})
 
         sales_order = build_sales_order(
             shipment.get('reference'),
             shipment.get('create_date').get('iso_string'), products)
-
         orders.append(sales_order)
 
     for order in orders:
