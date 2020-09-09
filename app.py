@@ -19,8 +19,7 @@ from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
     change_movement_locations, create_internal_shipment, find_late_orders,
-    get_engraving_order_lines, get_fulfil_product_api, get_global_order_lines,
-    get_internal_shipment, get_internal_shipments, get_movement, get_product,
+    get_internal_shipment, get_internal_shipments, get_movement,
     get_waiting_ruby_shipments, update_customer_shipment,
     update_internal_shipment, get_report_template,
     get_supplier_shipment, update_supplier_shipment,
@@ -28,7 +27,7 @@ from chalicelib.fulfil import (
     get_po_from_shipment, get_line_from_po,
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     client as fulfill_client, get_late_shipments, get_items_waiting_allocation,
-    sale_with_discount)
+    sale_with_discount, get_product)
 from chalicelib.internal_shipments import ProcessInternalShipment
 from chalicelib.rubyhas import (
     api_call, build_sales_order, create_purchase_order, get_item_quantity,
@@ -88,11 +87,12 @@ def create_pos(event):
         products = []
         for movement_id in shipment.get('moves'):
             movement = get_movement(movement_id)
+            p = get_product(movement['product'])
             product = {
                 'id': movement['product'],
-                'sku': movement['listing_sku'],
-                'quantity': int(movement.get('quantity')),
-                'note': movement['note'],
+                'sku': p['code'],
+                'quantity': int(movement['quantity']),
+                'notes': movement['public_notes'],
             }
             # dont know why we are
             quantity = get_item_quantity(product['sku'])
@@ -104,7 +104,7 @@ def create_pos(event):
 
         sales_order = build_sales_order(
             shipment.get('reference'),
-            shipment.get('create_date').get('iso_string'), products)
+            shipment.get('create_date').isoformat(), products)
         orders.append(sales_order)
 
     for order in orders:
@@ -133,91 +133,6 @@ def create_pos(event):
     send_email(f"Ruby Has Report: Purchase orders",
                "<br />".join(email_body), dev_recipients=True)
 
-#
-# # Terminated!!!!
-# # @app.schedule(Cron(0, 18, '*', '*', '?', '*'))
-# def engravings_orders(event):
-#     engravings = get_engraving_order_lines()
-#     products_in_stock = []
-#     products_out_of_stock = []
-#     current_date = date.today().isoformat()
-#     email_body = []
-#
-#     product_check = {}
-#     for engraving in engravings:
-#         product = get_product(engraving)
-#
-#         if not product:
-#             email_body.append(
-#                 f"Failed to get the product [{engraving.get('product')}]")
-#             continue
-#
-#         quantity = get_item_quantity(product['sku'])
-#
-#         if product['id'] not in product_check.keys():
-#             product_check[product['id']] = quantity
-#         if quantity and quantity >= product['quantity']:
-#             product_check[product['id']] -= product['quantity']
-#         if product_check[product['id']] < 0:
-#             send_email("!!!IMPORTANT: Internal shipments (product check result)",
-#                        f"problem with {product['id']} created internal shipment "
-#                        f"with values more then available on rubyhas (app.py:157)",
-#                        dev_recipients=True)
-#
-#         if quantity is None:
-#             email_body.append(
-#                 f"Failed to get the product [{engraving.get('product')}] quantity"
-#             )
-#             continue
-#         if quantity >= product['quantity']:
-#             products_in_stock.append(product)
-#         elif quantity > 0:
-#             # split product quantity into two internal shipments
-#             # one for product quantity which is in the stock
-#             # another for product quantity which is out of stock
-#             quantity_out_of_stock = product['quantity'] - quantity
-#             product_in_stock = {**product, 'quantity': quantity}
-#             product_out_of_stock = {
-#                 **product, 'quantity': quantity_out_of_stock
-#             }
-#             products_in_stock.append(product_in_stock)
-#             products_out_of_stock.append(product_out_of_stock)
-#         else:
-#             products_out_of_stock.append(product)
-#
-#     if len(products_in_stock):
-#         reference = f'eng-{current_date}'
-#         shipment = create_internal_shipment(reference,
-#                                             products_in_stock,
-#                                             state='assigned')
-#
-#         if not shipment:
-#             email_body.append(
-#                 f"Failed to create \"{reference}\" IS for engravings in stock")
-#         else:
-#             email_body.append(
-#                 f"Successfully created \"{reference}\" IS for engravings in stock"
-#             )
-#
-#     if len(products_out_of_stock):
-#         reference = f'waiting-eng-{current_date}'
-#         shipment = create_internal_shipment(reference, products_out_of_stock)
-#
-#         if not shipment:
-#             email_body.append(
-#                 f"Failed to create \"{reference}\" IS for engravings out of stck"
-#             )
-#         else:
-#             email_body.append(
-#                 f"Successfully created \"{reference}\" IS for engravings out of stock"
-#             )
-#
-#     if not len(products_in_stock) and not len(products_out_of_stock):
-#         email_body.append(f"No engravings orders found today")
-#
-#     send_email("Fulfil Report: Internal shipments",
-#                "<br />".join(email_body), dev_recipients=True)
-
 
 @app.route('/rubyhas', methods=['POST'])
 def purchase_order_webhook():
@@ -233,7 +148,7 @@ def purchase_order_webhook():
         'canceled': 'canceled',
     }
 
-    if order.get('type') == 'PURCHASE_ORDER':
+    def process_internal_shipment(order):
         number = order.get('number')
         internal_shipment = get_internal_shipment({'reference': number})
         order_status = order.get('status', '').lower()
@@ -251,29 +166,35 @@ def purchase_order_webhook():
             send_email(
                 "Fulfil Report: Failed to update Internal shipment status",
                 f"Can't find {number} IS to update the status.",
-                email = ['roman.borodinov@uadevelopers.com']
+                email=['roman.borodinov@uadevelopers.com']
             )
+
+    if order.get('type') == 'PURCHASE_ORDER':
+        process_internal_shipment(order)
 
     elif order.get('type') == 'SALES_ORDER':
         number = order.get('number')
         Model = fulfill_client.model('stock.shipment.out')
-        try:
+        if number.startswith("CS"):
             shipment = Model.get(int(number.replace("CS", "", 1)))
-        except ValueError:
-            send_email(
-                "Webhook",
-                f"Can't find {number} customer shipment ",
-                email = ['roman.borodinov@uadevelopers.com']
-            )
-            shipment = None
-        if shipment:
-            moves = shipment['moves']
-            product_ids = set()
-            for movement_id in moves:
-                movement = get_movement(movement_id)
-                for item in movement['item_blurb']['subtitle']:
-                    product_ids.add(item[1])
-            syncinventories_ids(product_ids)
+            if shipment:
+                moves = shipment['moves']
+                product_ids = set()
+                for movement_id in moves:
+                    movement = get_movement(movement_id)
+                    for item in movement['item_blurb']['subtitle']:
+                        product_ids.add(item[1])
+                syncinventories_ids(product_ids)
+        else:
+            try:
+                process_internal_shipment(order)
+            except Exception:
+                send_email(
+                    "Webhook",
+                    f"Error during processing {number} internal shipment ",
+                    email=['roman.borodinov@uadevelopers.com']
+                )
+
     return Response(status_code=200, body=None)
 
 
@@ -298,7 +219,7 @@ def syncinventories_ids(product_ids):
             confirm_inventory(count)
 
             send_email(
-                f"Sync inventory by webhook {item_number}",
+                f"Sync inventory by webhook",
                 str(listDictsToHTMLTable(updated_sku)),
                 email=['roman.borodinov@uadevelopers.com'],
             )
@@ -309,153 +230,18 @@ def find_late_orders_view(event):
     find_late_orders()
 
 
-# @app.schedule(Cron(0, 19, '*', '*', '?', '*'))
-# def handle_global_orders(event):
-#     order_lines = get_global_order_lines()
-#     current_date = date.today().isoformat()
-#     products_in_stock = []
-#     products_out_of_stock = []
-#     email_body = []
-#
-#     if order_lines:
-#         for order_line in order_lines:
-#             product = get_product(order_line)
-#
-#             if not product:
-#                 email_body.append(
-#                     f"Failed to get the product [{order_line.get('product')}]")
-#                 continue
-#
-#             quantity = get_item_quantity(product['sku'])
-#
-#             if quantity is None:
-#                 email_body.append(
-#                     f"Failed to get the product [{order_line.get('product')}] quantity"
-#                 )
-#                 continue
-#
-#             if quantity >= product['quantity']:
-#                 products_in_stock.append(product)
-#             elif quantity > 0:
-#                 # split product quantity into two internal shipments
-#                 # one for product quantity which is in the stock
-#                 # another for product quantity which is out of stock
-#                 quantity_out_of_stock = product['quantity'] - quantity
-#                 product_in_stock = {**product, 'quantity': quantity}
-#                 product_out_of_stock = {
-#                     **product, 'quantity': quantity_out_of_stock
-#                 }
-#                 products_in_stock.append(product_in_stock)
-#                 products_out_of_stock.append(product_out_of_stock)
-#             else:
-#                 products_out_of_stock.append(product)
-#
-#         if len(products_in_stock):
-#             shipment = create_internal_shipment(f'GE-{current_date}',
-#                                                 products_in_stock,
-#                                                 state='assigned')
-#
-#             if not shipment:
-#                 email_body.append(
-#                     "Failed to create IS for global orders in the stock")
-#             else:
-#                 email_body.append(
-#                     "Successfully created IS for global orders in the stock")
-#
-#         if len(products_out_of_stock):
-#             shipment = create_internal_shipment(f'GE-{current_date}-waiting',
-#                                                 products_out_of_stock,
-#                                                 state='waiting')
-#
-#             if not shipment:
-#                 email_body.append(
-#                     "Failed to create IS for global orders out stock")
-#             else:
-#                 email_body.append(
-#                     "Successfully created IS for global orders out of stock")
-#
-#     elif order_lines is not None:
-#         email_body.append("Found 0 global orders")
-#     else:
-#         email_body.append("Failed to get global orders. See logs on AWS.")
-#
-#     send_email(f"Fulfil Report: Global orders",
-#                "<br />".join(email_body), dev_recipients=True)
-#
-#     return None
-
-
-
-
-
-# @app.route('/syncinventories/{item_number}',
-#            methods=['GET'],
-#            api_key_required=False)
-# def syncinventories_id(item_number):
-#     print(item_number)
-#     page = 1
-#     inventory = 0
-#     need_stop = False
-#     while not need_stop:
-#         res = api_call('inventory/full',
-#                        method='get',
-#                        payload={
-#                            'pageNo': page,
-#                            'pageSize': 999,
-#                            'facilityNumber': 'RHNY'
-#                        })
-#
-#         if res.status_code == 200:
-#             itemsinventory = res.json()
-#
-#             if not itemsinventory:
-#                 break
-#
-#             for i in itemsinventory['itemInventory']:
-#                 if i['itemNumber'].startswith('C-'):
-#                     continue
-#                 if i['itemNumber'] == item_number:
-#                     inventory = i['facilityInventory']['inventory']['total']
-#                     need_stop = True
-#
-#         if inventory:
-#             break
-#         page += 1
-#
-#     product = get_fulfil_product_api(
-#         'code', item_number, 'id,quantity_on_hand,quantity_available',
-#         {"locations": [RUBYHAS_WAREHOUSE, ]})
-#
-#     if 'quantity_on_hand' not in product:
-#         send_email(
-#             f'Unabled to sync inventory for {item_number} at {datetime.today().strftime("%d/%m/%y")}',
-#             'Server unabled to run query', dev_recipients=True)
-#     else:
-#         fulfil_inventory = product['quantity_on_hand']
-#
-#         # No need to update
-#         if int(inventory) != int(fulfil_inventory):
-#             stock_inventory = update_fulfil_inventory_api(product['id'],
-#                                                           int(inventory))
-#             if stock_inventory:
-#                 update_stock_api(stock_inventory)
-
-
 @app.route('/waiting-ruby/re-assign', methods=['GET'])
 def invoke_waiting_ruby():
     client = boto3.client('lambda')
     body = None
-
     response = client.invoke(
         FunctionName=get_lambda_name('reassign_waiting_ruby_prod'),
         InvocationType='Event',
     )
-
     if response['StatusCode'] == 202:
         body = "The function has been successfully started. You will be notified about the results via email."
     else:
         body = "Something went wrong during the function invokaction. See logs on AWS."
-
     return Response(status_code=200, body=body)
 
 
@@ -1154,3 +940,4 @@ def internal_shipments_api():
     d = datetime.today() - timedelta(days=1)
     p = ProcessInternalShipment(d)
     p.process_internal_shipments()
+

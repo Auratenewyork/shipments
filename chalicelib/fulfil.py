@@ -113,36 +113,16 @@ def get_internal_shipments():
     return list(internal_shipments)
 
 
-# def get_product(item):
-#     product_id = item.get('product')
-#     quantity = int(item.get('quantity'))
-#     note = item.get('note')
-#     url = f'{FULFIL_API_URL}/model/product.product/{product_id}'
-#
-#     response = requests.get(url, headers=headers)
-#
-#     if response.status_code == 200:
-#         product = response.json()
-#
-#         return {
-#             'id': product_id,
-#             'sku': product['code'],
-#             'quantity': quantity,
-#             'note': note
-#         }
-#
-#     return None
+def get_movement(_id):
+    Model = client.model('stock.move')
+    move = Model.get(_id)
+    return move
 
 
-def get_movement(movement_id):
-    url = f"{get_fulfil_model_url('stock.move')}/{movement_id}"
-
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        return response.json()
-    print(response.text)
-    return None
+def get_product(_id):
+    Model = client.model('product.product')
+    product = Model.get(_id)
+    return product
 
 
 def get_internal_shipment(params):

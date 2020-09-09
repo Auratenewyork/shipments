@@ -93,7 +93,7 @@ def build_sales_order(reference, created_at, products):
         order_line['pack']['quantity'] = product['quantity']
         order_line['orderPackQuantity'] = product['quantity']
         order_line['createdDateTime'] = created_at
-        order_line['notes'] = product.get('note')
+        order_line['notes'] = product.get('notes')
 
         order_lines.append(order_line)
 

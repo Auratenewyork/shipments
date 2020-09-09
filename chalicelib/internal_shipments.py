@@ -47,6 +47,7 @@ class ProcessInternalShipment:
                 for line in lines:
                     if sale_line_id == line['id']:
                         sale['lines_info'].append(line)
+                        break
 
         sales = self.left_important_sales(sales)
 

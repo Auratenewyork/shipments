@@ -169,6 +169,13 @@ def split_shipment(shipment):
             return f"Skip product {shipment['number']} as it have " \
                    f"'Has Engraving' comment " \
                    f"in sale order {shipment['order_numbers']}"
+    # check global orders
+    for number in shipment['sales']:
+        sale = Sale.get(number)
+        if sale['reference'].startswith('GE'):
+            return f"Skip product {shipment['number']} as it is " \
+                   f"Global order."\
+                   f"Sale order {shipment['order_numbers']}"
 
     Shipment = client.model('stock.shipment.out')
     instance = Shipment.get(shipment['id'])
