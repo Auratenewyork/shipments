@@ -1,5 +1,4 @@
 import csv
-import csv
 import io
 import json
 import math
@@ -16,6 +15,7 @@ from chalicelib import (
     RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE)
 from chalicelib import web_scraper
 from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
+from chalicelib.count_boxes import process_boxes
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
     change_movement_locations, create_internal_shipment, find_late_orders,
@@ -27,7 +27,7 @@ from chalicelib.fulfil import (
     get_po_from_shipment, get_line_from_po,
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     client as fulfill_client, get_late_shipments, get_items_waiting_allocation,
-    sale_with_discount, get_product)
+    sale_with_discount, get_product, get_inventory_by_warehouse)
 from chalicelib.internal_shipments import ProcessInternalShipment
 from chalicelib.rubyhas import (
     api_call, build_sales_order, create_purchase_order, get_item_quantity,
@@ -146,6 +146,7 @@ def purchase_order_webhook():
         'complete': 'done',
         'released': 'done',
         'canceled': 'canceled',
+        'archived': 'canceled',
     }
 
     def process_internal_shipment(order):
@@ -161,7 +162,14 @@ def purchase_order_webhook():
                 f"\"{number}\" IS status has been changed to {status_mapping[order_status]}",
                 email=['roman.borodinov@uadevelopers.com']
             )
-
+            if status_mapping[order_status] == 'canceled':
+                send_email(
+                    "Fulfil Report: Internal shipment canceled",
+                    f"\"{number}\" IS has been canceled"
+                    f"Deposco sales order reference {number}",
+                    dev_recipients=True,
+                    email=['maxwell@auratenewyork.com']
+                )
         else:
             send_email(
                 "Fulfil Report: Failed to update Internal shipment status",
@@ -214,7 +222,7 @@ def syncinventories_ids(product_ids):
                 updated_sku.append(item)
 
         if updated_sku:
-            count = new_inventory(updated_sku)
+            count = new_inventory(updated_sku, RUBYHAS_HQ_STORAGE)
             complete_inventory(count)
             confirm_inventory(count)
 
@@ -789,6 +797,35 @@ def items_waiting_allocation_api():
     return None
 
 
+@app.schedule(Cron(0, '11-22/5', '?', '*', '*', '*'))
+def inventory_by_warehouse(event):
+    items_waiting_allocation_api()
+
+
+@app.route('/inventory_by_warehouse', methods=['GET'])
+def get_inventory_by_warehouse_api():
+    items = get_inventory_by_warehouse()
+    writer_file = io.StringIO()
+    writer = csv.writer(writer_file)
+    fields = ['template', 'name', 'sku', 'warehouse_4', 'warehouse_23']
+    writer.writerow(fields)
+    d = datetime.now().strftime('%Y-%m-%d at %H')
+    for item in items:
+        row = [item[f] for f in fields]
+        writer.writerow(row)
+    attachment = dict(name=f'inventory_by_warehouse-{d}.csv',
+                      data=str.encode(writer_file.getvalue()),
+                      type='text/csv')
+    writer_file.close()
+    send_email(
+        f"Fulfil Report: inventory.by_warehouse.report {date.today()}",
+        str(listDictsToHTMLTable(items)), dev_recipients=True,
+        file=[attachment, ],
+        email=['maxwell@auratenewyork.com', 'operations.aurate+allinventory@emailitin.com'],
+    )
+    return None
+
+
 @app.schedule(Cron(0, 5, '?', '*', '*', 0))
 def parse_sites_event(event):
     parse_sites()
@@ -876,9 +913,9 @@ def investor_order_event(event):
         print("No Sales orders was found with such discount code")
 
 
-@app.schedule(Cron(59, 23, '?', '*', '*', '*'))
-def sync_inventory_event(event):
-    sync_inventory_api()
+# @app.schedule(Cron(0, 4, '?', '*', '*', '*'))
+# def sync_inventory_event(event):
+#     sync_inventory_api()
 
 
 @app.route('/sync_inventory', methods=['GET'])
@@ -890,7 +927,7 @@ def sync_inventory_api():
 
 
 @app.lambda_function(name='sync_inventory_rubyhas')
-def pull_sku_quantities(event, context):
+def sync_inventory_rubyhas(event, context):
     updated_sku = event['updated_sku']
     sync_inventory(updated_sku)
 
@@ -910,7 +947,7 @@ def sync_inventory(updated_sku=[]):
         if updated_sku:
             dump_updated_sku(updated_sku)
             try:
-                count = new_inventory(updated_sku)
+                count = new_inventory(updated_sku, RUBYHAS_HQ_STORAGE)
                 complete_inventory(count)
                 confirm_inventory(count)
             except Exception:
@@ -941,3 +978,12 @@ def internal_shipments_api():
     p = ProcessInternalShipment(d)
     p.process_internal_shipments()
 
+
+# @app.schedule(Cron(0, 6, '?', '*', '*', '*'))
+# def count_boxes_event(event):
+#     count_boxes_api()
+
+#
+# @app.route('/count_boxes', methods=['GET'])
+# def count_boxes_api():
+#     process_boxes()

@@ -123,7 +123,7 @@ def get_item_quantity(item_number):
     try:
         item = response.json()
         quantity = int(item.get('@availableToPromise'))
-        return quantity if quantity >= 0 else 0
+        return quantity if quantity >= 0 else None
     except Exception as e:
         print(response.text)
         print(str(e))
@@ -154,7 +154,7 @@ def get_full_inventory():
                     inventories[i['itemNumber']] = {'rubyhas': 0}
                 quantity = int(i['facilityInventory']['inventory']['availableToPromise'])
                 if quantity < 0:
-                    quantity = 0
+                    continue
                 inventories[i['itemNumber']]['rubyhas'] = quantity
 
             page += 1

@@ -542,9 +542,6 @@ def create_pdf(data, template, binary_path):
     return pdf_string
 
 
-
-
-
 def check_in_stock(product_id, location_id, quantity):
     chunk_size = 500
     url = f'{get_fulfil_model_url("stock.location")}?fields=id,quantity_on_hand&context={{"product": {product_id}}}&per_page={chunk_size}'
@@ -646,6 +643,14 @@ def get_late_shipments():
 def get_items_waiting_allocation(d):
     url = 'https://aurate.fulfil.io/'
     data = {"method":"model.shipment.items_waiting_allocation.ireport.execute","params":[{"category":None,"end_date":{"__class__":"date","year":d.year,"month":d.month,"day":d.day},"template":None,"warehouse":None,"start_date":{"__class__":"date","year":d.year,"month":d.month,"day":d.day}},{"company":1,"allowed_read_channels":[1,3],"company.rec_name":"AUrate New York"}]}
+    response = requests.post(url, headers=headers, json=data)
+    a = response.json()
+    return a['result']['data']
+
+
+def get_inventory_by_warehouse():
+    url = 'https://aurate.fulfil.io/'
+    data = {"method":"model.inventory.by_warehouse.report.execute","params":[{"category":None,"quantity_type":"quantity_on_hand"},{"workstation":None,"language":"en_US","roles":[],"employee.rec_name":"Roman","locale":{"date":"%m/%d/%Y","thousands_sep":",","decimal_point":".","grouping":[3,3,0]},"company":1,"allowed_read_channels":[1,3],"company.rec_name":"AUrate New York","currency_symbol":"$","employee":39,"warehouses":[4]}]}
     response = requests.post(url, headers=headers, json=data)
     a = response.json()
     return a['result']['data']

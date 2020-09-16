@@ -42,7 +42,7 @@ def sku_for_update(inventory):
         )
         if 'quantity_on_hand' in product:
             fulfil_inventory = product['quantity_on_hand']
-            if int(value['rubyhas']) != int(fulfil_inventory):
+            if int(value['rubyhas']) != int(fulfil_inventory) and int(value['rubyhas']) > 0:
                 yield dict(SKU=key,
                            _id=product['id'],
                            _from=int(fulfil_inventory),
@@ -54,7 +54,7 @@ def sku_for_update(inventory):
             break
 
 
-def new_inventory(for_update):
+def new_inventory(for_update, warehouse):
     # create inventory record in fullfill
     lines = [{'product': i['_id'], 'quantity': i['_to']} for i in for_update]
     params = [
@@ -62,7 +62,7 @@ def new_inventory(for_update):
             'date': client.today(),
             'type': 'cycle',
             'lost_found': 7,
-            'location': RUBYHAS_HQ_STORAGE,
+            'location': warehouse,
             'lines': [['create', lines]],
         }
     ]
