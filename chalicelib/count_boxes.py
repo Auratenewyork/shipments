@@ -15,6 +15,31 @@ import traceback
 boxes = None
 
 
+def notify_end_up_boxes(few_boxes):
+    info = str(listDictsToHTMLTable(few_boxes))
+    send_email(
+        f"Boxes are ending up",
+        f"{date.today().strftime('%Y-%m-%d')}<br>" + info,
+        dev_recipients=True,
+        email=['maxwell@auratenewyork.com'],
+    )
+
+
+def check_end_up_boxes(updated_sku_by_warehouse):
+    few_boxes = []
+    for storage, updated_sku in updated_sku_by_warehouse.items():
+        for i in updated_sku:
+            if i['_to'] < 100:
+                few_boxes.append(dict(
+                    warehouse=storage,
+                    code=i['code'],
+                    id=i['_id'],
+                    current_quantity=i['_to']
+                ))
+    if few_boxes:
+        notify_end_up_boxes(few_boxes)
+
+
 def process_boxes():
     shipments = collect_info()
     get_boxes()
@@ -69,14 +94,27 @@ def create_box_comment(size, quantity=1):
     return box_comment
 
 
+def have_big_box(line):
+    if 'chain' in line['product.rec_name'].lower():
+        return True
+    starts = ['AU0040', 'AU0150', 'AU0151', 'AU0233', 'AU0347', 'AU0031']
+    for s in starts:
+        if line['product.code'].startswith(s):
+            return True
+
+
 def collect_boxes(shipments):
     col_boxes = defaultdict(lambda:{'big': 0, "small": 0})
     for shipment in shipments:
         quantity = 0
         for sale in shipment['sales_info']:
+            big_box = False
             for line in sale['lines_info']:
+                if have_big_box(line):
+                    big_box = True
                 quantity += line['quantity']
-        if quantity > 3:
+
+        if quantity > 3 or big_box:
             b = col_boxes[shipment['warehouse']]
             b['big'] += 1
             shipment['box'] = create_box_comment('big')
@@ -120,7 +158,7 @@ def collect_info():
 def get_order_lines(ids):
     Line = client.model('sale.line')
     fields = ['note', 'product', 'quantity', 'product.code', 'note',
-              'product.quantity_available', 'metadata']
+              'product.quantity_available', 'metadata', 'product.rec_name']
     lines = Line.search_read_all(
         domain=['AND', ['id', 'in', ids]],
         order=None,

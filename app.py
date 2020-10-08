@@ -12,10 +12,14 @@ from chalice import Chalice, Cron, Response
 
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
-    RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE)
+    RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY)
 from chalicelib import web_scraper
 from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
 from chalicelib.count_boxes import process_boxes
+from chalicelib.easypost import get_easypost_record, \
+    scrape_easypost__match_reference, get_easypost_record_by_reference, \
+    get_shipment
+from chalicelib.easypsot_tracking import fulfill_tracking
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
     change_movement_locations, create_internal_shipment, find_late_orders,
@@ -192,7 +196,7 @@ def purchase_order_webhook():
                     movement = get_movement(movement_id)
                     for item in movement['item_blurb']['subtitle']:
                         product_ids.add(item[1])
-                syncinventories_ids(product_ids)
+                # syncinventories_ids(product_ids)
         else:
             try:
                 process_internal_shipment(order)
@@ -799,7 +803,7 @@ def items_waiting_allocation_api():
 
 @app.schedule(Cron(0, '11-22/5', '?', '*', '*', '*'))
 def inventory_by_warehouse(event):
-    items_waiting_allocation_api()
+    get_inventory_by_warehouse_api()
 
 
 @app.route('/inventory_by_warehouse', methods=['GET'])
@@ -913,9 +917,9 @@ def investor_order_event(event):
         print("No Sales orders was found with such discount code")
 
 
-# @app.schedule(Cron(0, 4, '?', '*', '*', '*'))
-# def sync_inventory_event(event):
-#     sync_inventory_api()
+@app.schedule(Cron(0, 7, '?', '*', '*', '*'))
+def sync_inventory_event(event):
+    sync_inventory_api()
 
 
 @app.route('/sync_inventory', methods=['GET'])
@@ -987,3 +991,71 @@ def internal_shipments_api():
 # @app.route('/count_boxes', methods=['GET'])
 # def count_boxes_api():
 #     process_boxes()
+
+def collect_result(a, b):
+    return None
+
+
+@app.route('/tracking_information/{sale_reference}',
+           methods=['GET'])
+def tracking_information(sale_reference):
+    sale_reference = "#" + sale_reference
+    e_shipment_id = get_easypost_record_by_reference(sale_reference)
+    if e_shipment_id:
+        e_shipment = get_shipment(e_shipment_id)
+        e_tracking = e_shipment.tracker.tracking_details
+    else:
+        e_tracking = []
+
+    f_tracking = fulfill_tracking(sale_reference)
+    track = []
+    for item in f_tracking:
+        item.update(dict(
+            city='NEW YORK',
+            country='US',
+            state='NY',
+            zip='10036',
+            source='AURATE',
+        ))
+        track.append(item)
+    for item in e_tracking:
+        a = dict(
+            message=item.message,
+            city=item.tracking_location.city,
+            country=item.tracking_location.country,
+            state=item.tracking_location.state,
+            zip=item.tracking_location.zip,
+            date=item.datetime,
+            status=item.status,
+            source=item.source,
+            status_detail=item.status_detail,
+        )
+        track.append(a)
+    return Response(status_code=200, body=json.dumps(track))
+
+
+
+@app.schedule(Cron(0, 10, '?', '*', '*', '*'))
+def scrape_easypost_event(event):
+    scrape_easypost_api()
+
+
+@app.route('/scrape_easypost', methods=['GET'])
+def scrape_easypost_api():
+    BUCKET = 'aurate-sku'
+    response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
+    previous_data = pickle.loads(response['Body'].read())
+    info = scrape_easypost__match_reference(previous_data['last_id'])
+    previous_data.update(info)
+    s3.put_object(Body=pickle.dumps(previous_data), Bucket=BUCKET,
+                  Key=f'easypost_reference_match')
+
+
+
+
+
+
+
+
+
+

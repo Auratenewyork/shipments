@@ -38,3 +38,4 @@ webencodings==0.5.1
 Werkzeug==1.0.0
 xhtml2pdf==0.2.4
 yapf==0.29.0
+easypost==5.0.0

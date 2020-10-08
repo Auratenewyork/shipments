@@ -1,3 +1,4 @@
+import pickle
 from datetime import datetime, timedelta, date
 
 import requests
@@ -6,6 +7,7 @@ from retrying import retry
 
 from chalicelib import EASYPOST_API_KEY, EASYPOST_URL
 from chalicelib.common import listDictsToHTMLTable
+import easypost
 
 
 def get_transit_shipment_params():
@@ -63,3 +65,93 @@ def run_in_transit_shipments():
             next_page = res['next_page']
             result += res['shipments']
         f.write(str(listDictsToHTMLTable(result)))
+
+
+def get_easypost_record(reference, before_id=None):
+    easypost.api_key = EASYPOST_API_KEY
+    params = dict(page_size=100)
+    if before_id:
+        params['before_id'] = before_id
+    page = 1
+    not_stop = True
+    next_page = True
+    result = []
+    match = None
+    while next_page and not_stop:
+        shipments_response = easypost.Shipment.all(**params)
+        shipments = shipments_response.shipments
+
+        next_page = (len(shipments) == params['page_size'])
+        result += shipments
+        for s in shipments:
+            print(s.options.print_custom_1)
+            if reference in s.options.print_custom_1:
+                match = s
+                not_stop = False
+
+        page += 1
+        if page > 3:
+            not_stop = False
+    save_new_match(result)
+    if match:
+        return match.id
+    else:
+        return None
+
+
+def get_easypost_record_by_reference(reference):
+    BUCKET = 'aurate-sku'
+    from app import s3
+    response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
+    previous_data = pickle.loads(response['Body'].read())
+    for key, value in previous_data['shipments'].items():
+        if reference in value:
+            return key
+    return get_easypost_record(reference, before_id=previous_data['last_id'])
+
+
+def save_new_match(match):
+    info = collect_new_info(match)
+    BUCKET = 'aurate-sku'
+    from app import s3
+    response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
+    previous_data = pickle.loads(response['Body'].read())
+    previous_data['shipments'].update(info['shipments'])
+    previous_data['last_id'] = info['last_id']
+    s3.put_object(Body=pickle.dumps(previous_data), Bucket=BUCKET,
+                  Key=f'easypost_reference_match')
+
+
+def scrape_easypost__match_reference(last_id):
+    easypost.api_key = EASYPOST_API_KEY
+    params = dict(page_size=100, before_id=last_id)
+    page = 1
+    next_page = True
+    result = []
+    while next_page:
+        shipments_response = easypost.Shipment.all(**params)
+        shipments = shipments_response.shipments
+        result += shipments
+        next_page = (len(shipments) == params['page_size'])
+        params['before_id'] = shipments[-1].id
+
+        page += 1
+        if page > 50:
+            break
+    return collect_new_info(result)
+
+
+def collect_new_info(result):
+    match = {}
+    for shipment in result:
+       match[shipment.id] = f"{shipment.options.print_custom_1} " \
+                            f"{shipment.options.print_custom_2}"
+    last_id = result[-1].id
+    return dict(last_id=last_id, shipments=match)
+
+
+def get_shipment(_id):
+    easypost.api_key = EASYPOST_API_KEY
+    shipment = easypost.Shipment.retrieve(_id)
+    return shipment
+
