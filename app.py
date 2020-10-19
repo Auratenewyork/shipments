@@ -808,11 +808,12 @@ def inventory_by_warehouse(event):
 
 @app.route('/inventory_by_warehouse', methods=['GET'])
 def get_inventory_by_warehouse_api():
-    items = get_inventory_by_warehouse()
+    items, columns = get_inventory_by_warehouse()
     writer_file = io.StringIO()
     writer = csv.writer(writer_file)
-    fields = ['template', 'name', 'sku', 'warehouse_4', 'warehouse_23']
-    writer.writerow(fields)
+    header = [item['display_name'] for item in columns]
+    fields = [item['name'] for item in columns]
+    writer.writerow(header)
     d = datetime.now().strftime('%Y-%m-%d at %H')
     for item in items:
         row = [item[f] for f in fields]
@@ -821,10 +822,11 @@ def get_inventory_by_warehouse_api():
                       data=str.encode(writer_file.getvalue()),
                       type='text/csv')
     writer_file.close()
+
     send_email(
         f"Fulfil Report: inventory.by_warehouse.report {date.today()}",
-        str(listDictsToHTMLTable(items)), dev_recipients=True,
-        file=[attachment, ],
+        'inventory by warehouse report is in the attached csv file',
+        dev_recipients=True, file=[attachment, ],
         email=['maxwell@auratenewyork.com', 'operations.aurate+allinventory@emailitin.com'],
     )
     return None
@@ -1031,8 +1033,8 @@ def tracking_information(sale_reference):
             status_detail=item.status_detail,
         )
         track.append(a)
-    return Response(status_code=200, body=json.dumps(track))
-
+    return Response(status_code=200, headers={'Access-Control-Allow-Origin': '*'},
+                    body=json.dumps(track))
 
 
 @app.schedule(Cron(0, 10, '?', '*', '*', '*'))
