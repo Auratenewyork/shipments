@@ -9,11 +9,10 @@ from functools import lru_cache
 
 import boto3
 from chalice import Chalice, Cron, Response
-
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
     RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY)
-from chalicelib import web_scraper
+from chalicelib import web_scraper, loopreturns
 from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
 from chalicelib.count_boxes import process_boxes
 from chalicelib.easypost import get_easypost_record, \
@@ -827,7 +826,13 @@ def get_inventory_by_warehouse_api():
         f"Fulfil Report: inventory.by_warehouse.report {date.today()}",
         'inventory by warehouse report is in the attached csv file',
         dev_recipients=True, file=[attachment, ],
-        email=['maxwell@auratenewyork.com', 'operations.aurate+allinventory@emailitin.com'],
+        email=['maxwell@auratenewyork.com', 'aurateinventorydailypull@gmail.com'],
+    )
+    send_email(
+        f"Fulfil Report: inventory.by_warehouse.report {date.today()}",
+        'inventory by warehouse report is in the attached csv file',
+        dev_recipients=False, file=[attachment, ],
+        email=['operations.aurate+allInventory@emailitin.com'],
     )
     return None
 
@@ -985,17 +990,14 @@ def internal_shipments_api():
     p.process_internal_shipments()
 
 
-# @app.schedule(Cron(0, 6, '?', '*', '*', '*'))
-# def count_boxes_event(event):
-#     count_boxes_api()
+@app.schedule(Cron(0, 6, '?', '*', '*', '*'))
+def count_boxes_event(event):
+    count_boxes_api()
 
-#
-# @app.route('/count_boxes', methods=['GET'])
-# def count_boxes_api():
-#     process_boxes()
 
-def collect_result(a, b):
-    return None
+@app.route('/count_boxes', methods=['GET'])
+def count_boxes_api():
+    process_boxes()
 
 
 @app.route('/tracking_information/{sale_reference}',
@@ -1052,6 +1054,19 @@ def scrape_easypost_api():
     s3.put_object(Body=pickle.dumps(previous_data), Bucket=BUCKET,
                   Key=f'easypost_reference_match')
 
+
+@app.route('/loopreturns', methods=['POST'])
+def loopreturns_api():
+    webhook_secret = 'f5d0c396ba09b4c2'
+    request = app.current_request
+    headers = request.headers
+    body = request.json_body
+    loopreturns.process_request(request)
+    trigger = body['trigger']
+    BUCKET = 'aurate-loopreturns'
+    key = f'{trigger}-{date.today().strftime("%Y-%m-%d")}'
+    s3.put_object(Body=json.dumps(body), Bucket=BUCKET, Key=key)
+    return Response(status_code=200, body=None)
 
 
 

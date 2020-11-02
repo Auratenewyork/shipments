@@ -47,6 +47,7 @@ def process_boxes():
     updated_sku_by_warehouse = sku_for_update(col_boxes)
     try:
         sku_for_report = []
+        count = 'Nothing changed'
         for storage, updated_sku in updated_sku_by_warehouse.items():
             sku_for_report.extend(updated_sku)
 
@@ -76,20 +77,34 @@ def process_boxes():
         print(traceback.format_exc())
 
 
-def create_box_comment(size, quantity=1):
+def create_box_comment(small=0, big=0, c_small=0, c_big=0):
     box_comment = []
-    if size == "small":
+    if small:
         box_parts = ['BX0001', 'PC0001', 'SH0001']
         for part in box_parts:
             for box in boxes[AURATE_WAREHOUSE]:
                 if box['code'] == part:
-                    box_comment.append('|'.join([box['rec_name'], str(quantity)]))
-    if size == "big":
+                    box_comment.append('|'.join([box['rec_name'], str(small)]))
+    if big:
         box_parts = ['BX0002', 'PC0002', 'SH0002']
         for part in box_parts:
             for box in boxes[AURATE_WAREHOUSE]:
                 if box['code'] == part:
-                    box_comment.append('|'.join(['', '', box['rec_name'], str(quantity)]))
+                    box_comment.append('|'.join(['', '', box['rec_name'], str(big)]))
+    if c_small:
+        box_parts = ['PC0001', 'SH0001']
+        for part in box_parts:
+            for box in boxes[AURATE_WAREHOUSE]:
+                if box['code'] == part:
+                    box_comment.append('|'.join([box['rec_name'], str(c_small)]))
+    if c_big:
+        box_parts = ['PC0002', 'SH0002']
+        for part in box_parts:
+            for box in boxes[AURATE_WAREHOUSE]:
+                if box['code'] == part:
+                    box_comment.append(
+                        '|'.join(['', '', box['rec_name'], str(c_big)]))
+
     box_comment = '\n'.join(box_comment)
     return box_comment
 
@@ -104,29 +119,37 @@ def have_big_box(line):
 
 
 def collect_boxes(shipments):
-    col_boxes = defaultdict(lambda:{'big': 0, "small": 0})
+    col_boxes = defaultdict(lambda: {'big': 0, "small": 0,
+                                     "c_big": 0, "c_small": 0})
     for shipment in shipments:
         quantity = 0
+        b = col_boxes[shipment['warehouse']]
         for sale in shipment['sales_info']:
+            sustainable_packaging = 'Sustainable packaging' in sale['shipping_instructions']
+            package_separately = 'Package my items separately' in sale['shipping_instructions']
             big_box = False
             for line in sale['lines_info']:
                 if have_big_box(line):
                     big_box = True
+                if package_separately and have_big_box(line):
+                    b['big'] += 1
+                elif package_separately:
+                    b['small'] += 1
                 quantity += line['quantity']
 
-        if quantity > 3 or big_box:
-            b = col_boxes[shipment['warehouse']]
-            b['big'] += 1
-            shipment['box'] = create_box_comment('big')
-        else:
-            b = col_boxes[shipment['warehouse']]
-            b['small'] += 1
-            shipment['box'] = create_box_comment('small')
-
-        # if 'save environ flag':
-        #     boxes.append()  # not full box
-        # elif 'pack items separately':
-        #     quantity = len(lines)
+        if not package_separately:
+            if sustainable_packaging:
+                if quantity > 3 or big_box:
+                    b['c_big'] += 1
+                else:
+                    b['c_small'] += 1
+            else:
+                if quantity > 3 or big_box:
+                    b['big'] += 1
+                else:
+                    b['small'] += 1
+        shipment['box'] = create_box_comment(small=b['small'], big=b['big'],
+                                             c_small=b['c_small'], c_big=b['c_big'])
     return col_boxes
 
 
@@ -195,7 +218,7 @@ def get_customer_shipments():
                        "minute": d.minute, "second": d.second,
                        "microsecond": 0}],
               ]
-    # filter_ = ['AND', ['id', '=', 30716]]
+    # filter_ = ['AND', ['id', '=', 67032]]
     fields = ['sales', 'contents_explanation', 'rec_name', 'warehouse']
     Shipment = client.model('stock.shipment.out')
     shipments = Shipment.search_read_all(
@@ -208,7 +231,7 @@ def get_customer_shipments():
 
 def get_sales(ids):
     Sale = client.model('sale.sale')
-    fields = ['number', 'lines', 'reference']
+    fields = ['number', 'lines', 'reference', 'shipping_instructions']
     sales = Sale.search_read_all(
         domain=[["AND", ['id', 'in', ids]]],
         order=None,
@@ -242,8 +265,17 @@ def sku_for_update(col_boxes):
                 _to = fulfil_inventory - col_boxes[warehouse]['small']
             elif product['code'][-1] == '2'and col_boxes[warehouse]['big']:
                 _to = fulfil_inventory - col_boxes[warehouse]['big']
+            elif product['code'][-1] == '1' and col_boxes[warehouse]['c_small']:
+                if product['code'].startswith('BX'):
+                    continue
+                _to = fulfil_inventory - col_boxes[warehouse]['c_small']
+            elif product['code'][-1] == '2' and col_boxes[warehouse]['c_big']:
+                if product['code'].startswith('BX'):
+                    continue
+                _to = fulfil_inventory - col_boxes[warehouse]['c_big']
             else:
                 continue
+
             inventory[WAREHOUSE_TO_STORAGE[warehouse]].append(
                 dict(SKU=product['code'],
                      _id=product['id'],
@@ -257,10 +289,11 @@ def sku_for_update(col_boxes):
 def add_box_comment(shipments):
     contents_explanation = ''
     for shipment in shipments:
-        contents_explanation += shipment['box']
-        if shipment['contents_explanation']:
-            contents_explanation += ';' + shipment['contents_explanation']
-        update_shipment(shipment, {'contents_explanation': contents_explanation})
+        if shipment['box']:
+            contents_explanation += shipment['box']
+            if shipment['contents_explanation']:
+                contents_explanation += ';' + shipment['contents_explanation']
+            update_shipment(shipment, {'contents_explanation': contents_explanation})
 
 
 def update_shipment(shipment, context):
