@@ -330,15 +330,16 @@ def find_late_orders():
 
         table = content.format(data)
 
-        send_email(f"Fulfil: found {len(orders)} late orders", table)
+        send_email(f"Fulfil: found {len(orders)} late orders", table, dev_recipients=True)
 
         template = open(f'{BASE_DIR}/chalicelib/template/email.html', 'r').read()
         for email in set(emails):
-            pass  # terminated
+            # pass  # terminated
             # send_email("Late order!", template, email)
+            send_email("Late order!", template, dev_recipients=True)
 
     else:
-        send_email("Fulfil: found 0 late orders", "Found 0 late orders")
+        send_email("Fulfil: found 0 late orders", "Found 0 late orders", dev_recipients=True)
 
 
 def get_global_order_lines():
