@@ -254,27 +254,21 @@ def find_late_orders():
     from app import BASE_DIR
     url = f'{FULFIL_API_URL}/model/stock.shipment.out/search_read'
     current_date = date.today()
+    d = current_date - timedelta(days=1)
     in_three_days = current_date + timedelta(days=3)
     orders = []
 
     payload = [[
         "AND",
         [
-            "planned_date", ">", {
+            "planned_date", "=", {
             "__class__": "date",
-            "year": current_date.year,
-            "day": current_date.day,
-            "month": current_date.month,
+            "year": d.year,
+            "day": d.day,
+            "month": d.month,
         }
         ],
-        [
-            "planned_date", "<", {
-            "__class__": "date",
-            "year": in_three_days.year,
-            "day": in_three_days.day,
-            "month": in_three_days.month
-        }
-        ], ["state", "in", ["waiting", "packed", "assigned"]]
+        ["state", "in", ["waiting", "packed", "assigned"]]
     ], None, None, None, ["sales"]]
 
     response = requests.put(url, data=json.dumps(payload), headers=headers)
@@ -334,7 +328,7 @@ def find_late_orders():
 
         template = open(f'{BASE_DIR}/chalicelib/template/email.html', 'r').read()
         for email in set(emails):
-            # pass  # terminated
+            template = template.replace('{{2020}}', str(date.today().year))
             # send_email("Late order!", template, email)
             send_email("Late order!", template, dev_recipients=True)
 

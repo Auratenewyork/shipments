@@ -236,8 +236,14 @@ def syncinventories_ids(product_ids):
             )
 
 
-@app.schedule(Cron(0, 17, '*', '*', '?', '*'))
+
+
+@app.schedule(Cron(0, 23, '*', '*', '?', '*'))
 def find_late_orders_view(event):
+    find_late_orders()
+
+@app.route('/find_late_orders', methods=['GET'])
+def find_late_orders_api():
     find_late_orders()
 
 
