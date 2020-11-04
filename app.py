@@ -4,6 +4,7 @@ import json
 import math
 import os
 import pickle
+import traceback
 from datetime import date, datetime, timedelta
 from functools import lru_cache
 
@@ -1063,15 +1064,20 @@ def scrape_easypost_api():
 
 @app.route('/loopreturns', methods=['POST'])
 def loopreturns_api():
-    webhook_secret = 'f5d0c396ba09b4c2'
-    request = app.current_request
-    headers = request.headers
-    body = request.json_body
-    loopreturns.process_request(request)
-    trigger = body['trigger']
-    BUCKET = 'aurate-loopreturns'
-    key = f'{trigger}-{date.today().strftime("%Y-%m-%d")}'
-    s3.put_object(Body=json.dumps(body), Bucket=BUCKET, Key=key)
+    try:
+        webhook_secret = 'f5d0c396ba09b4c2'
+        request = app.current_request
+        headers = request.headers
+        body = request.json_body
+        result = loopreturns.process_request(request)
+        # trigger = body['trigger']
+        BUCKET = 'aurate-loopreturns'
+        # key = f'{trigger}-{date.today().strftime("%Y-%m-%d")}'
+        # s3.put_object(Body=json.dumps(body), Bucket=BUCKET, Key=key)
+
+        send_email(subject="loopreturns: webhook", content=str(result), dev_recipients=True)
+    except Exception as err:
+        traceback.print_exc()
     return Response(status_code=200, body=None)
 
 
