@@ -1,4 +1,6 @@
+import hashlib
 import os
+import traceback
 
 from hashlib import sha1
 import hmac
@@ -32,25 +34,85 @@ b = {"topic": "return", "trigger": "return.updated", "id": "6042537", "state": "
 
 def check_request_signature(request):
     try:
-        webhook_secret = 'f5d0c396ba09b4c2'
+        webhook_secret = 'f5d0c396ba09b4c2'.encode('utf-8')
         headers = request.headers
-        signature = headers["X-Loop-Signature"]
+        signature = headers.get("X-Loop-Signature", '')
 
-        body = request.text
-        body = body.replase('\n', '')
-
-        hashed = hmac.new(webhook_secret, body)
-        if hashed == signature:
+        body = request.raw_body
+        hashed = hmac.new(webhook_secret, body, hashlib.sha256)
+        decoded = base64.b64encode(hashed.digest()).decode()
+        if decoded == signature:
             send_email(subject="loopreturns: signature, success", content="", dev_recipients=True)
         else:
-            send_email(subject="loopreturns: signature, success", content=f"{body}\n{signature}", dev_recipients=True)
+            send_email(subject="loopreturns: signature, error", content=f"{body}\n{signature}", dev_recipients=True)
     except Exception as e:
         print("check_request_signature error")
-        print(str(e.body))
+        traceback.print_exc()
+        try:
+            print(headers)
+            print(body)
+            print(signature)
+            print(decoded)
+        except:
+            pass
+"""
+Open---> Draft
+Processed---> Done
+Flagged---> High Risk
+Closed-----> Done
+Cancelled----> Cancelled
+Expired------> Cancelled
+"""  """open, processed, flagged, closed, cancelled, expired"""
+
+def find_return_sale(reference, sku_list=[]):
+    Sale = client.model('sale.sale')
+    fields = ['id', 'reference', 'lines', 'has_return']
+    sales = Sale.search_read_all(
+        domain=['AND', [("reference", "=", reference,)]],
+        order=[],
+        fields=fields
+    )
+    sales = list(filter(lambda x: x['has_return'], sales))
+    if len(sales) > 1:
+        pass
+        # check lines!!!!(not very important but possible ))))
+        # amd return only one line
+        # sku_list used here
+    if len(sales) == 0:
+        raise Exception("sale is not found")
+    return sales[0]
+
+
+def cancel_sale(sale_id):
+    url = f'{get_fulfil_model_url("sale.sale")}/{sale_id}/cancel'
+    response = requests.put(url, headers=headers)
+    return response.status_code, response.text
 
 
 def return_updated(body):
-    return body
+    state = body['state']
+    message = f'Received loopreturns webhook return.updated \n state: {state}\n'
+    if state in ['cancelled', 'expired', ]:
+        sku_list = [body_l['sku'] for body_l in body['line_items']]
+        try:
+            sale = find_return_sale(body['order_name'], sku_list=sku_list)
+        except Exception:
+            message += 'Sale is not found\n'
+            sale = None
+        # add check of sale status and what we are going to set
+        if sale:
+            success, text = cancel_sale(sale['id'])
+            if success == '200':
+                message += "return sale was cancelled\n"
+            else:
+                message += f"error occurred during return sale cancelling {text}\n"
+    elif state in 'closed':
+        message += 'Pay attention here!!!!!!!!!!!!!!!!!!!!\n'
+    else:
+        message += 'No actions done\n'
+    message += str(body)
+    return message
+
 
 def return_created(body):
     errors = []
@@ -136,7 +198,7 @@ def return_created(body):
         }]
 
     response = requests.put(url, json=payload, headers=headers)
-    return response, errors
+    return response.text, errors
 
 
 def process_return(body):
@@ -156,8 +218,18 @@ def process_request(request):
     triggers = {'return':process_return, 'label':process_label,
                 'restock':process_restock}
 
-    check_request_signature(request)
-
     body = request.json_body
-    result = triggers[a['topic']](a)
+    result = "something goes wrong"
+    try:
+        result = triggers[body['topic']](body)
+    except Exception:
+        traceback.print_exc()
+
+    try:
+        check_request_signature(request)
+    except Exception:
+        traceback.print_exc()
+
     return result
+
+

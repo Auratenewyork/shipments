@@ -161,25 +161,27 @@ def purchase_order_webhook():
         if internal_shipment and order_status in status_mapping.keys():
             update_internal_shipment(internal_shipment.get('id'),
                                      {'state': status_mapping[order_status]})
-            send_email(
-                "Fulfil Report: Internal shipment status changed",
-                f"\"{number}\" IS status has been changed to {status_mapping[order_status]}",
-                email=['roman.borodinov@uadevelopers.com']
-            )
-            if status_mapping[order_status] == 'canceled':
-                send_email(
-                    "Fulfil Report: Internal shipment canceled",
-                    f"\"{number}\" IS has been canceled"
-                    f"Deposco sales order reference {number}",
-                    dev_recipients=True,
-                    email=['maxwell@auratenewyork.com']
-                )
-        else:
-            send_email(
-                "Fulfil Report: Failed to update Internal shipment status",
-                f"Can't find {number} IS to update the status.",
-                email=['roman.borodinov@uadevelopers.com']
-            )
+            # send_email(
+            #     "Fulfil Report: Internal shipment status changed",
+            #     f"\"{number}\" IS status has been changed to {status_mapping[order_status]}",
+            #     email=['roman.borodinov@uadevelopers.com']
+            # )
+            # if status_mapping[order_status] == 'canceled':
+            #     send_email(
+            #         "Fulfil Report: Internal shipment canceled",
+            #         f"\"{number}\" IS has been canceled"
+            #         f"Deposco sales order reference {number}",
+            #         dev_recipients=True,
+            #         email=['maxwell@auratenewyork.com']
+            #     )
+        # else:
+        #     print("Fulfil Report: Failed to update Internal shipment status",
+        #           f"Can't find {number} IS to update the status.")
+            # send_email(
+            #     "Fulfil Report: Failed to update Internal shipment status",
+            #     f"Can't find {number} IS to update the status.",
+            #     email=['roman.borodinov@uadevelopers.com']
+            # )
 
     if order.get('type') == 'PURCHASE_ORDER':
         process_internal_shipment(order)
@@ -201,11 +203,12 @@ def purchase_order_webhook():
             try:
                 process_internal_shipment(order)
             except Exception:
-                send_email(
-                    "Webhook",
-                    f"Error during processing {number} internal shipment ",
-                    email=['roman.borodinov@uadevelopers.com']
-                )
+                # send_email(
+                #     "Webhook",
+                #     f"Error during processing {number} internal shipment ",
+                #     email=['roman.borodinov@uadevelopers.com']
+                # )
+                pass
 
     return Response(status_code=200, body=None)
 
@@ -1064,20 +1067,22 @@ def scrape_easypost_api():
 
 @app.route('/loopreturns', methods=['POST'])
 def loopreturns_api():
-    try:
-        webhook_secret = 'f5d0c396ba09b4c2'
-        request = app.current_request
-        headers = request.headers
-        body = request.json_body
-        result = loopreturns.process_request(request)
-        # trigger = body['trigger']
-        BUCKET = 'aurate-loopreturns'
-        # key = f'{trigger}-{date.today().strftime("%Y-%m-%d")}'
-        # s3.put_object(Body=json.dumps(body), Bucket=BUCKET, Key=key)
+    request = app.current_request
+    body = request.json_body
+    trigger = body['trigger']
+    BUCKET = 'aurate-loopreturns'
+    key = f'{trigger}-{date.today().strftime("%Y-%m-%d")}'
+    s3.put_object(Body=json.dumps(body), Bucket=BUCKET, Key=key)
 
-        send_email(subject="loopreturns: webhook", content=str(result), dev_recipients=True)
+
+    try:
+        result = loopreturns.process_request(request)
     except Exception as err:
         traceback.print_exc()
+        result = "some error accured, check logs please"
+
+    send_email(subject="loopreturns: webhook", content=str(result),
+               dev_recipients=True)
     return Response(status_code=200, body=None)
 
 
