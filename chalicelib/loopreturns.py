@@ -63,6 +63,7 @@ Cancelled----> Cancelled
 Expired------> Cancelled
 """  """open, processed, flagged, closed, cancelled, expired"""
 
+
 def find_return_sale(reference, sku_list=[]):
     Sale = client.model('sale.sale')
     fields = ['id', 'reference', 'lines', 'has_return']
@@ -222,7 +223,7 @@ def process_request(request):
     sign_check = check_request_signature(request)
     try:
         if sign_check:
-            for key, function in triggers:
+            for key, function in triggers.items():
                 if body['trigger'].startswith(key):
                     result = function(body)
         else:
