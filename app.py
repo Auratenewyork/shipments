@@ -19,7 +19,7 @@ from chalicelib.count_boxes import process_boxes
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment
-from chalicelib.easypsot_tracking import fulfill_tracking
+from chalicelib.easypsot_tracking import fulfill_tracking, get_n_days_old_orders
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
     change_movement_locations, create_internal_shipment, find_late_orders,
@@ -1008,6 +1008,31 @@ def count_boxes_event(event):
 @app.route('/count_boxes', methods=['GET'])
 def count_boxes_api():
     process_boxes()
+
+
+
+@app.schedule(Cron(0, 6, '?', '*', '*', '*'))
+def mto_notifications_event(event):
+    mto_notifications_api()
+
+
+@app.route('/check_mto_notifications', methods=['GET'])
+def mto_notifications_api():
+    emails_3 = get_n_days_old_orders(3)
+    with open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html', 'r') as f:
+        template = f.read()
+
+    send_email( f"MTO user notifications",
+            str(emails_3) + '<br/>' + template,
+            email=['maxwell@auratenewyork.com'],
+            dev_recipients=True,)
+    emails_12 = get_n_days_old_orders(12)
+    with open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html', 'r') as f:
+        template = f.read()
+    send_email(f"MTO user notifications",
+               str(emails_12) + '<br/>' + template,
+               email=['maxwell@auratenewyork.com'],
+               dev_recipients=True, )
 
 
 @app.route('/tracking_information/{sale_reference}',
