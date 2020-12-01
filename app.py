@@ -1016,23 +1016,52 @@ def mto_notifications_event(event):
     mto_notifications_api()
 
 
+def remove_unsubscribed(emails):
+    BUCKET = 'aurate-unsubscribe'
+    response = s3.get_object(Bucket=BUCKET, Key=f'unsubscribe')
+    previous_data = pickle.loads(response['Body'].read())
+    clean_emails = []
+    for email in emails:
+        if email['party.email'] not in previous_data:
+            clean_emails.append(email)
+    return clean_emails
+
+
 @app.route('/check_mto_notifications', methods=['GET'])
 def mto_notifications_api():
     emails_3 = get_n_days_old_orders(3)
     with open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html', 'r') as f:
         template = f.read()
-
+    emails_3 = remove_unsubscribed(emails_3)
     send_email( f"MTO user notifications",
             str(emails_3) + '<br/>' + template,
             email=['maxwell@auratenewyork.com'],
             dev_recipients=True,)
     emails_12 = get_n_days_old_orders(12)
+    emails_12 = remove_unsubscribed(emails_12)
     with open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html', 'r') as f:
         template = f.read()
     send_email(f"MTO user notifications",
                str(emails_12) + '<br/>' + template,
                email=['maxwell@auratenewyork.com'],
                dev_recipients=True, )
+
+
+@app.route('/api/unsubscribe', methods=['GET'])
+def unsubscribe_api():
+    request = app.current_request
+    if request.query_params and 'email' in request.query_params:
+        email = request.query_params.get('email', None)
+        BUCKET = 'aurate-unsubscribe'
+        response = s3.get_object(Bucket=BUCKET, Key=f'unsubscribe')
+        previous_data = pickle.loads(response['Body'].read())
+        previous_data.append(email)
+        s3.put_object(Body=pickle.dumps(previous_data), Bucket=BUCKET,
+                      Key=f'unsubscribe')
+        with open(f'{BASE_DIR}/chalicelib/template/unsubscribe.html', 'r') as f:
+            template = f.read()
+    return Response(status_code=200, body=template)
+
 
 
 @app.route('/tracking_information/{sale_reference}',
@@ -1104,7 +1133,7 @@ def loopreturns_api():
         result = loopreturns.process_request(request)
     except Exception as err:
         traceback.print_exc()
-        result = "some error accured, check logs please"
+        result = "some error occurred, check logs please"
 
     send_email(subject="loopreturns: webhook", content=str(result),
                dev_recipients=True)

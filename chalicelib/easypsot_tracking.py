@@ -65,7 +65,7 @@ def dates_with_passed_some_work_days(wd_number=3, excluded=(6, 7)):
     d = date.today()
     wd = 0
     date_list = []
-    while wd <= wd_number:
+    while wd <= wd_number + 1:
         d -= datetime.timedelta(days=1)
         if d.isoweekday() not in excluded:
             wd += 1

@@ -92,7 +92,8 @@ def get_easypost_record(reference, before_id=None):
         page += 1
         if page > 3:
             not_stop = False
-    save_new_match(result)
+    if len(result):
+        save_new_match(result)
     if match:
         return match.id
     else:
