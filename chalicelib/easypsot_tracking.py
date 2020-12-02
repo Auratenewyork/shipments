@@ -25,9 +25,11 @@ def fulfill_tracking(sale_reference):
     )
     sale = list(sale)
     if not sale:
-        raise Exception("Not found")
+        return []
 
     sale = Model.get(sale[0]['id'])
+    if not sale['shipments']:
+        return []
     Model = client.model('stock.shipment.out')
     shipment = Model.get(sale['shipments'][0])
     mto = (shipment['planned_date'] - shipment['sale_date'] > timedelta(days=17))

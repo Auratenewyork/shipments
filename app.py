@@ -154,6 +154,7 @@ def purchase_order_webhook():
     }
 
     def process_internal_shipment(order):
+        return
         number = order.get('number')
         internal_shipment = get_internal_shipment({'reference': number})
         order_status = order.get('status', '').lower()
@@ -238,8 +239,6 @@ def syncinventories_ids(product_ids):
                 str(listDictsToHTMLTable(updated_sku)),
                 email=['roman.borodinov@uadevelopers.com'],
             )
-
-
 
 
 @app.schedule(Cron(0, 23, '*', '*', '?', '*'))
