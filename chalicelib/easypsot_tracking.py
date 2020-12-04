@@ -128,7 +128,15 @@ def get_n_days_old_orders(days):
         domain=['AND', ['id', 'in', sale_ids]],
         order=None,
         fields=fields)
-    return list(sales)
+    sales = list(sales)
+    for sale in sales:
+        for c in candidates:
+            if sale['id'] in c['sales']:
+                sale['planned_date'] = c['planned_date']
+                break
+
+
+    return sales
     # emails = [item['party.email'] for item in sales]
     # return emails
 

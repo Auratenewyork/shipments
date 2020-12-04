@@ -1028,22 +1028,44 @@ def remove_unsubscribed(emails):
 
 @app.route('/check_mto_notifications', methods=['GET'])
 def mto_notifications_api():
+    def make_replacements(template, email, planned_date, reference):
+        link = 'https://4p9vek36rc.execute-api.us-east-2.amazonaws.com/api/api/unsubscribe?email=' + email
+        track_link = 'http://dwlwqvbdpvyiv.cloudfront.net/' + reference.replace('#', '')
+        return (template
+                .replace('{{UNSUBSCRIBE_LINK}}', link, 1)
+                .replace('{{FINISH_DATE}}', str(planned_date), 1)
+                .replace('{{TRACK_LINK}}', str(track_link), 1)
+                )
     emails_3 = get_n_days_old_orders(3)
-    with open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html', 'r') as f:
-        template = f.read()
     emails_3 = remove_unsubscribed(emails_3)
-    send_email( f"MTO user notifications",
-            str(emails_3) + '<br/>' + template,
-            email=['maxwell@auratenewyork.com'],
-            dev_recipients=True,)
+    with open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html', 'r') as f:
+
+        template = f.read()
+    template = template.replace('{{2020}}', str(date.today().year), 1)
+    if emails_3:
+        for sale in emails_3:
+            template = make_replacements(template, sale['party.email'],
+                                         sale['planned_date'], sale['reference'])
+            send_email( f"MTO user notifications",
+                    str(emails_3) + '<br/>' + template,
+                    email=['maxwell@auratenewyork.com'],
+                    dev_recipients=True,)
+            break
     emails_12 = get_n_days_old_orders(12)
     emails_12 = remove_unsubscribed(emails_12)
     with open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html', 'r') as f:
         template = f.read()
-    send_email(f"MTO user notifications",
-               str(emails_12) + '<br/>' + template,
-               email=['maxwell@auratenewyork.com'],
-               dev_recipients=True, )
+    template = template.replace('{{2020}}', str(date.today().year), 1)
+
+    if emails_12:
+        for sale in emails_12:
+            template = make_replacements(template, sale['party.email'],
+                                         sale['planned_date'], sale['reference'])
+            send_email( f"MTO user notifications",
+                    str(emails_12) + '<br/>' + template,
+                    email=['maxwell@auratenewyork.com'],
+                    dev_recipients=True,)
+            break
 
 
 @app.route('/api/unsubscribe', methods=['GET'])

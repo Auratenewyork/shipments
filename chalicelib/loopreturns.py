@@ -195,6 +195,7 @@ def return_created(body):
             "channel_identifier":  body['id'],  # Unique identifier for the return in the channel. This will be used as idempotency key to avoid duplication.
             "reference": body["order_name"],  # Return order reference, RMA
             "lines": lines,
+            "warehouse": 148,
         }]
 
     response = requests.put(url, json=payload, headers=headers)
