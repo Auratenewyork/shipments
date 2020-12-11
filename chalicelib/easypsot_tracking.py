@@ -36,7 +36,7 @@ def fulfill_tracking(sale_reference):
     tracking = []
     info = dict(
             message='Order received',
-            date=shipment['sale_date'].isoformat(),
+            date=shipment['sale_date'].strftime('%d/%m/%Y'),
             status='order received',
             status_detail='Order received',
         )

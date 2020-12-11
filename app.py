@@ -1100,6 +1100,7 @@ def tracking_information(sale_reference):
     track = []
     for item in f_tracking:
         item.update(dict(
+            time='',
             city='NEW YORK',
             country='US',
             state='NY',
@@ -1108,13 +1109,15 @@ def tracking_information(sale_reference):
         ))
         track.append(item)
     for item in e_tracking:
+        d = datetime.fromisoformat(item.datetime[0:-1])
         a = dict(
             message=item.message,
             city=item.tracking_location.city,
             country=item.tracking_location.country,
             state=item.tracking_location.state,
             zip=item.tracking_location.zip,
-            date=item.datetime,
+            date=d.strftime('%d/%m/%Y'),
+            time=d.strftime("%I:%M %p").lower(),
             status=item.status,
             source=item.source,
             status_detail=item.status_detail,
@@ -1135,7 +1138,8 @@ def scrape_easypost_api():
     response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
     previous_data = pickle.loads(response['Body'].read())
     info = scrape_easypost__match_reference(previous_data['last_id'])
-    previous_data.update(info)
+    previous_data['shipments'].update(info['shipments'])
+    previous_data['last_id'] = info['last_id']
     s3.put_object(Body=pickle.dumps(previous_data), Bucket=BUCKET,
                   Key=f'easypost_reference_match')
 

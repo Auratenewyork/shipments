@@ -84,7 +84,7 @@ def get_easypost_record(reference, before_id=None):
         next_page = (len(shipments) == params['page_size'])
         result += shipments
         for s in shipments:
-            print(s.options.print_custom_1)
+            # print(s.options.print_custom_1)
             if reference in s.options.print_custom_1:
                 match = s
                 not_stop = False
@@ -93,7 +93,7 @@ def get_easypost_record(reference, before_id=None):
         if page > 3:
             not_stop = False
     if len(result):
-        save_new_match(result)
+        save_new_match(result, )
     if match:
         return match.id
     else:
@@ -125,7 +125,9 @@ def save_new_match(match):
 
 def scrape_easypost__match_reference(last_id):
     easypost.api_key = EASYPOST_API_KEY
-    params = dict(page_size=100, before_id=last_id)
+    params = dict(page_size=100)
+    if last_id:
+        params['before_id'] = last_id
     page = 1
     next_page = True
     result = []

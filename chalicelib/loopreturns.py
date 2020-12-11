@@ -123,7 +123,11 @@ def return_created(body):
         fields=['id', 'lines'],
         # batch_size=5,
     )
-    sale = sale.__next__()
+    sale = list(sale)
+    if not sale:
+        errors.append(f"Can't create return, didn't find any sale with reference {body['order_name']}")
+        return errors
+    sale = sale[0]
 
     Model = client.model('sale.line')
     f_lines = Model.search_read_all(
@@ -195,7 +199,7 @@ def return_created(body):
             "channel_identifier":  body['id'],  # Unique identifier for the return in the channel. This will be used as idempotency key to avoid duplication.
             "reference": body["order_name"],  # Return order reference, RMA
             "lines": lines,
-            "warehouse": 148,
+            "warehouse": 140,
         }]
 
     response = requests.put(url, json=payload, headers=headers)
