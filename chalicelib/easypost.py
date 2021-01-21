@@ -67,11 +67,11 @@ def run_in_transit_shipments():
         f.write(str(listDictsToHTMLTable(result)))
 
 
-def get_easypost_record(reference, before_id=None):
+def get_easypost_record(reference, last_id=None):
     easypost.api_key = EASYPOST_API_KEY
     params = dict(page_size=100)
-    if before_id:
-        params['before_id'] = before_id
+    if last_id:
+        params['after_id'] = last_id
     page = 1
     not_stop = True
     next_page = True
@@ -83,6 +83,9 @@ def get_easypost_record(reference, before_id=None):
 
         next_page = (len(shipments) == params['page_size'])
         result += shipments
+        if shipments:
+            params['after_id'] = shipments[0].id
+
         for s in shipments:
             # print(s.options.print_custom_1)
             if reference in s.options.print_custom_1:
@@ -93,26 +96,26 @@ def get_easypost_record(reference, before_id=None):
         if page > 3:
             not_stop = False
     if len(result):
-        save_new_match(result, )
+        save_new_match(result, params.get('after_id', None))
     if match:
         return match.id
     else:
         return None
 
 
-def get_easypost_record_by_reference(reference):
+def get_easypost_record_by_reference(reference, sale_number):
     BUCKET = 'aurate-sku'
     from app import s3
     response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
     previous_data = pickle.loads(response['Body'].read())
     for key, value in previous_data['shipments'].items():
-        if reference in value:
+        if (reference in value) or (sale_number in value):
             return key
-    return get_easypost_record(reference, before_id=previous_data['last_id'])
+    return get_easypost_record(reference, last_id=previous_data['last_id'])
 
 
-def save_new_match(match):
-    info = collect_new_info(match)
+def save_new_match(match, last_id):
+    info = collect_new_info(match, last_id)
     BUCKET = 'aurate-sku'
     from app import s3
     response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
@@ -127,7 +130,7 @@ def scrape_easypost__match_reference(last_id):
     easypost.api_key = EASYPOST_API_KEY
     params = dict(page_size=100)
     if last_id:
-        params['before_id'] = last_id
+        params['after_id'] = last_id
     page = 1
     next_page = True
     result = []
@@ -136,20 +139,19 @@ def scrape_easypost__match_reference(last_id):
         shipments = shipments_response.shipments
         result += shipments
         next_page = (len(shipments) == params['page_size'])
-        params['before_id'] = shipments[-1].id
-
+        if shipments:
+            params['after_id'] = shipments[0].id
         page += 1
         if page > 50:
             break
-    return collect_new_info(result)
+    return collect_new_info(result, params['after_id'])
 
 
-def collect_new_info(result):
+def collect_new_info(result, last_id):
     match = {}
     for shipment in result:
        match[shipment.id] = f"{shipment.options.print_custom_1} " \
                             f"{shipment.options.print_custom_2}"
-    last_id = result[-1].id
     return dict(last_id=last_id, shipments=match)
 
 

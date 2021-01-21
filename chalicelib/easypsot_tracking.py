@@ -29,38 +29,51 @@ def fulfill_tracking(sale_reference):
 
     sale = Model.get(sale[0]['id'])
     if not sale['shipments']:
-        return []
+        return [None, None, None]
     Model = client.model('stock.shipment.out')
     shipment = Model.get(sale['shipments'][0])
     mto = (shipment['planned_date'] - shipment['sale_date'] > timedelta(days=17))
     tracking = []
-    info = dict(
-            message='Order received',
-            date=shipment['sale_date'].strftime('%d/%m/%Y'),
-            status='order received',
-            status_detail='Order received',
-        )
-    tracking.append(info)
     if mto:
+        info = dict(
+                message='Go, gold. Your ring is currently being casted and made. Hang tight for updates.',
+                date=shipment['sale_date'].strftime('%m/%d/%Y'),
+                status='Go, gold. Your ring is currently being casted and made. Hang tight for updates.',
+                status_detail='Go, gold. Your ring is currently being casted and made. Hang tight for updates.',
+            )
+        tracking.append(info)
         after_3_days = date_after_some_workdays(shipment['sale_date'])
         if datetime.date.today() >= after_3_days:
             info = dict(
-                message='your order is being made',
-                date=after_3_days.isoformat(),
-                status='your order is being made',
-                status_detail='your order is being made',
+                message='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
+                date=after_3_days.strftime('%m/%d/%Y'),
+                status='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
+                status_detail='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
             )
             tracking.append(info)
         after_14_days = shipment['sale_date'] + timedelta(days=14)
         if datetime.date.today() >= after_14_days:
             info = dict(
-                message='your order is polishing',
-                date=after_14_days.isoformat(),
-                status='your order is polishing',
-                status_detail='your order is polishing',
+                message='Your order is on the go. It’s being packed and ready to be shipped out!',
+                date=after_14_days.strftime('%m/%d/%Y'),
+                status='Your order is on the go. It’s being packed and ready to be shipped out!',
+                status_detail='Your order is on the go. It’s being packed and ready to be shipped out!',
             )
             tracking.append(info)
-    return tracking
+    else:
+        info = dict(
+            message='Your order is on the go. It’s being packed and ready to be shipped out!',
+            date=shipment['sale_date'].strftime('%m/%d/%Y'),
+            status='Your order is on the go. It’s being packed and ready to be shipped out!',
+            status_detail='Your order is on the go. It’s being packed and ready to be shipped out!',
+        )
+        tracking.append(info)
+    estimated_date = dict(
+        day=shipment['planned_date'].strftime('%d'),
+        weekday=shipment['planned_date'].strftime('%A'),
+        month=shipment['planned_date'].strftime('%B'),
+    )
+    return tracking, estimated_date, sale['number']
 
 
 def dates_with_passed_some_work_days(wd_number=3, excluded=(6, 7)):

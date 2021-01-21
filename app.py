@@ -16,6 +16,7 @@ from chalicelib import (
 from chalicelib import web_scraper, loopreturns
 from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
 from chalicelib.count_boxes import process_boxes
+from chalicelib.delivered_orders import delivered_orders
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment
@@ -42,6 +43,7 @@ from chalicelib.shipments import (
 from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
+from chalicelib.delivered_orders import return_orders
 
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
@@ -1010,7 +1012,7 @@ def count_boxes_api():
 
 
 
-@app.schedule(Cron(0, 6, '?', '*', '*', '*'))
+@app.schedule(Cron(0, 22, '?', '*', '*', '*'))
 def mto_notifications_event(event):
     mto_notifications_api()
 
@@ -1030,7 +1032,7 @@ def remove_unsubscribed(emails):
 def mto_notifications_api():
     def make_replacements(template, email, planned_date, reference):
         link = 'https://4p9vek36rc.execute-api.us-east-2.amazonaws.com/api/api/unsubscribe?email=' + email
-        track_link = 'http://dwlwqvbdpvyiv.cloudfront.net/' + reference.replace('#', '')
+        track_link = 'http://tracking.auratenewyork.com/' + reference.replace('#', '')
         return (template
                 .replace('{{UNSUBSCRIBE_LINK}}', link, 1)
                 .replace('{{FINISH_DATE}}', str(planned_date), 1)
@@ -1046,8 +1048,8 @@ def mto_notifications_api():
         for sale in emails_3:
             template = make_replacements(template, sale['party.email'],
                                          sale['planned_date'], sale['reference'])
-            send_email( f"MTO user notifications",
-                    str(emails_3) + '<br/>' + template,
+            send_email( f"An update on your gold",
+                    template,
                     email=['maxwell@auratenewyork.com'],
                     dev_recipients=True,)
             break
@@ -1061,8 +1063,8 @@ def mto_notifications_api():
         for sale in emails_12:
             template = make_replacements(template, sale['party.email'],
                                          sale['planned_date'], sale['reference'])
-            send_email( f"MTO user notifications",
-                    str(emails_12) + '<br/>' + template,
+            send_email( f"Almost to the finish line",
+                    template,
                     email=['maxwell@auratenewyork.com'],
                     dev_recipients=True,)
             break
@@ -1088,15 +1090,13 @@ def unsubscribe_api():
 @app.route('/tracking_information/{sale_reference}',
            methods=['GET'])
 def tracking_information(sale_reference):
-    sale_reference = "#" + sale_reference
-    e_shipment_id = get_easypost_record_by_reference(sale_reference)
-    if e_shipment_id:
-        e_shipment = get_shipment(e_shipment_id)
-        e_tracking = e_shipment.tracker.tracking_details
-    else:
-        e_tracking = []
+    try:
+        int(sale_reference)
+        sale_reference = "#" + sale_reference
+    except ValueError:
+        pass
 
-    f_tracking = fulfill_tracking(sale_reference)
+    f_tracking, estimated_date, sale_number = fulfill_tracking(sale_reference)
     track = []
     for item in f_tracking:
         item.update(dict(
@@ -1108,6 +1108,15 @@ def tracking_information(sale_reference):
             source='AURATE',
         ))
         track.append(item)
+
+    e_shipment_id = get_easypost_record_by_reference(sale_reference, sale_number)
+
+    if e_shipment_id:
+        e_shipment = get_shipment(e_shipment_id)
+        e_tracking = e_shipment.tracker.tracking_details
+    else:
+        e_tracking = []
+
     for item in e_tracking:
         d = datetime.fromisoformat(item.datetime[0:-1])
         a = dict(
@@ -1116,15 +1125,16 @@ def tracking_information(sale_reference):
             country=item.tracking_location.country,
             state=item.tracking_location.state,
             zip=item.tracking_location.zip,
-            date=d.strftime('%d/%m/%Y'),
+            date=d.strftime('%m/%d/%Y'),
             time=d.strftime("%I:%M %p").lower(),
             status=item.status,
             source=item.source,
             status_detail=item.status_detail,
         )
         track.append(a)
+    track.reverse()
     return Response(status_code=200, headers={'Access-Control-Allow-Origin': '*'},
-                    body=json.dumps(track))
+                    body=json.dumps({'estimated_date': estimated_date, 'items': track}))
 
 
 @app.schedule(Cron(0, 10, '?', '*', '*', '*'))
@@ -1140,6 +1150,10 @@ def scrape_easypost_api():
     info = scrape_easypost__match_reference(previous_data['last_id'])
     previous_data['shipments'].update(info['shipments'])
     previous_data['last_id'] = info['last_id']
+
+    # previous_data = {}
+    # previous_data['shipments'] = {}
+    # previous_data['last_id'] = 'shp_86ce806fc1f44566bc3935b7bffcd7dc'
     s3.put_object(Body=pickle.dumps(previous_data), Bucket=BUCKET,
                   Key=f'easypost_reference_match')
 
@@ -1148,10 +1162,10 @@ def scrape_easypost_api():
 def loopreturns_api():
     request = app.current_request
     body = request.json_body
-    trigger = body['trigger']
-    BUCKET = 'aurate-loopreturns'
-    key = f'{trigger}-{date.today().strftime("%Y-%m-%d")}'
-    s3.put_object(Body=json.dumps(body), Bucket=BUCKET, Key=key)
+    # trigger = body['trigger']
+    # BUCKET = 'aurate-loopreturns'
+    # key = f'{trigger}-{date.today().strftime("%Y-%m-%d")}'
+    # s3.put_object(Body=json.dumps(body), Bucket=BUCKET, Key=key)
 
 
     try:
@@ -1165,10 +1179,64 @@ def loopreturns_api():
     return Response(status_code=200, body=None)
 
 
+@app.schedule(Cron(0, 12, '?', '*', 'FRI', '*'))
+def delivered_orders_event(event):
+    delivered_orders_api()
+
+
+@app.route('/delivered_orders', methods=['GET'])
+def delivered_orders_api():
+    orders, message = delivered_orders()
+
+    writer_file = io.StringIO()
+    writer = csv.writer(writer_file)
+
+    header = ['Email', 'Name', 'Reference']
+    writer.writerow(header)
+    for item in orders:
+        row = [item['party.email'], item['party.name'], item['reference']]
+        writer.writerow(row)
+    attachment = dict(name=f'delivered_orders-{date.today().isoformat()}.csv',
+                      data=str.encode(writer_file.getvalue()),
+                      type='text/csv')
+    send_email(
+        f"Fullfill Delivered Orders:",
+        message, dev_recipients=True,
+        email=['maxwell@auratenewyork.com', 'nancy@auratenewyork.com'],
+        file=attachment
+    )
 
 
 
 
+@app.schedule(Cron(0, 12, '?', '*', 'FRI', '*'))
+def return_orders_event(event):
+    return_orders_api()
 
+
+@app.route('/return_orders', methods=['GET'])
+def return_orders_api():
+    orders, message = return_orders()
+
+    writer_file = io.StringIO()
+    writer = csv.writer(writer_file)
+
+    header = ['Email', 'Reference', 'Created At', "return Total", "exchange Total", "RETURNS (sku, variantID)", 'returns count', 'EXCHANGES (sku, variantID)', 'exchanges count']
+    writer.writerow(header)
+    for item in orders:
+        returns = [(i['sku'], i['variant_id']) for i in item['line_items']]
+        exchanges = [(i['sku'], i['variant_id']) for i in item['exchanges']]
+        row = [item['customer'], item['order_name'], item['created_at'], item['return_total'], item['exchange_total'], returns, len(returns), exchanges, len(exchanges)]
+        writer.writerow(row)
+    attachment = dict(name=f'delivered_orders-{date.today().isoformat()}.csv',
+                      data=str.encode(writer_file.getvalue()),
+                      type='text/csv')
+    send_email(
+        f"Loopreturns returned orders:",
+        message, dev_recipients=True,
+        # email=['maxwell@auratenewyork.com', 'nancy@auratenewyork.com'],
+        email=['roman.borodinov@uadevelopers.com'],
+        file=attachment
+    )
 
 

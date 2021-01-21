@@ -171,30 +171,31 @@ def return_created(body):
     if body['exchanges']:
         Model = client.model('product.product')
 
-    for i, item in enumerate(body['exchanges']):
-        if len(lines) > i:
-            product = Model.search_read_all(
-                domain=[["AND", ["code", "=", item['sku']]]],
-                order=None,
-                fields=['id'],
-            )
-            product_id = product.__next__()['id']
-            lines[i]['exchange_quantity'] = 1
-            lines[i]['exchange_product'] = product_id
-            lines[i]['exchange_unit_price'] = item['total']
-            # # Exchange fields
-            # # ==================
-            # # +ve quantity of replacement item to ship to customer
-            # "exchange_quantity": 1,
-            # # ID of the product being sent.
-            # # If replacement item is not specified, the same outbound item will be shipped.
-            # "exchange_product": 1234,
-            # # If the unit price is not specified, the unit price of the exchanged item is used.
-            # "exchange_unit_price": "320.45",  # Unit price for outbound item
-        else:
-            errors.append(f"failed to add exchange for {item}\n "
-                          f"there is more exchanges than returns")
-            break
+    # # exchanges created through shopify
+    # for i, item in enumerate(body['exchanges']):
+    #     if len(lines) > i:
+    #         product = Model.search_read_all(
+    #             domain=[["AND", ["code", "=", item['sku']]]],
+    #             order=None,
+    #             fields=['id'],
+    #         )
+    #         product_id = product.__next__()['id']
+    #         lines[i]['exchange_quantity'] = 1
+    #         lines[i]['exchange_product'] = product_id
+    #         lines[i]['exchange_unit_price'] = item['total']
+    #         # # Exchange fields
+    #         # # ==================
+    #         # # +ve quantity of replacement item to ship to customer
+    #         # "exchange_quantity": 1,
+    #         # # ID of the product being sent.
+    #         # # If replacement item is not specified, the same outbound item will be shipped.
+    #         # "exchange_product": 1234,
+    #         # # If the unit price is not specified, the unit price of the exchanged item is used.
+    #         # "exchange_unit_price": "320.45",  # Unit price for outbound item
+    #     else:
+    #         errors.append(f"failed to add exchange for {item}\n "
+    #                       f"there is more exchanges than returns")
+    #         break
     payload = [{
             "channel_identifier":  body['id'],  # Unique identifier for the return in the channel. This will be used as idempotency key to avoid duplication.
             "reference": body["order_name"],  # Return order reference, RMA

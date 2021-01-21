@@ -14,7 +14,7 @@ def send_email(subject, content, email=default_email, file=None,
         email = [email]
 
     if dev_recipients:
-        developer_emails = ['srglvk3@gmail.com', 'roman.borodinov@uadevelopers.com']
+        developer_emails = ['roman.borodinov@uadevelopers.com']
         if email:
             email = list(email) + developer_emails
         else:
