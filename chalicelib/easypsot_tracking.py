@@ -33,33 +33,50 @@ def fulfill_tracking(sale_reference):
     Model = client.model('stock.shipment.out')
     shipment = Model.get(sale['shipments'][0])
     mto = (shipment['planned_date'] - shipment['sale_date'] > timedelta(days=17))
+
+    shipment = add_product_info([shipment])[0]
+
     tracking = []
     if mto:
         info = dict(
-                message='Go, gold. Your ring is currently being casted and made. Hang tight for updates.',
+                message="We have a liftoff. Your order has been received. Hang tight for updates.",
                 date=shipment['sale_date'].strftime('%m/%d/%Y'),
-                status='Go, gold. Your ring is currently being casted and made. Hang tight for updates.',
-                status_detail='Go, gold. Your ring is currently being casted and made. Hang tight for updates.',
+                status="We have a liftoff. Your order has been received. Hang tight for updates.",
+                status_detail="We have a liftoff. Your order has been received. Hang tight for updates.",
             )
         tracking.append(info)
-        after_3_days = date_after_some_workdays(shipment['sale_date'])
+        after_3_days = date_after_some_workdays(shipment['sale_date'], wd_number=10)
         if datetime.date.today() >= after_3_days:
             info = dict(
-                message='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
+                message='Go, gold. Your gold is currently being casted and made. Hang tight for updates.',
                 date=after_3_days.strftime('%m/%d/%Y'),
+                status='Go, gold. Your gold is currently being casted and made. Hang tight for updates.',
+                status_detail='Go, gold. Your gold is currently being casted and made. Hang tight for updates.',
+            )
+            tracking.append(info)
+
+        after_12_days = date_after_some_workdays(shipment['sale_date'], wd_number=15)
+        if datetime.date.today() >= after_12_days:
+            info = dict(
+                message='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
+                date=after_12_days.strftime('%m/%d/%Y'),
                 status='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
                 status_detail='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
+
             )
             tracking.append(info)
-        after_14_days = shipment['sale_date'] + timedelta(days=14)
-        if datetime.date.today() >= after_14_days:
-            info = dict(
-                message='Your order is on the go. It’s being packed and ready to be shipped out!',
-                date=after_14_days.strftime('%m/%d/%Y'),
-                status='Your order is on the go. It’s being packed and ready to be shipped out!',
-                status_detail='Your order is on the go. It’s being packed and ready to be shipped out!',
-            )
-            tracking.append(info)
+
+        # after_17_days = date_after_some_workdays(shipment['sale_date'], wd_number=20)
+        # if datetime.date.today() >= after_17_days and shipment['all_moves'][0]['vermeil']:
+        #     info = dict(
+        #         message='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
+        #         date=after_17_days.strftime('%m/%d/%Y'),
+        #         status='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
+        #         status_detail='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
+        #
+        #     )
+        #     tracking.append(info)
+
     else:
         info = dict(
             message='Your order is on the go. It’s being packed and ready to be shipped out!',
@@ -91,7 +108,7 @@ def dates_with_passed_some_work_days(wd_number=3, excluded=(6, 7)):
 
 def fulfill_mto_candidates(report_date):
     Shipment = client.model('stock.shipment.out')
-    fields = ['sales', 'order_numbers', 'sale_date', 'planned_date']
+    fields = ['sales', 'order_numbers', 'sale_date', 'planned_date', 'inventory_moves']
 
     # domain = [["AND",["create_date","=",{"__class__":"datetime","year":report_date.year,"month":11,"day":26,"hour":22,"minute":0,"second":0,"microsecond":0}],["state", "!=", "done"], ["state", "!=", "cancel"]]]
     shipments = Shipment.search_read_all(
@@ -121,7 +138,7 @@ def fulfill_mto_candidates(report_date):
     return candidates
 
 
-def get_n_days_old_orders(days):
+def get_n_days_old_orders(days, vermeil=False):
     d = date.today()
     if d.isoweekday() in (6, 7):
         return "We are not sending emails on weekends!???"
@@ -130,6 +147,11 @@ def get_n_days_old_orders(days):
     for d in d_list:
         c = fulfill_mto_candidates(d)
         candidates.extend(c)
+    print(len(candidates), 'BEFORE')
+    if vermeil:
+        candidates = filter_vermeil_candidates(candidates)
+    print(len(candidates), "AFTER")
+
     sale_ids = []
     for c in candidates:
         sale_ids.extend(c['sales'])
@@ -153,3 +175,41 @@ def get_n_days_old_orders(days):
     # emails = [item['party.email'] for item in sales]
     # return emails
 
+
+def add_product_info(candidates):
+    VERMAIL_CODES = 'ABCD'
+    moves_ids = []
+    for c in candidates:
+        moves_ids.extend(c['inventory_moves'])
+
+    Move = client.model('stock.move')
+    fields = ['product.code', 'quantity', 'product.media_json', 'product.attributes_json', 'product']
+    moves = Move.search_read_all(
+        domain=['AND', ['id', 'in', moves_ids]],
+        order=None,
+        fields=fields)
+
+    moves = list(moves)
+    for c in candidates:
+        all_moves = []
+        for one_move in c['inventory_moves']:
+            for m in moves:
+                if one_move == m['id']:
+                    m['vermeil'] = (m['product.code'][6] in VERMAIL_CODES)
+                    all_moves.append(m)
+                    break
+        c['all_moves'] = all_moves
+    return candidates
+
+
+def filter_vermeil_candidates(candidates):
+    candidates = add_product_info(candidates)
+
+    new_candidates = []
+    for c in candidates:
+        for m in c['all_moves']:
+            if m['vermeil']:
+                new_candidates.append(c)
+                break
+
+    return new_candidates

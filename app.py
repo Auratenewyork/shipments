@@ -1038,7 +1038,7 @@ def mto_notifications_api():
                 .replace('{{FINISH_DATE}}', str(planned_date), 1)
                 .replace('{{TRACK_LINK}}', str(track_link), 1)
                 )
-    emails_3 = get_n_days_old_orders(3)
+    emails_3 = get_n_days_old_orders(10)
     emails_3 = remove_unsubscribed(emails_3)
     with open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html', 'r') as f:
 
@@ -1053,7 +1053,7 @@ def mto_notifications_api():
                     email=['maxwell@auratenewyork.com'],
                     dev_recipients=True,)
             break
-    emails_12 = get_n_days_old_orders(12)
+    emails_12 = get_n_days_old_orders(15)
     emails_12 = remove_unsubscribed(emails_12)
     with open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html', 'r') as f:
         template = f.read()
@@ -1064,6 +1064,22 @@ def mto_notifications_api():
             template = make_replacements(template, sale['party.email'],
                                          sale['planned_date'], sale['reference'])
             send_email( f"Almost to the finish line",
+                    template,
+                    email=['maxwell@auratenewyork.com'],
+                    dev_recipients=True,)
+            break
+
+    emails_17 = get_n_days_old_orders(20, vermeil=True)
+    emails_17 = remove_unsubscribed(emails_17)
+    with open(f'{BASE_DIR}/chalicelib/template/mto_17_days.html', 'r') as f:
+        template = f.read()
+    template = template.replace('{{2020}}', str(date.today().year), 1)
+
+    if emails_17:
+        for sale in emails_17:
+            template = make_replacements(template, sale['party.email'],
+                                         sale['planned_date'], sale['reference'])
+            send_email( f"Next steps for your gold vermeil",
                     template,
                     email=['maxwell@auratenewyork.com'],
                     dev_recipients=True,)
@@ -1209,7 +1225,7 @@ def delivered_orders_api():
 
 
 
-@app.schedule(Cron(0, 12, '?', '*', 'FRI', '*'))
+@app.schedule(Cron(0, 5, '?', '*', 'MON', '*'))
 def return_orders_event(event):
     return_orders_api()
 
@@ -1234,8 +1250,8 @@ def return_orders_api():
     send_email(
         f"Loopreturns returned orders:",
         message, dev_recipients=True,
-        # email=['maxwell@auratenewyork.com', 'nancy@auratenewyork.com'],
-        email=['roman.borodinov@uadevelopers.com'],
+        email=['maxwell@auratenewyork.com', 'nancy@auratenewyork.com'],
+        # email=['roman.borodinov@uadevelopers.com'],
         file=attachment
     )
 
