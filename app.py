@@ -40,6 +40,7 @@ from chalicelib.rubyhas import (
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
     pull_shipments_by_date, weekly_pull)
+from chalicelib.shopify import shopify_products
 from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
@@ -837,14 +838,15 @@ def get_inventory_by_warehouse_api():
         f"Fulfil Report: inventory.by_warehouse.report {date.today()}",
         'inventory by warehouse report is in the attached csv file',
         dev_recipients=True, file=[attachment, ],
-        email=['maxwell@auratenewyork.com', 'aurateinventorydailypull@gmail.com'],
+        email=['maxwell@auratenewyork.com', 'aurateinventorydailypull@gmail.com',
+               'brian@auratenewyork.com', 'operations.aurate+allInventory@emailitin.com'],
     )
-    send_email(
-        f"Fulfil Report: inventory.by_warehouse.report {date.today()}",
-        'inventory by warehouse report is in the attached csv file',
-        dev_recipients=False, file=[attachment, ],
-        email=['operations.aurate+allInventory@emailitin.com'],
-    )
+    # send_email(
+    #     f"Fulfil Report: inventory.by_warehouse.report {date.today()}",
+    #     'inventory by warehouse report is in the attached csv file',
+    #     dev_recipients=False, file=[attachment, ],
+    #     email=['operations.aurate+allInventory@emailitin.com'],
+    # )
     return None
 
 
@@ -1255,4 +1257,28 @@ def return_orders_api():
         file=attachment
     )
 
+
+@app.schedule(Cron(0, 5, '?', '*', '*', '*'))
+def lost_shopify_event(event):
+    lost_shopify_api()
+
+
+@app.route('/lost_shopify', methods=['GET'])
+def lost_shopify_api():
+    products = shopify_products()
+    writer_file = io.StringIO()
+    writer = csv.DictWriter(writer_file, products[0].keys())
+    writer.writeheader()
+    writer.writerows(products)
+
+    attachment = dict(name=f'lost-shopify-{date.today().isoformat()}.csv',
+                      data=str.encode(writer_file.getvalue()),
+                      type='text/csv')
+    send_email(
+        "Shopify quantity compare:",
+        "data in attached file", dev_recipients=True,
+        email=['maxwell@auratenewyork.com'],
+        # email=['roman.borodinov@uadevelopers.com'],
+        file=attachment
+    )
 
