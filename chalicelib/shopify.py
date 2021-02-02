@@ -41,7 +41,7 @@ def lost_orders(prod):
     lost_sku = list(shopify_quantities.keys())
 
     Model = client.model('product.product')
-    fields = ["id", "code", "quantity_on_hand"]
+    fields = ["id", "code", "quantity_available"]
     products = Model.search_read_all(
         domain=["AND",["code","in", lost_sku],],
         order=None,
@@ -51,7 +51,7 @@ def lost_orders(prod):
 
     for p in products:
         p['shopify_quantity'] = shopify_quantities[p['code']]['inventory_quantity']
-        p['difference'] = int(p['shopify_quantity']) - int(p['quantity_on_hand'])
+        p['difference'] = int(p['shopify_quantity']) - int(p['quantity_available'])
 
         p['shopify_product_id'] = shopify_quantities[p['code']]['shopify_product_id']
         p['shopify_variant_id'] = shopify_quantities[p['code']]['shopify_variant_id']

@@ -45,6 +45,7 @@ from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
 from chalicelib.delivered_orders import return_orders
+from jinja2 import Template
 
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
@@ -840,6 +841,7 @@ def get_inventory_by_warehouse_api():
         dev_recipients=True, file=[attachment, ],
         email=['maxwell@auratenewyork.com', 'aurateinventorydailypull@gmail.com',
                'brian@auratenewyork.com', 'operations.aurate+allInventory@emailitin.com'],
+        # email=['roman.borodinov@uadevelopers.com'],
     )
     # send_email(
     #     f"Fulfil Report: inventory.by_warehouse.report {date.today()}",
@@ -1032,6 +1034,9 @@ def remove_unsubscribed(emails):
 
 @app.route('/check_mto_notifications', methods=['GET'])
 def mto_notifications_api():
+    def get_link(reference):
+        return 'http://tracking.auratenewyork.com/' + reference.replace('#', '')
+
     def make_replacements(template, email, planned_date, reference):
         link = 'https://4p9vek36rc.execute-api.us-east-2.amazonaws.com/api/api/unsubscribe?email=' + email
         track_link = 'http://tracking.auratenewyork.com/' + reference.replace('#', '')
@@ -1040,21 +1045,22 @@ def mto_notifications_api():
                 .replace('{{FINISH_DATE}}', str(planned_date), 1)
                 .replace('{{TRACK_LINK}}', str(track_link), 1)
                 )
-    emails_3 = get_n_days_old_orders(10)
-    emails_3 = remove_unsubscribed(emails_3)
-    with open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html', 'r') as f:
 
-        template = f.read()
-    template = template.replace('{{2020}}', str(date.today().year), 1)
+
+    emails_3 = get_n_days_old_orders(10)
+    template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html').read())
+
     if emails_3:
         for sale in emails_3:
-            template = make_replacements(template, sale['party.email'],
-                                         sale['planned_date'], sale['reference'])
-            send_email( f"An update on your gold",
-                    template,
-                    email=['maxwell@auratenewyork.com'],
-                    dev_recipients=True,)
-            break
+                data = {
+                    'YEAR': str(date.today().year),
+                    'FINISH_DATE': sale['planned_date'],
+                    'TRACK_LINK': get_link(sale['reference']),
+                    'items': sale['с'].get('all_moves', []),
+                }
+                result = template.render(**data)
+                return Response(result, status_code=200, headers={'Content-Type': 'text/html'})
+
     emails_12 = get_n_days_old_orders(15)
     emails_12 = remove_unsubscribed(emails_12)
     with open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html', 'r') as f:
@@ -1192,8 +1198,8 @@ def loopreturns_api():
         traceback.print_exc()
         result = "some error occurred, check logs please"
 
-    send_email(subject="loopreturns: webhook", content=str(result),
-               dev_recipients=True)
+    # send_email(subject="loopreturns: webhook", content=str(result),
+    #            dev_recipients=True)
     return Response(status_code=200, body=None)
 
 
@@ -1223,8 +1229,6 @@ def delivered_orders_api():
         email=['maxwell@auratenewyork.com', 'nancy@auratenewyork.com'],
         file=attachment
     )
-
-
 
 
 @app.schedule(Cron(0, 5, '?', '*', 'MON', '*'))

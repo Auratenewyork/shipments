@@ -58,24 +58,24 @@ def fulfill_tracking(sale_reference):
         after_12_days = date_after_some_workdays(shipment['sale_date'], wd_number=15)
         if datetime.date.today() >= after_12_days:
             info = dict(
-                message='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
+                message='Your gold was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised.',
                 date=after_12_days.strftime('%m/%d/%Y'),
-                status='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
-                status_detail='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
+                status='Your gold was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised.',
+                status_detail='Your gold was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised.',
 
             )
             tracking.append(info)
 
-        # after_17_days = date_after_some_workdays(shipment['sale_date'], wd_number=20)
-        # if datetime.date.today() >= after_17_days and shipment['all_moves'][0]['vermeil']:
-        #     info = dict(
-        #         message='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
-        #         date=after_17_days.strftime('%m/%d/%Y'),
-        #         status='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
-        #         status_detail='Your ring was finished being made and our team of helicopter moms are making sure it looks just as perfect as promised',
-        #
-        #     )
-        #     tracking.append(info)
+        after_17_days = date_after_some_workdays(shipment['sale_date'], wd_number=20)
+        if datetime.date.today() >= after_17_days and shipment['all_moves'][0]['vermeil']:
+            info = dict(
+                message='Your Vermeil piece is ready to be dipped in a golden coat.',
+                date=after_17_days.strftime('%m/%d/%Y'),
+                status='Your Vermeil piece is ready to be dipped in a golden coat.',
+                status_detail='Your Vermeil piece is ready to be dipped in a golden coat.',
+
+            )
+            tracking.append(info)
 
     else:
         info = dict(
@@ -147,10 +147,9 @@ def get_n_days_old_orders(days, vermeil=False):
     for d in d_list:
         c = fulfill_mto_candidates(d)
         candidates.extend(c)
-    print(len(candidates), 'BEFORE')
+    candidates = add_product_info(candidates)
     if vermeil:
         candidates = filter_vermeil_candidates(candidates)
-    print(len(candidates), "AFTER")
 
     sale_ids = []
     for c in candidates:
@@ -168,9 +167,8 @@ def get_n_days_old_orders(days, vermeil=False):
         for c in candidates:
             if sale['id'] in c['sales']:
                 sale['planned_date'] = c['planned_date']
+                sale['с'] = c
                 break
-
-
     return sales
     # emails = [item['party.email'] for item in sales]
     # return emails
@@ -203,7 +201,6 @@ def add_product_info(candidates):
 
 
 def filter_vermeil_candidates(candidates):
-    candidates = add_product_info(candidates)
 
     new_candidates = []
     for c in candidates:

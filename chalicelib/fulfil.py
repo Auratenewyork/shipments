@@ -329,7 +329,7 @@ def find_late_orders():
         template = open(f'{BASE_DIR}/chalicelib/template/email.html', 'r').read()
         template = template.replace('{{2020}}', str(date.today().year))
         for email in set(emails):
-            send_email("Late order!", template, email)
+            send_email("A small hiccup on our end.", template, email)
 
     else:
         send_email("Fulfil: found 0 late orders", "Found 0 late orders", dev_recipients=True)
@@ -644,7 +644,7 @@ def get_items_waiting_allocation(d):
 
 def get_inventory_by_warehouse():
     url = 'https://aurate.fulfil.io/'
-    data = {"method":"model.inventory.by_warehouse.report.execute","params":[{"category":None,"quantity_type":"quantity_on_hand"},{"workstation":None,"language":"en_US","roles":[],"employee.rec_name":"Roman","locale":{"date":"%m/%d/%Y","thousands_sep":",","decimal_point":".","grouping":[3,3,0]},"company":1,"allowed_read_channels":[1,3],"company.rec_name":"AUrate New York","currency_symbol":"$","employee":39,"warehouses":[4]}]}
+    data = {"method":"model.inventory.by_warehouse.report.execute","params":[{"category":None,"quantity_type":"quantity_available"},{"workstation":None,"language":"en_US","roles":[],"employee.rec_name":"Roman","locale":{"date":"%m/%d/%Y","thousands_sep":",","decimal_point":".","grouping":[3,3,0]},"company":1,"allowed_read_channels":[1,3],"company.rec_name":"AUrate New York","currency_symbol":"$","employee":39,"warehouses":[4]}]}
     response = requests.post(url, headers=headers, json=data)
     a = response.json()
     return a['result']['data'], a['result']['columns']
