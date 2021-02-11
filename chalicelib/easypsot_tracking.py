@@ -16,7 +16,7 @@ def date_after_some_workdays(d, wd_number=3, excluded=(6, 7)):
     return d
 
 
-def fulfill_tracking(sale_reference):
+def get_shipments(sale_reference):
     Model = client.model('sale.sale')
     sale = Model.search_read_all(
         domain=['AND', [["reference", "=", sale_reference]]],
@@ -26,15 +26,23 @@ def fulfill_tracking(sale_reference):
     sale = list(sale)
     if not sale:
         return []
-
     sale = Model.get(sale[0]['id'])
+
     if not sale['shipments']:
         return [None, None, None]
     Model = client.model('stock.shipment.out')
-    shipment = Model.get(sale['shipments'][0])
-    mto = (shipment['planned_date'] - shipment['sale_date'] > timedelta(days=17))
+    shipments = []
+    for shipment_id in sale['shipments']:
+        shipment = Model.get(shipment_id)
+        shipments.append(shipment)
+    return shipments
 
+
+def fulfill_tracking(shipment):
+
+    mto = (shipment['planned_date'] - shipment['sale_date'] > timedelta(days=17))
     shipment = add_product_info([shipment])[0]
+
 
     tracking = []
     if mto:
@@ -90,7 +98,7 @@ def fulfill_tracking(sale_reference):
         weekday=shipment['planned_date'].strftime('%A'),
         month=shipment['planned_date'].strftime('%B'),
     )
-    return tracking, estimated_date, sale['number']
+    return tracking, estimated_date, shipment['number']
 
 
 def dates_with_passed_some_work_days(wd_number=3, excluded=(6, 7)):
@@ -181,7 +189,7 @@ def add_product_info(candidates):
         moves_ids.extend(c['inventory_moves'])
 
     Move = client.model('stock.move')
-    fields = ['product.code', 'quantity', 'product.media_json', 'product.attributes_json', 'product']
+    fields = ['product.code', 'quantity', 'product.media_json', 'product.attributes_json', 'product', 'product.name']
     moves = Move.search_read_all(
         domain=['AND', ['id', 'in', moves_ids]],
         order=None,
@@ -204,9 +212,11 @@ def filter_vermeil_candidates(candidates):
 
     new_candidates = []
     for c in candidates:
+        all_moves = []
         for m in c['all_moves']:
             if m['vermeil']:
-                new_candidates.append(c)
-                break
-
+                all_moves.append(m)
+        if all_moves:
+            c['all_moves'] = all_moves
+            new_candidates.append(c)
     return new_candidates

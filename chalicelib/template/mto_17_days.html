@@ -304,11 +304,6 @@
 <!--                                                <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:40px;font-weight:300;line-height:50px;text-align:center;color:#ffffff;">-->
 <!--                                                    <h1 class="hero__title"-->
 <!--                                                        style="line-height: 1.125; letter-spacing: 2.24px; text-transform: uppercase; text-align: center; font-size: 24px;">-->
-<!--                                                        {% if item_count == fulfillment.item_count %}-->
-<!--                                                        It's packaged!-->
-<!--                                                        {% else %}-->
-<!--                                                        Part of your order has been packaged!-->
-<!--                                                        {% endif %}-->
 <!--                                                    </h1></div>-->
 
 <!--                                            </td>-->
@@ -453,7 +448,101 @@
     </table>
     <![endif]-->
 
+  <!-- Line Items -->
 
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+
+
+      <div style="background:#FFFFFF;background-color:#FFFFFF;margin:0px auto;max-width:600px;">
+
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFFFF;background-color:#FFFFFF;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:20px 0;padding-bottom:20px;padding-top:20px;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+
+        <tr>
+
+            <td
+               class="" style="vertical-align:top;width:600px;"
+            >
+          <![endif]-->
+
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+
+            <tr>
+              <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+
+      <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;line-height:22px;table-layout:auto;width:100%;border:none;">
+
+        {% for line in items %}
+{#            <td>{{ line }}</td>#}
+            <tr style="border-bottom: 1px solid #ece6e2; border-top: 1px solid #ece6e2;">
+              <td class="py-4" style="padding: 20px 0; width: 100px;" width="100">
+              {% if line['product.media_json'] %}
+                <img src="{{ line['product.media_json'][0]['url'] }}" style="max-width: 80px; display: inline-block;">
+              {% endif %}
+              </td>
+
+              {% set line_title = line['product.name'] %}
+              {% set line_display = line.quantity  %}
+
+              <td class="py-4" valign="top" align="left" style="padding: 20px 0;">
+                <div class="line-item__title pb-1" style="font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif; color: #42544f; font-weight: 400; margin: 0; padding-bottom: 5px; color: #304038; clear: both;">{{ line_title }}</div>
+                <div class="line-item__subtitle text-eyebrow-2 pb-1" style="color: #42544f; padding: 0; margin: 0; font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; padding-bottom: 5px; color: #304038; clear: both;">Quantity: {{ line_display }}</div>
+{#                <div class="line-item__subtitle text-eyebrow-2 pb-1" style="color: #42544f; padding: 0; margin: 0; font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; padding-bottom: 5px; color: #304038; clear: both;">{{ line_title }}</div>#}
+
+{#                  {% for i in line['attributes_json'] %}#}
+{#                      {% if i.attribute_name == 'Color' %}#}
+{#                        <div class="line-item__subtitle" style="font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif; color: #42544f; font-weight: 300; font-size: 10px; padding: 0; margin: 0; color: #304038; clear: both;">{{ i.value }}</div>#}
+{#                      {% endif %}#}
+{#                      {% if i.attribute_name == 'rate' %}#}
+{#                        <div class="line-item__subtitle" style="font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif; color: #42544f; font-weight: 300; font-size: 10px; padding: 0; margin: 0; color: #304038; clear: both;">{{ i.value }}</div>#}
+{#                      {% endif %}#}
+{#                  {% endfor %}#}
+
+              </td>
+
+            </tr>
+          {% endfor %}
+      </table>
+
+              </td>
+            </tr>
+
+      </table>
+
+      </div>
+
+          <!--[if mso | IE]>
+            </td>
+
+        </tr>
+
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+
+
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      <![endif]-->
 
     <!-- Support --><!-- Support -->
 
@@ -1067,7 +1156,7 @@
                                 <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
 
                                     <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:12px;font-weight:300;line-height:1;text-align:center;color:#bfccb8;">
-                                        © {{2020}} Aurate New York
+                                        © {{YEAR}} Aurate New York
                                     </div>
 
                                 </td>

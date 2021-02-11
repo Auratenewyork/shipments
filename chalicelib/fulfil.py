@@ -255,7 +255,6 @@ def find_late_orders():
     url = f'{FULFIL_API_URL}/model/stock.shipment.out/search_read'
     current_date = date.today()
     d = current_date - timedelta(days=1)
-    in_three_days = current_date + timedelta(days=3)
     orders = []
 
     payload = [[
@@ -269,7 +268,7 @@ def find_late_orders():
         }
         ],
         ["state", "in", ["waiting", "packed", "assigned"]]
-    ], None, None, None, ["sales"]]
+    ], None, None, None, ["sales", "order_numbers"]]
 
     response = requests.put(url, data=json.dumps(payload), headers=headers)
 
@@ -282,17 +281,18 @@ def find_late_orders():
         shipments = response.json()
 
         for shipment in shipments:
-            for order_id in shipment.get('sales'):
-                order = get_order_data(
-                    order_id, ["reference", "party.name", "party.email"])
+            if 'exe' not in shipment.get('order_numbers', ''):
+                for order_id in shipment.get('sales'):
+                    order = get_order_data(
+                        order_id, ["reference", "party.name", "party.email"])
 
-                if not order:
-                    send_email(
-                        "Fulfil: failed to get Sales Order",
-                        f"Failed to get Sales Order with {order_id} ID.")
-                    continue
+                    # if not order:
+                    #     send_email(
+                    #         "Fulfil: failed to get Sales Order",
+                    #         f"Failed to get Sales Order with {order_id} ID.")
+                    #     continue
 
-                orders.append(order)
+                    orders.append(order)
 
     if len(orders):
         content = """
@@ -330,6 +330,8 @@ def find_late_orders():
         template = template.replace('{{2020}}', str(date.today().year))
         for email in set(emails):
             send_email("A small hiccup on our end.", template, email)
+            # send_email("A small hiccup on our end.", template, email=['roman.borodinov@uadevelopers.com'])
+            # break
 
     else:
         send_email("Fulfil: found 0 late orders", "Found 0 late orders", dev_recipients=True)
@@ -668,3 +670,15 @@ def sale_with_discount(code, time_delta):
         if sale['comment'] and code in sale['comment']:
             result.append(sale)
     return result
+
+def waiting_allocation():
+    Model = client.model('stock.shipment.out')
+    fields = ['id', "number", "moves", "delivery_address", "customer",
+                'order_numbers', 'number', 'sales']
+    shipments = Model.search_read_all(
+        domain=[["AND",["on_hold","=",False],["state","=","waiting"]]],
+        order=[["create_date", "DESC"]],
+        fields=fields
+    )
+
+    return list(shipments)

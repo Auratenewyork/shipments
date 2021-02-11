@@ -20,7 +20,8 @@ from chalicelib.delivered_orders import delivered_orders
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment
-from chalicelib.easypsot_tracking import fulfill_tracking, get_n_days_old_orders
+from chalicelib.easypsot_tracking import fulfill_tracking, \
+    get_n_days_old_orders, get_shipments
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
     change_movement_locations, create_internal_shipment, find_late_orders,
@@ -32,7 +33,8 @@ from chalicelib.fulfil import (
     get_po_from_shipment, get_line_from_po,
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     client as fulfill_client, get_late_shipments, get_items_waiting_allocation,
-    sale_with_discount, get_product, get_inventory_by_warehouse)
+    sale_with_discount, get_product, get_inventory_by_warehouse,
+    waiting_allocation)
 from chalicelib.internal_shipments import ProcessInternalShipment
 from chalicelib.rubyhas import (
     api_call, build_sales_order, create_purchase_order, get_item_quantity,
@@ -840,7 +842,8 @@ def get_inventory_by_warehouse_api():
         'inventory by warehouse report is in the attached csv file',
         dev_recipients=True, file=[attachment, ],
         email=['maxwell@auratenewyork.com', 'aurateinventorydailypull@gmail.com',
-               'brian@auratenewyork.com', 'operations.aurate+allInventory@emailitin.com'],
+               'brian@auratenewyork.com', 'operations.aurate+allInventory@emailitin.com',
+               'operations@auratenewyork.com'],
         # email=['roman.borodinov@uadevelopers.com'],
     )
     # send_email(
@@ -1037,16 +1040,6 @@ def mto_notifications_api():
     def get_link(reference):
         return 'http://tracking.auratenewyork.com/' + reference.replace('#', '')
 
-    def make_replacements(template, email, planned_date, reference):
-        link = 'https://4p9vek36rc.execute-api.us-east-2.amazonaws.com/api/api/unsubscribe?email=' + email
-        track_link = 'http://tracking.auratenewyork.com/' + reference.replace('#', '')
-        return (template
-                .replace('{{UNSUBSCRIBE_LINK}}', link, 1)
-                .replace('{{FINISH_DATE}}', str(planned_date), 1)
-                .replace('{{TRACK_LINK}}', str(track_link), 1)
-                )
-
-
     emails_3 = get_n_days_old_orders(10)
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html').read())
 
@@ -1059,39 +1052,53 @@ def mto_notifications_api():
                     'items': sale['с'].get('all_moves', []),
                 }
                 result = template.render(**data)
-                return Response(result, status_code=200, headers={'Content-Type': 'text/html'})
+
+                send_email( f"An update on your gold",
+                        result,
+                        email=['maxwell@auratenewyork.com'],
+                        dev_recipients=True,
+            )
+                break
 
     emails_12 = get_n_days_old_orders(15)
-    emails_12 = remove_unsubscribed(emails_12)
-    with open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html', 'r') as f:
-        template = f.read()
-    template = template.replace('{{2020}}', str(date.today().year), 1)
-
+    template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html').read())
     if emails_12:
         for sale in emails_12:
-            template = make_replacements(template, sale['party.email'],
-                                         sale['planned_date'], sale['reference'])
+            data = {
+                'YEAR': str(date.today().year),
+                'FINISH_DATE': sale['planned_date'],
+                'TRACK_LINK': get_link(sale['reference']),
+                'items': sale['с'].get('all_moves', []),
+            }
+            result = template.render(**data)
+
             send_email( f"Almost to the finish line",
-                    template,
+                    result,
                     email=['maxwell@auratenewyork.com'],
-                    dev_recipients=True,)
+                    dev_recipients=True,
+            )
             break
 
     emails_17 = get_n_days_old_orders(20, vermeil=True)
-    emails_17 = remove_unsubscribed(emails_17)
-    with open(f'{BASE_DIR}/chalicelib/template/mto_17_days.html', 'r') as f:
-        template = f.read()
-    template = template.replace('{{2020}}', str(date.today().year), 1)
-
+    template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_17_days.html').read())
     if emails_17:
         for sale in emails_17:
-            template = make_replacements(template, sale['party.email'],
-                                         sale['planned_date'], sale['reference'])
+            data = {
+                'YEAR': str(date.today().year),
+                'FINISH_DATE': sale['planned_date'],
+                'TRACK_LINK': get_link(sale['reference']),
+                'items': sale['с'].get('all_moves', []),
+            }
+            result = template.render(**data)
             send_email( f"Next steps for your gold vermeil",
-                    template,
+                    result,
                     email=['maxwell@auratenewyork.com'],
-                    dev_recipients=True,)
+                    dev_recipients=True,
+            )
             break
+            # return Response(result, status_code=200, headers={'Content-Type': 'text/html'})
+
+
 
 
 @app.route('/api/unsubscribe', methods=['GET'])
@@ -1119,44 +1126,48 @@ def tracking_information(sale_reference):
         sale_reference = "#" + sale_reference
     except ValueError:
         pass
+    shipments = get_shipments(sale_reference)
+    tracking = []
+    for shipment in shipments:
+        f_tracking, estimated_date, shipment_number = fulfill_tracking(shipment)
+        track = []
+        for item in f_tracking:
+            item.update(dict(
+                time='',
+                city='NEW YORK',
+                country='US',
+                state='NY',
+                zip='10036',
+                source='AURATE',
+            ))
+            track.append(item)
 
-    f_tracking, estimated_date, sale_number = fulfill_tracking(sale_reference)
-    track = []
-    for item in f_tracking:
-        item.update(dict(
-            time='',
-            city='NEW YORK',
-            country='US',
-            state='NY',
-            zip='10036',
-            source='AURATE',
-        ))
-        track.append(item)
+        e_shipment_id = get_easypost_record_by_reference(sale_reference, shipment_number)
 
-    e_shipment_id = get_easypost_record_by_reference(sale_reference, sale_number)
+        if e_shipment_id:
+            e_shipment = get_shipment(e_shipment_id)
+            e_tracking = e_shipment.tracker.tracking_details
+        else:
+            e_tracking = []
 
-    if e_shipment_id:
-        e_shipment = get_shipment(e_shipment_id)
-        e_tracking = e_shipment.tracker.tracking_details
-    else:
-        e_tracking = []
-
-    for item in e_tracking:
-        d = datetime.fromisoformat(item.datetime[0:-1])
-        a = dict(
-            message=item.message,
-            city=item.tracking_location.city,
-            country=item.tracking_location.country,
-            state=item.tracking_location.state,
-            zip=item.tracking_location.zip,
-            date=d.strftime('%m/%d/%Y'),
-            time=d.strftime("%I:%M %p").lower(),
-            status=item.status,
-            source=item.source,
-            status_detail=item.status_detail,
-        )
-        track.append(a)
-    track.reverse()
+        for item in e_tracking:
+            d = datetime.fromisoformat(item.datetime[0:-1])
+            a = dict(
+                message=item.message,
+                city=item.tracking_location.city,
+                country=item.tracking_location.country,
+                state=item.tracking_location.state,
+                zip=item.tracking_location.zip,
+                date=d.strftime('%m/%d/%Y'),
+                time=d.strftime("%I:%M %p").lower(),
+                status=item.status,
+                source=item.source,
+                status_detail=item.status_detail,
+            )
+            track.append(a)
+        track.reverse()
+        # Add here estimated date and other info according to the stock.shipment.out...
+        tracking.append(track)
     return Response(status_code=200, headers={'Access-Control-Allow-Origin': '*'},
                     body=json.dumps({'estimated_date': estimated_date, 'items': track}))
 
@@ -1262,9 +1273,9 @@ def return_orders_api():
     )
 
 
-@app.schedule(Cron(0, 5, '?', '*', '*', '*'))
-def lost_shopify_event(event):
-    lost_shopify_api()
+# @app.schedule(Cron(0, 5, '?', '*', '*', '*'))
+# def lost_shopify_event(event):
+#     lost_shopify_api()
 
 
 @app.route('/lost_shopify', methods=['GET'])
@@ -1281,7 +1292,32 @@ def lost_shopify_api():
     send_email(
         "Shopify quantity compare:",
         "data in attached file", dev_recipients=True,
-        email=['maxwell@auratenewyork.com'],
+        email=['maxwell@auratenewyork.com', 'brian@auratenewyork.com'],
+        # email=['roman.borodinov@uadevelopers.com'],
+        file=attachment
+    )
+
+
+@app.schedule(Cron(0, 6, '?', '*', '*', '*'))
+def waiting_allocation_event(event):
+    waiting_allocation_api()
+
+
+@app.route('/waiting_allocation', methods=['GET'])
+def waiting_allocation_api():
+    products = waiting_allocation()
+    writer_file = io.StringIO()
+    writer = csv.DictWriter(writer_file, products[0].keys())
+    writer.writeheader()
+    writer.writerows(products)
+
+    attachment = dict(name=f'waiting_allocation-{date.today().isoformat()}.csv',
+                      data=str.encode(writer_file.getvalue()),
+                      type='text/csv')
+    send_email(
+        "Items waiting allocation:",
+        "data in attached file", dev_recipients=True,
+        email=['maxwell@auratenewyork.com', 'brian@auratenewyork.com'],
         # email=['roman.borodinov@uadevelopers.com'],
         file=attachment
     )
