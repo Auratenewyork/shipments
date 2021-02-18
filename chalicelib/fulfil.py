@@ -10,6 +10,7 @@ from jinja2 import Template
 from chalicelib import (
     AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
     RUBYHAS_WAREHOUSE, AURATE_OUTPUT_ZONE)
+from .common import dates_with_passed_some_work_days
 from chalicelib.email import send_email
 
 headers = {
@@ -250,36 +251,38 @@ def get_fulfil_product_api(field, value, fieldsString, context):
        # TO REMOVE TO
 
 
+
+
 def find_late_orders():
     from app import BASE_DIR
     url = f'{FULFIL_API_URL}/model/stock.shipment.out/search_read'
-    current_date = date.today()
-    d = current_date - timedelta(days=1)
+    dates = dates_with_passed_some_work_days(3)
+
     orders = []
+    shipments = []
+    for d in dates:
+        payload = [[
+            "AND",
+            [
+                "planned_date", "=", {
+                "__class__": "date",
+                "year": d.year,
+                "day": d.day,
+                "month": d.month,
+            }
+            ],
+            ["state", "in", ["waiting", "packed", "assigned"]]
+        ], None, None, None, ["sales", "order_numbers"]]
 
-    payload = [[
-        "AND",
-        [
-            "planned_date", "=", {
-            "__class__": "date",
-            "year": d.year,
-            "day": d.day,
-            "month": d.month,
-        }
-        ],
-        ["state", "in", ["waiting", "packed", "assigned"]]
-    ], None, None, None, ["sales", "order_numbers"]]
+        response = requests.put(url, data=json.dumps(payload), headers=headers)
 
-    response = requests.put(url, data=json.dumps(payload), headers=headers)
-
-    if response.status_code != 200:
-        send_email("Fulfil: check late orders",
-                   "Checking late orders wasn't successfull. See logs on AWS.")
-        print(response.text)
-
-    else:
-        shipments = response.json()
-
+        if response.status_code != 200:
+            send_email("Fulfil: check late orders",
+                       "Checking late orders wasn't successfull. See logs on AWS.")
+            print(response.text)
+        else:
+            shipments.extend(response.json())
+    if shipments:
         for shipment in shipments:
             if 'exe' not in shipment.get('order_numbers', ''):
                 for order_id in shipment.get('sales'):

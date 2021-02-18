@@ -21,7 +21,7 @@ from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment
 from chalicelib.easypsot_tracking import fulfill_tracking, \
-    get_n_days_old_orders, get_shipments
+    get_n_days_old_orders, get_shipments, add_product_info
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
     change_movement_locations, create_internal_shipment, find_late_orders,
@@ -1049,15 +1049,15 @@ def mto_notifications_api():
                     'YEAR': str(date.today().year),
                     'FINISH_DATE': sale['planned_date'],
                     'TRACK_LINK': get_link(sale['reference']),
-                    'items': sale['с'].get('all_moves', []),
+                    'items': sale['c'].get('all_moves', []),
                 }
                 result = template.render(**data)
 
-                send_email( f"An update on your gold",
-                        result,
-                        email=['maxwell@auratenewyork.com'],
-                        dev_recipients=True,
-            )
+                # send_email( f"An update on your gold",
+                #         result,
+                #         email=['maxwell@auratenewyork.com'],
+                #         dev_recipients=True,
+                # )
                 break
 
     emails_12 = get_n_days_old_orders(15)
@@ -1068,15 +1068,15 @@ def mto_notifications_api():
                 'YEAR': str(date.today().year),
                 'FINISH_DATE': sale['planned_date'],
                 'TRACK_LINK': get_link(sale['reference']),
-                'items': sale['с'].get('all_moves', []),
+                'items': sale['c'].get('all_moves', []),
             }
             result = template.render(**data)
 
-            send_email( f"Almost to the finish line",
-                    result,
-                    email=['maxwell@auratenewyork.com'],
-                    dev_recipients=True,
-            )
+            # send_email( f"Almost to the finish line",
+            #         result,
+            #         email=['maxwell@auratenewyork.com'],
+            #         dev_recipients=True,
+            # )
             break
 
     emails_17 = get_n_days_old_orders(20, vermeil=True)
@@ -1087,14 +1087,14 @@ def mto_notifications_api():
                 'YEAR': str(date.today().year),
                 'FINISH_DATE': sale['planned_date'],
                 'TRACK_LINK': get_link(sale['reference']),
-                'items': sale['с'].get('all_moves', []),
+                'items': sale['c'].get('all_moves', []),
             }
             result = template.render(**data)
-            send_email( f"Next steps for your gold vermeil",
-                    result,
-                    email=['maxwell@auratenewyork.com'],
-                    dev_recipients=True,
-            )
+            # send_email( f"Next steps for your gold vermeil",
+            #         result,
+            #         email=['maxwell@auratenewyork.com'],
+            #         dev_recipients=True,
+            # )
             break
             # return Response(result, status_code=200, headers={'Content-Type': 'text/html'})
 
@@ -1126,9 +1126,11 @@ def tracking_information(sale_reference):
         sale_reference = "#" + sale_reference
     except ValueError:
         pass
-    shipments = get_shipments(sale_reference)
+    shipments, sale_number = get_shipments(sale_reference)
     tracking = []
-    for shipment in shipments:
+    if True:
+        shipment = shipments[0]
+    # for shipment in shipments:
         f_tracking, estimated_date, shipment_number = fulfill_tracking(shipment)
         track = []
         for item in f_tracking:
@@ -1142,9 +1144,10 @@ def tracking_information(sale_reference):
             ))
             track.append(item)
 
-        e_shipment_id = get_easypost_record_by_reference(sale_reference, shipment_number)
+        e_shipment_id = get_easypost_record_by_reference(sale_reference, sale_number)
 
         if e_shipment_id:
+            e_shipment_id = e_shipment_id[0]
             e_shipment = get_shipment(e_shipment_id)
             e_tracking = e_shipment.tracker.tracking_details
         else:
@@ -1170,6 +1173,120 @@ def tracking_information(sale_reference):
         tracking.append(track)
     return Response(status_code=200, headers={'Access-Control-Allow-Origin': '*'},
                     body=json.dumps({'estimated_date': estimated_date, 'items': track}))
+
+
+@app.route('/tracking_information_/{sale_reference}',
+           methods=['GET'])
+def tracking_information(sale_reference):
+    try:
+        int(sale_reference)
+        sale_reference = "#" + sale_reference
+    except ValueError:
+        pass
+    shipments, sale_number = get_shipments(sale_reference)
+    tracking = []
+    shipments = add_product_info(shipments)
+
+
+    e_shipment_ids = get_easypost_record_by_reference(sale_reference,
+                                                      sale_number)
+    e_shipments = []
+    if e_shipment_ids:
+        if not isinstance(e_shipment_ids, list):
+            e_shipment_ids = [e_shipment_ids]
+    for e_shipment_id in e_shipment_ids:
+        if e_shipment_id:
+            e_shipment = get_shipment(e_shipment_id)
+            e_shipments.append(e_shipment)
+
+    match_tracking = []
+    for item in shipments:
+        link, status, carrier, tracking_title = None, None, None, None
+        tracking_blurb = item['tracking_number_blurb']
+        if tracking_blurb:
+            tracking_title = tracking_blurb['title']
+            for blurb in tracking_blurb['subtitle']:
+                if blurb[0] == 'link':
+                    link = blurb[-1]
+                if blurb[0] == 'Status':
+                    status = blurb[-1]
+                if blurb[0] == 'Carrier':
+                    if 'USPS' in blurb[-1]:
+                        carrier = 'USPS'
+                    if 'FedEx' in blurb[-1]:
+                        carrier = 'FedEx'
+            item['n'] = dict(
+                carrier=carrier,
+                link=link,
+                status=status,
+                tracking_title=tracking_title,
+            )
+        for e_ship in e_shipments:
+            if e_ship.tracking_code == tracking_title:
+                match_tracking.append([item, e_ship.tracker.tracking_details, None])
+                break
+        else:
+            if tracking_title:
+                if carrier == 'USPS':
+                    link = f'https://tools.usps.com/go/TrackConfirmAction?tLabels={tracking_title}'
+                    match_tracking.append([item, [], link])
+                elif carrier == 'FedEx':
+                    match_tracking.append([item, [], link])
+                else:
+                    match_tracking.append([item, [], None])
+            else:
+                match_tracking.append([item, [], None])
+
+    for shipment, e_tracking, link in match_tracking:
+        f_tracking, estimated_date, shipment_number = fulfill_tracking(shipment)
+        track = []
+        for item in f_tracking:
+            item.update(dict(
+                time='',
+                city='NEW YORK',
+                country='US',
+                state='NY',
+                zip='10036',
+                source='AURATE',
+            ))
+            track.append(item)
+
+        for item in e_tracking:
+            d = datetime.fromisoformat(item.datetime[0:-1])
+            a = dict(
+                message=item.message,
+                city=item.tracking_location.city,
+                country=item.tracking_location.country,
+                state=item.tracking_location.state,
+                zip=item.tracking_location.zip,
+                date=d.strftime('%m/%d/%Y'),
+                time=d.strftime("%I:%M %p").lower(),
+                status=item.status,
+                source=item.source,
+                status_detail=item.status_detail,
+            )
+            track.append(a)
+        if link:
+            a = dict(
+                message=link,
+                status=link,
+                status_detail=link,
+            )
+            track.append(a)
+
+        track.reverse()
+        # Add here estimated date and other info according to the stock.shipment.out...
+        data = {'estimated_date': estimated_date,
+                'items': track,
+                'name': shipment['all_moves'][0]['product.name'],
+                'quantity': shipment['all_moves'][0]['quantity'],
+                }
+        if shipment['all_moves'][0]['product.media_json']:
+            data['image'] = shipment['all_moves'][0]['product.media_json'][0]['url']
+
+        tracking.append(data)
+    return Response(status_code=200, headers={'Access-Control-Allow-Origin': '*'},
+                    body=json.dumps(tracking))
 
 
 @app.schedule(Cron(0, 10, '?', '*', '*', '*'))
@@ -1254,14 +1371,22 @@ def return_orders_api():
     writer_file = io.StringIO()
     writer = csv.writer(writer_file)
 
-    header = ['Email', 'Reference', 'Created At', "return Total", "exchange Total", "RETURNS (sku, variantID)", 'returns count', 'EXCHANGES (sku, variantID)', 'exchanges count']
+    header = ['Email', 'Reference', 'Created At', "return Total", "exchange Total", "RETURNS (sku)","RETURNS (variantID)"]
     writer.writerow(header)
+    exchanges = []
+
     for item in orders:
-        returns = [(i['sku'], i['variant_id']) for i in item['line_items']]
-        exchanges = [(i['sku'], i['variant_id']) for i in item['exchanges']]
-        row = [item['customer'], item['order_name'], item['created_at'], item['return_total'], item['exchange_total'], returns, len(returns), exchanges, len(exchanges)]
-        writer.writerow(row)
-    attachment = dict(name=f'delivered_orders-{date.today().isoformat()}.csv',
+        if 'exe' in item['order_name']:
+            exchanges.append(item['order_name'])
+            exchanges.append('#' + item['order_name'][4:-2])
+
+    for item in orders:
+        if item['exchanges'] or item['order_name'] in exchanges:
+            continue
+        for ret in item['line_items']:
+            row = [item['customer'], item['order_name'], item['created_at'], item['return_total'], item['exchange_total'], ret['sku'], ret['variant_id']]
+            writer.writerow(row)
+    attachment = dict(name=f'returned_orders-{date.today().isoformat()}.csv',
                       data=str.encode(writer_file.getvalue()),
                       type='text/csv')
     send_email(
@@ -1322,3 +1447,10 @@ def waiting_allocation_api():
         file=attachment
     )
 
+
+@app.route('/email_tests', methods=['GET'])
+def email_tests_api():
+    from chalicelib.email_tests import run_email_tests
+    request = app.current_request
+    email = request.query_params.get('email', 'maxwell@auratenewyork.com')
+    run_email_tests(email)

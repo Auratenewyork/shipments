@@ -66,3 +66,34 @@ class CustomJsonEncoder(json.JSONEncoder):
         if isinstance(obj, (datetime.timedelta, datetime.date, datetime.datetime)):
             return str(obj)
         return super(CustomJsonEncoder, self).default(obj)
+
+
+def date_after_some_workdays(d, wd_number=3, excluded=(6, 7)):
+    wd = 0
+    while wd != wd_number:
+        if d.isoweekday() not in excluded:
+            wd += 1
+        d += datetime.timedelta(days=1)
+    return d
+
+
+def dates_with_passed_some_work_days(wd_number=3, excluded=(6, 7)):
+    d = datetime.date.today()
+    wd = 0
+    date_list = []
+    while wd <= wd_number + 1:
+        d -= datetime.timedelta(days=1)
+        if d.isoweekday() not in excluded:
+            wd += 1
+        if wd == wd_number:
+            date_list.append(d)
+    return date_list
+
+
+def date_after_some_workdays(d, wd_number=3, excluded=(6, 7)):
+    wd = 0
+    while wd != wd_number:
+        if d.isoweekday() not in excluded:
+            wd += 1
+        d += datetime.timedelta(days=1)
+    return d

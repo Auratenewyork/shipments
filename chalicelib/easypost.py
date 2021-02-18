@@ -108,9 +108,25 @@ def get_easypost_record_by_reference(reference, sale_number):
     from app import s3
     response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
     previous_data = pickle.loads(response['Body'].read())
+    keys = []
+
+    # import re
+    # from collections import Counter
+    # numbers = []
+    # for item in previous_data['shipments'].values():
+    #     match = re.match(r'.+(#\d+).+', item)
+    #     if match:
+    #         numbers.append(match[1])
+    # a = Counter(numbers)
+    # b = [{key: value} for key, value in a.items() if value > 1]
+    # print(b)
+
+
     for key, value in previous_data['shipments'].items():
         if (reference in value) or (sale_number in value):
-            return key
+            keys.append(key)
+    if keys:
+        return keys
     return get_easypost_record(reference, last_id=previous_data['last_id'])
 
 

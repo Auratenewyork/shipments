@@ -5,16 +5,7 @@ import easypost
 from chalicelib import EASYPOST_API_KEY, EASYPOST_URL
 
 import datetime
-
-
-def date_after_some_workdays(d, wd_number=3, excluded=(6, 7)):
-    wd = 0
-    while wd != wd_number:
-        if d.isoweekday() not in excluded:
-            wd += 1
-        d += datetime.timedelta(days=1)
-    return d
-
+from .common import date_after_some_workdays, dates_with_passed_some_work_days
 
 def get_shipments(sale_reference):
     Model = client.model('sale.sale')
@@ -35,7 +26,7 @@ def get_shipments(sale_reference):
     for shipment_id in sale['shipments']:
         shipment = Model.get(shipment_id)
         shipments.append(shipment)
-    return shipments
+    return shipments, sale['number']
 
 
 def fulfill_tracking(shipment):
@@ -101,19 +92,6 @@ def fulfill_tracking(shipment):
     return tracking, estimated_date, shipment['number']
 
 
-def dates_with_passed_some_work_days(wd_number=3, excluded=(6, 7)):
-    d = date.today()
-    wd = 0
-    date_list = []
-    while wd <= wd_number + 1:
-        d -= datetime.timedelta(days=1)
-        if d.isoweekday() not in excluded:
-            wd += 1
-        if wd == wd_number:
-            date_list.append(d)
-    return date_list
-
-
 def fulfill_mto_candidates(report_date):
     Shipment = client.model('stock.shipment.out')
     fields = ['sales', 'order_numbers', 'sale_date', 'planned_date', 'inventory_moves']
@@ -175,7 +153,7 @@ def get_n_days_old_orders(days, vermeil=False):
         for c in candidates:
             if sale['id'] in c['sales']:
                 sale['planned_date'] = c['planned_date']
-                sale['с'] = c
+                sale['c'] = c
                 break
     return sales
     # emails = [item['party.email'] for item in sales]
