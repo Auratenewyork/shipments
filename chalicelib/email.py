@@ -9,7 +9,7 @@ env_name = os.environ.get('ENV', 'sandbox')
 
 
 def send_email(subject, content, email=default_email, file=None,
-               dev_recipients=False):
+               dev_recipients=False, from_email='aurate@info.com'):
     if email and type(email) == str:
         email = [email]
 
@@ -21,7 +21,7 @@ def send_email(subject, content, email=default_email, file=None,
             email = developer_emails
 
     email = list(set(email))
-    message = Mail(from_email='aurate@info.com',
+    message = Mail(from_email=from_email,
                    to_emails=email,
                    subject=subject,
                    html_content=content)

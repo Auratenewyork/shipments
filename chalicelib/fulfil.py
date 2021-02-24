@@ -683,5 +683,4 @@ def waiting_allocation():
         order=[["create_date", "DESC"]],
         fields=fields
     )
-
     return list(shipments)

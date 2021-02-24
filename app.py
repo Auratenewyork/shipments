@@ -17,9 +17,10 @@ from chalicelib import web_scraper, loopreturns
 from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
 from chalicelib.count_boxes import process_boxes
 from chalicelib.delivered_orders import delivered_orders
+from chalicelib.dynamo_operations import save_easypost_to_dynamo, get_dynamo_last_id
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
-    get_shipment
+    get_shipment, get_easypost_record_by_reference_
 from chalicelib.easypsot_tracking import fulfill_tracking, \
     get_n_days_old_orders, get_shipments, add_product_info
 from chalicelib.email import send_email
@@ -41,7 +42,7 @@ from chalicelib.rubyhas import (
     get_full_inventory)
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
-    pull_shipments_by_date, weekly_pull)
+    pull_shipments_by_date, weekly_pull, customer_shipments_pull)
 from chalicelib.shopify import shopify_products
 from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
@@ -1040,25 +1041,32 @@ def mto_notifications_api():
     def get_link(reference):
         return 'http://tracking.auratenewyork.com/' + reference.replace('#', '')
 
+    def get_moves(c):
+        moves = []
+        for i in c:
+            moves.extend(i.get('all_moves', []))
+        return moves
+
     emails_3 = get_n_days_old_orders(10)
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html').read())
 
     if emails_3:
         for sale in emails_3:
-                data = {
-                    'YEAR': str(date.today().year),
-                    'FINISH_DATE': sale['planned_date'],
-                    'TRACK_LINK': get_link(sale['reference']),
-                    'items': sale['c'].get('all_moves', []),
-                }
-                result = template.render(**data)
+            data = {
+                'YEAR': str(date.today().year),
+                'FINISH_DATE': sale['planned_date'],
+                'TRACK_LINK': get_link(sale['reference']),
+                'items': get_moves(sale['c']),
+            }
+            result = template.render(**data)
 
-                # send_email( f"An update on your gold",
-                #         result,
-                #         email=['maxwell@auratenewyork.com'],
-                #         dev_recipients=True,
-                # )
-                break
+            send_email( f"An update on your gold",
+                        result,
+                        email=['maxwell@auratenewyork.com'],
+                        dev_recipients=True,
+                        from_email='care@auratenewyork.com',
+                      )
+            break
 
     emails_12 = get_n_days_old_orders(15)
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html').read())
@@ -1068,15 +1076,16 @@ def mto_notifications_api():
                 'YEAR': str(date.today().year),
                 'FINISH_DATE': sale['planned_date'],
                 'TRACK_LINK': get_link(sale['reference']),
-                'items': sale['c'].get('all_moves', []),
+                'items': get_moves(sale['c']),
             }
             result = template.render(**data)
 
-            # send_email( f"Almost to the finish line",
-            #         result,
-            #         email=['maxwell@auratenewyork.com'],
-            #         dev_recipients=True,
-            # )
+            send_email( f"Quality Control = Check",
+                        result,
+                        email=['maxwell@auratenewyork.com'],
+                        dev_recipients=True,
+                        from_email='care@auratenewyork.com',
+                      )
             break
 
     emails_17 = get_n_days_old_orders(20, vermeil=True)
@@ -1087,18 +1096,17 @@ def mto_notifications_api():
                 'YEAR': str(date.today().year),
                 'FINISH_DATE': sale['planned_date'],
                 'TRACK_LINK': get_link(sale['reference']),
-                'items': sale['c'].get('all_moves', []),
+                'items': get_moves(sale['c']),
             }
             result = template.render(**data)
-            # send_email( f"Next steps for your gold vermeil",
-            #         result,
-            #         email=['maxwell@auratenewyork.com'],
-            #         dev_recipients=True,
-            # )
+            send_email( f"Next steps for your gold vermeil",
+                        result,
+                        email=['maxwell@auratenewyork.com'],
+                        dev_recipients=True,
+                        from_email='care@auratenewyork.com',
+                      )
             break
             # return Response(result, status_code=200, headers={'Content-Type': 'text/html'})
-
-
 
 
 @app.route('/api/unsubscribe', methods=['GET'])
@@ -1178,6 +1186,7 @@ def tracking_information(sale_reference):
 @app.route('/tracking_information_/{sale_reference}',
            methods=['GET'])
 def tracking_information(sale_reference):
+    from chalicelib.easypsot_tracking import _fulfill_tracking_
     try:
         int(sale_reference)
         sale_reference = "#" + sale_reference
@@ -1187,25 +1196,25 @@ def tracking_information(sale_reference):
     tracking = []
     shipments = add_product_info(shipments)
 
-
-    e_shipment_ids = get_easypost_record_by_reference(sale_reference,
+    e_shipment_ids = get_easypost_record_by_reference_(sale_reference,
                                                       sale_number)
     e_shipments = []
     if e_shipment_ids:
         if not isinstance(e_shipment_ids, list):
             e_shipment_ids = [e_shipment_ids]
-    for e_shipment_id in e_shipment_ids:
-        if e_shipment_id:
-            e_shipment = get_shipment(e_shipment_id)
-            e_shipments.append(e_shipment)
+        for e_shipment_id in e_shipment_ids:
+            if e_shipment_id:
+                e_shipment = get_shipment(e_shipment_id)
+                e_shipments.append(e_shipment)
 
     match_tracking = []
     for item in shipments:
         link, status, carrier, tracking_title = None, None, None, None
         tracking_blurb = item['tracking_number_blurb']
         if tracking_blurb:
-            tracking_title = tracking_blurb['title']
-            for blurb in tracking_blurb['subtitle']:
+            if tracking_blurb.get('title', 'N/A') != 'N/A':
+                tracking_title = tracking_blurb['title']
+            for blurb in tracking_blurb.get('subtitle', []):
                 if blurb[0] == 'link':
                     link = blurb[-1]
                 if blurb[0] == 'Status':
@@ -1238,7 +1247,7 @@ def tracking_information(sale_reference):
                 match_tracking.append([item, [], None])
 
     for shipment, e_tracking, link in match_tracking:
-        f_tracking, estimated_date, shipment_number = fulfill_tracking(shipment)
+        f_tracking, estimated_date, shipment_number = _fulfill_tracking_(shipment)
         track = []
         for item in f_tracking:
             item.update(dict(
@@ -1261,16 +1270,14 @@ def tracking_information(sale_reference):
                 zip=item.tracking_location.zip,
                 date=d.strftime('%m/%d/%Y'),
                 time=d.strftime("%I:%M %p").lower(),
-                status=item.status,
                 source=item.source,
-                status_detail=item.status_detail,
             )
             track.append(a)
         if link:
             a = dict(
-                message=link,
-                status=link,
-                status_detail=link,
+                link=link,
+                message='Tracking link',
+                source='AURATE',
             )
             track.append(a)
 
@@ -1283,31 +1290,42 @@ def tracking_information(sale_reference):
                 }
         if shipment['all_moves'][0]['product.media_json']:
             data['image'] = shipment['all_moves'][0]['product.media_json'][0]['url']
+        p = []
+        for s in shipment['all_moves']:
+            i = {
+                'name': s['product.name'],
+                'quantity': s['quantity'],
+            }
+            if s['product.media_json']:
+                i['image'] = s['product.media_json'][0]['url']
+            p.append(i)
+        data['products'] = p
 
         tracking.append(data)
     return Response(status_code=200, headers={'Access-Control-Allow-Origin': '*'},
                     body=json.dumps(tracking))
 
 
-@app.schedule(Cron(0, 10, '?', '*', '*', '*'))
+@app.schedule(Cron(0, '11-22/5', '?', '*', '*', '*'))
 def scrape_easypost_event(event):
     scrape_easypost_api()
 
 
 @app.route('/scrape_easypost', methods=['GET'])
 def scrape_easypost_api():
-    BUCKET = 'aurate-sku'
-    response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
-    previous_data = pickle.loads(response['Body'].read())
-    info = scrape_easypost__match_reference(previous_data['last_id'])
-    previous_data['shipments'].update(info['shipments'])
-    previous_data['last_id'] = info['last_id']
+    # BUCKET = 'aurate-sku'
+    # response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
+    # previous_data = pickle.loads(response['Body'].read())
 
-    # previous_data = {}
-    # previous_data['shipments'] = {}
-    # previous_data['last_id'] = 'shp_86ce806fc1f44566bc3935b7bffcd7dc'
-    s3.put_object(Body=pickle.dumps(previous_data), Bucket=BUCKET,
-                  Key=f'easypost_reference_match')
+    last_id = get_dynamo_last_id()
+    info = scrape_easypost__match_reference(last_id)
+    # save info to dynamo in future two lines needed
+    save_easypost_to_dynamo(info)
+
+    # previous_data['shipments'].update(info['shipments'])
+    # previous_data['last_id'] = info['last_id']
+    # s3.put_object(Body=pickle.dumps(previous_data), Bucket=BUCKET,
+    #               Key=f'easypost_reference_match')
 
 
 @app.route('/loopreturns', methods=['POST'])
@@ -1452,5 +1470,66 @@ def waiting_allocation_api():
 def email_tests_api():
     from chalicelib.email_tests import run_email_tests
     request = app.current_request
-    email = request.query_params.get('email', 'maxwell@auratenewyork.com')
-    run_email_tests(email)
+
+    email = 'maxwell@auratenewyork.com'
+    order_number = None
+    if request.query_params:
+        email = request.query_params.get('email', 'maxwell@auratenewyork.com')
+        order_number = request.query_params.get('order_number', None)
+
+    run_email_tests(email, order_number)
+
+
+@app.schedule(Cron(0, 9, '?', '*', '*', '*'))
+def c_s_pull_event(event):
+    customer_shipments_pull_api()
+
+
+@app.route('/customer_shipments_pull', methods=['GET'])
+def customer_shipments_pull_api():
+    products = customer_shipments_pull()
+    writer_file = io.StringIO()
+    writer = csv.DictWriter(writer_file, products[0].keys())
+    writer.writeheader()
+    writer.writerows(products)
+
+    attachment = dict(name=f'customer_shipments_pull-{date.today().isoformat()}.csv',
+                      data=str.encode(writer_file.getvalue()),
+                      type='text/csv')
+    send_email(
+        "Customer Shipments Pull:",
+        "data in attached file", dev_recipients=True,
+        email=['maxwell@auratenewyork.com', 'brian@auratenewyork.com'],
+        # email=['roman.borodinov@uadevelopers.com'],
+        file=attachment
+    )
+
+# @app.route('/to_dynamo', methods=['GET'])
+# def migrate_data_to_dynamo():
+#     BUCKET = 'aurate-sku'
+#     import re
+#     response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
+#     previous_data = pickle.loads(response['Body'].read())
+#
+#     dynamodb = boto3.resource('dynamodb')
+#     table = dynamodb.Table('fullfill_easypost_order')
+#     experssion = re.compile(r'.*(#\d+).*')
+#     for key, value in previous_data['shipments'].items():
+#         match = experssion.findall(value)
+#         if match:
+#             SK = match[0]
+#             table.put_item(Item={'PK': SK, 'SK': key})
+#
+#     table.update_item(
+#         Key={
+#             "PK": "last_id",
+#             'SK': 'last_id',
+#         },
+#         UpdateExpression="set id=:i",
+#         ExpressionAttributeValues={
+#             ':i': previous_data['last_id'],
+#         },
+#     )
+#     return
+
+

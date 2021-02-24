@@ -8,7 +8,7 @@ from retrying import retry
 from chalicelib import EASYPOST_API_KEY, EASYPOST_URL
 from chalicelib.common import listDictsToHTMLTable
 import easypost
-
+from chalicelib.dynamo_operations import get_easypost_ids
 
 def get_transit_shipment_params():
     page_size = 100
@@ -104,23 +104,12 @@ def get_easypost_record(reference, last_id=None):
 
 
 def get_easypost_record_by_reference(reference, sale_number):
+    # delete
     BUCKET = 'aurate-sku'
     from app import s3
     response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
     previous_data = pickle.loads(response['Body'].read())
     keys = []
-
-    # import re
-    # from collections import Counter
-    # numbers = []
-    # for item in previous_data['shipments'].values():
-    #     match = re.match(r'.+(#\d+).+', item)
-    #     if match:
-    #         numbers.append(match[1])
-    # a = Counter(numbers)
-    # b = [{key: value} for key, value in a.items() if value > 1]
-    # print(b)
-
 
     for key, value in previous_data['shipments'].items():
         if (reference in value) or (sale_number in value):
@@ -129,6 +118,9 @@ def get_easypost_record_by_reference(reference, sale_number):
         return keys
     return get_easypost_record(reference, last_id=previous_data['last_id'])
 
+
+def get_easypost_record_by_reference_(reference, sale_number):
+    return get_easypost_ids(reference)
 
 def save_new_match(match, last_id):
     info = collect_new_info(match, last_id)

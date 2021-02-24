@@ -265,3 +265,33 @@ def weekly_pull():
     prefix = f'{start_date}-{end_date}'
 
     return finished, unfinished, fields, prefix
+
+
+def customer_shipments_pull():
+    end_datetime = datetime.datetime.combine(datetime.date.today(), datetime.datetime.max.time()) - datetime.timedelta(days=2)
+    planned_date = end_datetime + datetime.timedelta(days=4)
+    start_datetime = end_datetime - timedelta(days=1)
+
+    Model = client.model('stock.shipment.out')
+    fields = ['number', 'state', 'order_numbers', 'create_date', 'planned_date']
+    res = Model.search_read_all(
+        domain=['AND', [  ("state", "in", ["waiting", "assigned"]),
+            ["create_date", ">",
+             {"__class__": "datetime", "year": start_datetime.year,
+              "month": start_datetime.month, "day": start_datetime.day,
+              "hour": start_datetime.hour, "minute": start_datetime.minute,
+              "second": start_datetime.second, "microsecond": 0}],
+            ["create_date", "<",
+             {"__class__": "datetime", "year": end_datetime.year,
+              "month": end_datetime.month, "day": end_datetime.day,
+              "hour": end_datetime.hour, "minute": end_datetime.minute,
+              "second": end_datetime.second, "microsecond": 0}],
+            ["planned_date", "<",
+             {"__class__": "date", "year": planned_date.year,
+              "month": planned_date.month,
+              "day": planned_date.day}]
+        ]],
+        order=None,
+        fields=fields
+    )
+    return list(res)
