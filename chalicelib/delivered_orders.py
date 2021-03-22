@@ -43,12 +43,32 @@ def previous_week_range(date):
     return start_date, end_date
 
 
+# def return_orders():
+#     start_date, end_date = previous_week_range(date.today())
+#     # start_date = date.today()
+#     end_date = start_date - timedelta(weeks=12)
+#     # start_date = date.today() - timedelta(weeks=12)
+#     # end_date = date.today() - timedelta(weeks=24)
+#
+#     url = 'https://api.loopreturns.com/api/v1/warehouse/return/list'
+#     headers = {'X-Authorization': '559172097439fae55481bda45dd5a0d25ec8a1d2'}
+#     params = {"from": f"{start_date.year}-{start_date.month}-{start_date.day} 00:00:00",
+#               "to": f"{end_date.year}-{end_date.month}-{end_date.day} 23:59:59"}
+#     response = requests.get(url=url, params=params, headers=headers)
+#     try:
+#         r = response.json()
+#     except:
+#         pass
+#     return r, f'return orders for dates {start_date} - {end_date}'
+
+
 def return_orders():
     start_date, end_date = previous_week_range(date.today())
-    url = 'https://api.loopreturns.com/api/v1/warehouse/return/list?from=2021-01-01 00:00:00&to=2021-01-08 23:59:59'
+    url = 'https://api.loopreturns.com/api/v1/warehouse/return/list'
     headers = {'X-Authorization': '559172097439fae55481bda45dd5a0d25ec8a1d2'}
     params = {"from": f"{start_date.year}-{start_date.month}-{start_date.day} 00:00:00",
               "to": f"{end_date.year}-{end_date.month}-{end_date.day} 23:59:59"}
     response = requests.get(url=url, params=params, headers=headers)
     r = response.json()
     return r, f'return orders for dates {start_date} - {end_date}'
+

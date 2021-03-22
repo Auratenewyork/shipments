@@ -120,7 +120,8 @@ def get_easypost_record_by_reference(reference, sale_number):
 
 
 def get_easypost_record_by_reference_(reference, sale_number):
-    return get_easypost_ids(reference)
+    return get_easypost_ids(reference, sale_number)
+
 
 def save_new_match(match, last_id):
     info = collect_new_info(match, last_id)
@@ -139,6 +140,8 @@ def scrape_easypost__match_reference(last_id):
     params = dict(page_size=100)
     if last_id:
         params['after_id'] = last_id
+    else:
+        params['after_id'] = 'shp_fd3c26b304e74899b00111bdd1606b95'
     page = 1
     next_page = True
     result = []
@@ -148,7 +151,7 @@ def scrape_easypost__match_reference(last_id):
         result += shipments
         next_page = (len(shipments) == params['page_size'])
         if shipments:
-            params['after_id'] = shipments[0].id
+            params['after_id'] = shipments[-1].id
         page += 1
         if page > 50:
             break

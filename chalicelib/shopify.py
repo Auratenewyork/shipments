@@ -1,13 +1,15 @@
+import os
 import re
 
 import requests
 
 from chalicelib.fulfil import client
 
+SHOPIFY_APP_CRED = os.environ.get('SHOPIFY_APP_CRED', '')
 
-def shopify_products():
+def get_shopify_products():
     products = []
-    url = 'https://27f0deb29be43dcfb36028780bcae00f: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@aurate.myshopify.com/admin/api/2021-01/products.json'
+    url = f'https://{SHOPIFY_APP_CRED}/admin/api/2021-01/products.json'
     new_url = url
     for i in range(20):
         r = requests.get(new_url)
@@ -24,7 +26,11 @@ def shopify_products():
                 match = re.findall(r'(\?.+)>', variant)
                 new_url = url + match[0]
                 break
+    return products
 
+
+def shopify_products():
+    products = get_shopify_products()
     return lost_orders(products)
 
 
@@ -59,3 +65,40 @@ def lost_orders(prod):
     products = list(filter(lambda x: bool(x['difference']), products))
 
     return products
+
+
+def filter_shopify_customer(email=None):
+    base_url = f'https://{SHOPIFY_APP_CRED}/admin/api/2021-01/customers/search.json'
+    params = []
+    if email:
+        params.append(f'email:{email}')
+    query = {'query': " ".join(params)}
+    response = requests.get(base_url, params=query)
+    data = response.json()
+    return data['customers'][0]
+
+
+def get_customer_orders(customer_id, status='any'):
+    base_url = f'https://{SHOPIFY_APP_CRED}/admin/api/2021-01/customers/{customer_id}/orders.json'
+    response = requests.get(base_url, params={'status': status})
+    data = response.json()
+    return data['orders']
+
+
+def extract_variants_from_order(order):
+    return [
+        {
+            'order_id':order['id'],
+            'order_name':order['name'],
+            'id':variant['id'],
+            'sku':variant['sku'],
+         }
+        for variant in order['line_items']
+    ]
+
+
+def shopify_get_products_by_ids(ids):
+    base_url = f'https://{SHOPIFY_APP_CRED}/admin/api/2021-01/products.json'
+    response = requests.get(base_url, params={'ids': ','.join(str(ids))})
+    data = response.json()
+    return data['products']

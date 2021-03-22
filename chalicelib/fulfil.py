@@ -21,55 +21,55 @@ headers = {
 client = Client(os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox'),
                 os.environ.get('FULFIL_API_KEY', ''))
 
-
-def get_engraving_order_lines():
-    url = f'{FULFIL_API_URL}/model/sale.sale'
-    params = {'created_at_min': date.today().isoformat()}
-    order_lines = []
-
-    response = requests.get(url, headers=headers, params=params)
-    ids = [order['id'] for order in response.json()]
-
-    for order_id in ids:
-        order = get_order(order_id)
-
-        if order.get('state') == 'processing':
-            for order_line_id in order.get('lines'):
-                order_line = get_order_line(order_line_id)
-                has_engraving = check_if_has_engraving(order_line)
-
-                if has_engraving:
-                    order_lines.append(order_line)
-
-    return order_lines
-
-
-def get_order(order_id):
-    url = f'{FULFIL_API_URL}/model/sale.sale/{order_id}'
-
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        return response.json()
-
-    print(response.text)
-
-    return None
+#
+# def get_engraving_order_lines():
+#     url = f'{FULFIL_API_URL}/model/sale.sale'
+#     params = {'created_at_min': date.today().isoformat()}
+#     order_lines = []
+#
+#     response = requests.get(url, headers=headers, params=params)
+#     ids = [order['id'] for order in response.json()]
+#
+#     for order_id in ids:
+#         order = get_order(order_id)
+#
+#         if order.get('state') == 'processing':
+#             for order_line_id in order.get('lines'):
+#                 order_line = get_order_line(order_line_id)
+#                 has_engraving = check_if_has_engraving(order_line)
+#
+#                 if has_engraving:
+#                     order_lines.append(order_line)
+#
+#     return order_lines
 
 
-def get_order_data(order_id, fields):
-    url = f'{FULFIL_API_URL}/model/sale.sale/search_read'
+# def get_order(order_id):
+#     url = f'{FULFIL_API_URL}/model/sale.sale/{order_id}'
+#
+#     response = requests.get(url, headers=headers)
+#
+#     if response.status_code == 200:
+#         return response.json()
+#
+#     print(response.text)
+#
+#     return None
 
-    payload = [[["id", "=", str(order_id)]], None, None, None, fields]
 
-    response = requests.put(url, data=json.dumps(payload), headers=headers)
-
-    if response.status_code == 200:
-        return response.json()[0]
-
-    print(response.text)
-
-    return None
+# def get_order_data(order_id, fields):
+#     url = f'{FULFIL_API_URL}/model/sale.sale/search_read'
+#
+#     payload = [[["id", "=", str(order_id)]], None, None, None, fields]
+#
+#     response = requests.put(url, data=json.dumps(payload), headers=headers)
+#
+#     if response.status_code == 200:
+#         return response.json()[0]
+#
+#     print(response.text)
+#
+#     return None
 
 
 def get_order_line(order_line_id):
@@ -251,133 +251,44 @@ def get_fulfil_product_api(field, value, fieldsString, context):
        # TO REMOVE TO
 
 
-
-
-def find_late_orders():
-    from app import BASE_DIR
-    url = f'{FULFIL_API_URL}/model/stock.shipment.out/search_read'
-    dates = dates_with_passed_some_work_days(3)
-
-    orders = []
-    shipments = []
-    for d in dates:
-        payload = [[
-            "AND",
-            [
-                "planned_date", "=", {
-                "__class__": "date",
-                "year": d.year,
-                "day": d.day,
-                "month": d.month,
-            }
-            ],
-            ["state", "in", ["waiting", "packed", "assigned"]]
-        ], None, None, None, ["sales", "order_numbers"]]
-
-        response = requests.put(url, data=json.dumps(payload), headers=headers)
-
-        if response.status_code != 200:
-            send_email("Fulfil: check late orders",
-                       "Checking late orders wasn't successfull. See logs on AWS.")
-            print(response.text)
-        else:
-            shipments.extend(response.json())
-    if shipments:
-        for shipment in shipments:
-            if 'exe' not in shipment.get('order_numbers', ''):
-                for order_id in shipment.get('sales'):
-                    order = get_order_data(
-                        order_id, ["reference", "party.name", "party.email"])
-
-                    # if not order:
-                    #     send_email(
-                    #         "Fulfil: failed to get Sales Order",
-                    #         f"Failed to get Sales Order with {order_id} ID.")
-                    #     continue
-
-                    orders.append(order)
-
-    if len(orders):
-        content = """
-            <table style="color: #000;">
-                <tr>
-                    <td style="border: 1px solid #000; font-weight: bold; padding: 10px;">Shopify Order #</td>
-                    <td style="border: 1px solid #000; font-weight: bold; padding: 10px;">Customer Name/Last name</td>
-                    <td style="border: 1px solid #000; font-weight: bold; padding: 10px;">Customer Email</td>
-                </tr>
-                {}
-            </table>
-        """
-
-        rows = []
-        emails = []
-        for order in orders:
-            row = """
-                <tr>
-                    <td style="border: 1px solid #000; padding: 10px;">{}</td>
-                    <td style="border: 1px solid #000; padding: 10px;">{}</td>
-                    <td style="border: 1px solid #000; padding: 10px;">{}</td>
-                </tr>
-            """.format(order['reference'], order['party.name'],
-                       order['party.email'])
-            rows.append(row)
-            emails.append(order['party.email'])
-
-        data = "".join([row for row in rows])
-
-        table = content.format(data)
-
-        send_email(f"Fulfil: found {len(orders)} late orders", table, dev_recipients=True)
-
-        template = open(f'{BASE_DIR}/chalicelib/template/email.html', 'r').read()
-        template = template.replace('{{2020}}', str(date.today().year))
-        for email in set(emails):
-            send_email("A small hiccup on our end.", template, email)
-            # send_email("A small hiccup on our end.", template, email=['roman.borodinov@uadevelopers.com'])
-            # break
-
-    else:
-        send_email("Fulfil: found 0 late orders", "Found 0 late orders", dev_recipients=True)
-
-
-def get_global_order_lines():
-    url = f'{FULFIL_API_URL}/model/sale.sale/search_read'
-    order_lines = []
-    yesterday = date.today() - timedelta(days=1)
-
-    payload = [[
-        "AND", ["reference", "like", "GE%"], ["state", "in", ["processing"]],
-        [
-            "create_date", ">=", {
-                "__class__": "datetime",
-                "year": yesterday.year,
-                "month": yesterday.month,
-                "day": yesterday.day,
-                "hour": 15,
-                "minute": 0,
-                "second": 0,
-                "microsecond": 0
-            }
-        ]
-    ], None, None, None, ["reference", "lines"]]
-
-    response = requests.put(url, data=json.dumps(payload), headers=headers)
-
-    if response.status_code != 200:
-        print(response.text)
-        return None
-
-    orders = response.json()
-
-    for order in orders:
-        for order_line_id in order.get('lines', []):
-            order_line = get_order_line(order_line_id)
-            has_engraving = check_if_has_engraving(order_line)
-
-            if not has_engraving:
-                order_lines.append(order_line)
-
-    return order_lines
+# def get_global_order_lines():
+#     url = f'{FULFIL_API_URL}/model/sale.sale/search_read'
+#     order_lines = []
+#     yesterday = date.today() - timedelta(days=1)
+#
+#     payload = [[
+#         "AND", ["reference", "like", "GE%"], ["state", "in", ["processing"]],
+#         [
+#             "create_date", ">=", {
+#                 "__class__": "datetime",
+#                 "year": yesterday.year,
+#                 "month": yesterday.month,
+#                 "day": yesterday.day,
+#                 "hour": 15,
+#                 "minute": 0,
+#                 "second": 0,
+#                 "microsecond": 0
+#             }
+#         ]
+#     ], None, None, None, ["reference", "lines"]]
+#
+#     response = requests.put(url, data=json.dumps(payload), headers=headers)
+#
+#     if response.status_code != 200:
+#         print(response.text)
+#         return None
+#
+#     orders = response.json()
+#
+#     for order in orders:
+#         for order_line_id in order.get('lines', []):
+#             order_line = get_order_line(order_line_id)
+#             has_engraving = check_if_has_engraving(order_line)
+#
+#             if not has_engraving:
+#                 order_lines.append(order_line)
+#
+#     return order_lines
 
 
 def get_waiting_ruby_shipments():
@@ -606,6 +517,7 @@ def create_customer_shipment(number, delivery_address, customer, products, **kwa
     print(response.status_code, response.reason)
     return None
 
+
 def get_late_shipments():
     Shipment = client.model('stock.shipment.out')
     day_before = date.today() - timedelta(days=1)
@@ -673,6 +585,7 @@ def sale_with_discount(code, time_delta):
         if sale['comment'] and code in sale['comment']:
             result.append(sale)
     return result
+
 
 def waiting_allocation():
     Model = client.model('stock.shipment.out')

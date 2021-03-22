@@ -1,3 +1,5 @@
+import time
+import base64
 import csv
 import io
 import json
@@ -17,15 +19,18 @@ from chalicelib import web_scraper, loopreturns
 from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
 from chalicelib.count_boxes import process_boxes
 from chalicelib.delivered_orders import delivered_orders
-from chalicelib.dynamo_operations import save_easypost_to_dynamo, get_dynamo_last_id
+from chalicelib.dynamo_operations import save_easypost_to_dynamo, \
+    get_dynamo_last_id, save_shopify_sku, get_shopify_sku_info, \
+    get_multiple_sku_info, save_repearment_order, list_repearment_orders, \
+    update_repearment_order
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment, get_easypost_record_by_reference_
-from chalicelib.easypsot_tracking import fulfill_tracking, \
+from chalicelib.easypsot_tracking import fulfill_tracking, _fulfill_tracking_, \
     get_n_days_old_orders, get_shipments, add_product_info
 from chalicelib.email import send_email
 from chalicelib.fulfil import (
-    change_movement_locations, create_internal_shipment, find_late_orders,
+    change_movement_locations, create_internal_shipment,
     get_internal_shipment, get_internal_shipments, get_movement,
     get_waiting_ruby_shipments, update_customer_shipment,
     update_internal_shipment, get_report_template,
@@ -37,18 +42,23 @@ from chalicelib.fulfil import (
     sale_with_discount, get_product, get_inventory_by_warehouse,
     waiting_allocation)
 from chalicelib.internal_shipments import ProcessInternalShipment
+from chalicelib.late_order import find_late_orders
 from chalicelib.rubyhas import (
     api_call, build_sales_order, create_purchase_order, get_item_quantity,
     get_full_inventory)
+from chalicelib.send_sftp import send_loop_report
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
     pull_shipments_by_date, weekly_pull, customer_shipments_pull)
-from chalicelib.shopify import shopify_products
+from chalicelib.shopify import shopify_products, get_shopify_products, \
+    filter_shopify_customer, get_customer_orders, extract_variants_from_order
 from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
 from chalicelib.delivered_orders import return_orders
 from jinja2 import Template
+from chalice import CORSConfig
+
 
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
@@ -58,6 +68,12 @@ app = Chalice(app_name=app_name)
 s3 = boto3.client('s3', region_name='us-east-2')
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 app.debug = True
+
+
+cors_config = CORSConfig(
+    allow_origin='*',
+    # allow_credentials=True
+)
 
 
 def get_lambda_prefix():
@@ -255,7 +271,6 @@ def find_late_orders_view(event):
 @app.route('/find_late_orders', methods=['GET'])
 def find_late_orders_api():
     find_late_orders()
-
 
 @app.route('/waiting-ruby/re-assign', methods=['GET'])
 def invoke_waiting_ruby():
@@ -1062,11 +1077,17 @@ def mto_notifications_api():
 
             send_email( f"An update on your gold",
                         result,
-                        email=['maxwell@auratenewyork.com'],
-                        dev_recipients=True,
+                        email = sale['party.email'],
                         from_email='care@auratenewyork.com',
                       )
-            break
+            # send_email( f"An update on your gold",
+            #             result,
+            #             email=['maxwell@auratenewyork.com'],
+            #             # email = sale['party.email'],
+            #             dev_recipients=True,
+            #             from_email='care@auratenewyork.com',
+            #           )
+            # break
 
     emails_12 = get_n_days_old_orders(15)
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html').read())
@@ -1082,11 +1103,17 @@ def mto_notifications_api():
 
             send_email( f"Quality Control = Check",
                         result,
-                        email=['maxwell@auratenewyork.com'],
-                        dev_recipients=True,
+                        email = sale['party.email'],
                         from_email='care@auratenewyork.com',
                       )
-            break
+            # send_email( f"Quality Control = Check",
+            #             result,
+            #             email=['maxwell@auratenewyork.com'],
+            #             # email = sale['party.email'],
+            #             dev_recipients=True,
+            #             from_email='care@auratenewyork.com',
+            #           )
+            # break
 
     emails_17 = get_n_days_old_orders(20, vermeil=True)
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_17_days.html').read())
@@ -1099,14 +1126,21 @@ def mto_notifications_api():
                 'items': get_moves(sale['c']),
             }
             result = template.render(**data)
+            # return Response(result, status_code=200, headers={'Content-Type': 'text/html'})
             send_email( f"Next steps for your gold vermeil",
                         result,
-                        email=['maxwell@auratenewyork.com'],
-                        dev_recipients=True,
+                        email = sale['party.email'],
                         from_email='care@auratenewyork.com',
                       )
-            break
-            # return Response(result, status_code=200, headers={'Content-Type': 'text/html'})
+            # send_email( f"Next steps for your gold vermeil",
+            #             result,
+            #             email=['maxwell@auratenewyork.com'],
+            #             # email = sale['party.email'],
+            #             dev_recipients=True,
+            #             from_email='care@auratenewyork.com',
+            #           )
+
+            # break
 
 
 @app.route('/api/unsubscribe', methods=['GET'])
@@ -1125,79 +1159,25 @@ def unsubscribe_api():
     return Response(status_code=200, body=template)
 
 
-
-@app.route('/tracking_information/{sale_reference}',
-           methods=['GET'])
-def tracking_information(sale_reference):
-    try:
-        int(sale_reference)
-        sale_reference = "#" + sale_reference
-    except ValueError:
-        pass
-    shipments, sale_number = get_shipments(sale_reference)
-    tracking = []
-    if True:
-        shipment = shipments[0]
-    # for shipment in shipments:
-        f_tracking, estimated_date, shipment_number = fulfill_tracking(shipment)
-        track = []
-        for item in f_tracking:
-            item.update(dict(
-                time='',
-                city='NEW YORK',
-                country='US',
-                state='NY',
-                zip='10036',
-                source='AURATE',
-            ))
-            track.append(item)
-
-        e_shipment_id = get_easypost_record_by_reference(sale_reference, sale_number)
-
-        if e_shipment_id:
-            e_shipment_id = e_shipment_id[0]
-            e_shipment = get_shipment(e_shipment_id)
-            e_tracking = e_shipment.tracker.tracking_details
-        else:
-            e_tracking = []
-
-        for item in e_tracking:
-            d = datetime.fromisoformat(item.datetime[0:-1])
-            a = dict(
-                message=item.message,
-                city=item.tracking_location.city,
-                country=item.tracking_location.country,
-                state=item.tracking_location.state,
-                zip=item.tracking_location.zip,
-                date=d.strftime('%m/%d/%Y'),
-                time=d.strftime("%I:%M %p").lower(),
-                status=item.status,
-                source=item.source,
-                status_detail=item.status_detail,
-            )
-            track.append(a)
-        track.reverse()
-        # Add here estimated date and other info according to the stock.shipment.out...
-        tracking.append(track)
-    return Response(status_code=200, headers={'Access-Control-Allow-Origin': '*'},
-                    body=json.dumps({'estimated_date': estimated_date, 'items': track}))
-
-
 @app.route('/tracking_information_/{sale_reference}',
            methods=['GET'])
 def tracking_information(sale_reference):
-    from chalicelib.easypsot_tracking import _fulfill_tracking_
+    request = app.current_request
+    test = False
+    if request.query_params and 'test' in request.query_params:
+        test = True
+
     try:
         int(sale_reference)
         sale_reference = "#" + sale_reference
     except ValueError:
         pass
-    shipments, sale_number = get_shipments(sale_reference)
+    shipments, lines, sale_number = get_shipments(sale_reference)
     tracking = []
-    shipments = add_product_info(shipments)
+    shipments = add_product_info(shipments, lines)
 
     e_shipment_ids = get_easypost_record_by_reference_(sale_reference,
-                                                      sale_number)
+                                                       sale_number)
     e_shipments = []
     if e_shipment_ids:
         if not isinstance(e_shipment_ids, list):
@@ -1235,19 +1215,23 @@ def tracking_information(sale_reference):
                 match_tracking.append([item, e_ship.tracker.tracking_details, None])
                 break
         else:
-            if tracking_title:
-                if carrier == 'USPS':
-                    link = f'https://tools.usps.com/go/TrackConfirmAction?tLabels={tracking_title}'
-                    match_tracking.append([item, [], link])
-                elif carrier == 'FedEx':
-                    match_tracking.append([item, [], link])
-                else:
-                    match_tracking.append([item, [], None])
-            else:
-                match_tracking.append([item, [], None])
+            match_tracking.append([item, [], link])
+            # if tracking_title:
+            #     if carrier == 'USPS':
+            #         link = f'https://tools.usps.com/go/TrackConfirmAction?tLabels={tracking_title}'
+            #         match_tracking.append([item, [], link])
+            #     elif carrier == 'FedEx':
+            #         match_tracking.append([item, [], link])
+            #     else:
+            #         match_tracking.append([item, [], None])
+            # else:
+            #     match_tracking.append([item, [], None])
 
     for shipment, e_tracking, link in match_tracking:
-        f_tracking, estimated_date, shipment_number = _fulfill_tracking_(shipment)
+        if test:
+            f_tracking, estimated_date, shipment_number = _fulfill_tracking_(shipment)
+        else:
+            f_tracking, estimated_date, shipment_number = fulfill_tracking(shipment)
         track = []
         for item in f_tracking:
             item.update(dict(
@@ -1285,19 +1269,21 @@ def tracking_information(sale_reference):
         # Add here estimated date and other info according to the stock.shipment.out...
         data = {'estimated_date': estimated_date,
                 'items': track,
-                'name': shipment['all_moves'][0]['product.name'],
-                'quantity': shipment['all_moves'][0]['quantity'],
                 }
-        if shipment['all_moves'][0]['product.media_json']:
-            data['image'] = shipment['all_moves'][0]['product.media_json'][0]['url']
         p = []
+        show_metadata = True
+        if (shipment['shipping_instructions'] != None and
+             'Planned date delayed' in shipment['shipping_instructions']):
+            show_metadata = False
+
         for s in shipment['all_moves']:
             i = {
-                'name': s['product.name'],
+                'name': s['name'],
+                'image': s['image'],
                 'quantity': s['quantity'],
+                'title': s['title'],
+                'metadata': s.get('metadata', []) if show_metadata else [],
             }
-            if s['product.media_json']:
-                i['image'] = s['product.media_json'][0]['url']
             p.append(i)
         data['products'] = p
 
@@ -1319,7 +1305,6 @@ def scrape_easypost_api():
 
     last_id = get_dynamo_last_id()
     info = scrape_easypost__match_reference(last_id)
-    # save info to dynamo in future two lines needed
     save_easypost_to_dynamo(info)
 
     # previous_data['shipments'].update(info['shipments'])
@@ -1404,9 +1389,12 @@ def return_orders_api():
         for ret in item['line_items']:
             row = [item['customer'], item['order_name'], item['created_at'], item['return_total'], item['exchange_total'], ret['sku'], ret['variant_id']]
             writer.writerow(row)
+
+    send_loop_report(writer_file)
     attachment = dict(name=f'returned_orders-{date.today().isoformat()}.csv',
                       data=str.encode(writer_file.getvalue()),
                       type='text/csv')
+
     send_email(
         f"Loopreturns returned orders:",
         message, dev_recipients=True,
@@ -1414,6 +1402,7 @@ def return_orders_api():
         # email=['roman.borodinov@uadevelopers.com'],
         file=attachment
     )
+    writer_file.close()
 
 
 # @app.schedule(Cron(0, 5, '?', '*', '*', '*'))
@@ -1504,32 +1493,106 @@ def customer_shipments_pull_api():
         file=attachment
     )
 
-# @app.route('/to_dynamo', methods=['GET'])
-# def migrate_data_to_dynamo():
-#     BUCKET = 'aurate-sku'
-#     import re
-#     response = s3.get_object(Bucket=BUCKET, Key=f'easypost_reference_match')
-#     previous_data = pickle.loads(response['Body'].read())
+@app.route('/sync_shopify', methods=['GET'])
+def sync_shopify():
+    products = get_shopify_products()
+    save_shopify_sku(products)
+
+# @app.route('/sync_shopify_fix', methods=['GET'])
+# def sync_shopify():
+#     from chalicelib.dynamo_operations import scan_without_images, update_shopify_image
+#     without_images = scan_without_images()
+#     products = get_shopify_products()
+#     # with open('products', 'rb') as pickle_file:
+#     #     products = pickle.load(pickle_file)
 #
-#     dynamodb = boto3.resource('dynamodb')
-#     table = dynamodb.Table('fullfill_easypost_order')
-#     experssion = re.compile(r'.*(#\d+).*')
-#     for key, value in previous_data['shipments'].items():
-#         match = experssion.findall(value)
-#         if match:
-#             SK = match[0]
-#             table.put_item(Item={'PK': SK, 'SK': key})
-#
-#     table.update_item(
-#         Key={
-#             "PK": "last_id",
-#             'SK': 'last_id',
-#         },
-#         UpdateExpression="set id=:i",
-#         ExpressionAttributeValues={
-#             ':i': previous_data['last_id'],
-#         },
-#     )
-#     return
+#     for item in without_images:
+#         for product in products:
+#             if item['product_id'] == product['id']:
+#                 image = product.get('image', {})
+#                 if image:
+#                     update_shopify_image(item['PK'], image.get('src', ''))
 
 
+@app.route('/customer_orders', methods=['POST'], cors=cors_config)
+def customer_orders_api():
+    request = app.current_request
+    email = request.json_body['email']
+    customer = filter_shopify_customer(email=email)
+    orders = get_customer_orders(customer['id'], status='closed')
+    shopify_variants = []
+    for order in orders:
+        shopify_variants.extend(extract_variants_from_order(order))
+    variants = get_multiple_sku_info(sku_list=[v['sku'] for v in shopify_variants])
+
+    for one_variant in shopify_variants:
+        for v in variants:
+            if v['PK'] == one_variant['sku']:
+                one_variant.update(v)
+                break
+    return shopify_variants
+
+
+@app.route('/repairmen_request', methods=['POST'], cors=cors_config)
+def repairmen_request_api():
+    BUCKET = 'aurate-repearment-images'
+    request = app.current_request
+    body = request.json_body
+    _date = int(time.time())
+    files = body['files']
+    added_files = []
+    delta = 0
+    for f in files:
+        image = base64.b64decode(f['file'].split(',')[1])
+        extension = f['filename'].split('.')[-1]
+        filename = f"{str(int(_date)+delta)}.{extension}"
+        s3.put_object(Body=image, Bucket=BUCKET, Key=filename)
+        file_path = f"https://{BUCKET}.s3.us-east-2.amazonaws.com/{filename}"
+        delta += 1
+        added_files.append({'filename':f['filename'], 'image_url':file_path})
+    order = body['order']
+    # order = {
+    #     "order_id": 3084579537068,
+    #     "order_name": "#94322",
+    #     "id": 8921573523628,
+    #     "sku": "AU0156F00010",
+    #     "PK": "AU0156F00010",
+    #     "name": "Gold Ball Studs",
+    #     "image": "https://cdn.shopify.com/s/files/1/0364/7253/products/Web_IMG_5531-EditR.png?v=1568838092",
+    #     "product_id": 391891255328,
+    #     "product_type": "Earring",
+    #     "title": "14k / Rose / Pair"
+    # }
+    info = dict(
+        DT=_date,
+        order_id=order['order_id'],
+        order_name=order['order_name'],
+        sku=order['sku'],
+        description=body.get('message', ''),
+        files=added_files,
+        # image_url=file_path
+    )
+    info = save_repearment_order(info)
+    # Send some email to user say that we received his request
+    return info
+
+
+@app.route('/repairments', methods=['GET'], cors=cors_config)
+def repairmen_list_api():
+    request = app.current_request
+    last_id = None
+    if request.query_params:
+        last_id = request.query_params.get('last_id', None)
+        last_id = int(last_id)
+    items, last_key = list_repearment_orders(last_id)
+    return {'items':items, 'last_id': last_key.get('DT', None)}
+
+
+@app.route('/repairments', methods=['POST'], cors=cors_config)
+def repairmen_list_api():
+    request = app.current_request
+    body = request.json_body
+    order = body['order']
+    update_repearment_order(order['DT'], order['approve'], order['note'])
+    # Send some email to user depends on the status and comment
+    return order

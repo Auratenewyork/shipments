@@ -5,6 +5,7 @@ from jinja2 import Template
 from app import BASE_DIR
 from chalicelib.easypsot_tracking import get_shipments, _get_n_days_old_orders_
 from chalicelib.email import send_email
+from chalicelib.late_order import LATE_ORDER_TEXT
 
 
 def send_test_email(subject, message, email=None):
@@ -13,15 +14,30 @@ def send_test_email(subject, message, email=None):
     send_email(subject, message, email=email, from_email='care@auratenewyork.com')
 
 
-def send_late_order(email):
-    template = open(f'{BASE_DIR}/chalicelib/template/email.html', 'r').read()
-    template = template.replace('{{2020}}', str(date.today().year))
-    send_test_email("A small hiccup on our end.", template, email=email)
+def send_late_order(sale, email):
+    for variant, text in LATE_ORDER_TEXT.items():
+        if isinstance(sale['c'], list):
+            items = []
+            for i in sale['c']:
+                items.extend(i.get('all_moves', []))
+        else:
+            items = sale['c'].get('all_moves', [])
+        data = {
+            'YEAR': str(date.today().year),
+            'FINISH_DATE': sale['planned_date'],
+            'TRACK_LINK': get_link(sale['reference']),
+            'items': items,
+            'TEXT': text
+        }
+
+        template = Template(open(f'{BASE_DIR}/chalicelib/template/late_order.html').read())
+        result = template.render(**data)
+        send_test_email("A small hiccup on our end.", result, email)
 
 
 def get_link(reference):
     # return 'http://d35yf2x715pxm8.cloudfront.net/95583'
-    return 'http://d35yf2x715pxm8.cloudfront.net/' + reference.replace('#', '')
+    return f"http://tracking.auratenewyork.com/{reference.replace('#', '')}?test=1"
 
 
 SUBJECT = {
@@ -102,4 +118,4 @@ def run_email_tests(email=None, order_number=None):
     for sale in test_cases:
         for template_number in templates:
             send_mto_email(template_number, sale, email)
-    # send_late_order(email)
+        send_late_order(sale, email)

@@ -393,8 +393,7 @@
                                     <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
 
                                         <div style="font-size:14px;line-height:1.65;text-align:center;color:#000000;">
-<p/>Ooh la la. Your gold is on it’s second date with our craftsmen, aka it completed a rigorous quality control check, and is ready to be hand-polished. Almost to the finish line.<br/>
-
+                                            <p>Ooh la la. Your gold is on it’s second date with our craftsmen, aka it completed a rigorous quality control check, and is ready to be hand-polished. <br> Almost to the finish line.</p>
 
                                             <br></div>
 
@@ -488,28 +487,23 @@
 {#            <td>{{ line }}</td>#}
             <tr style="border-bottom: 1px solid #ece6e2; border-top: 1px solid #ece6e2;">
               <td class="py-4" style="padding: 20px 0; width: 100px;" width="100">
-              {% if line['product.media_json'] %}
-                <img src="{{ line['product.media_json'][0]['url'] }}" style="max-width: 80px; display: inline-block;">
+              {% if line['image'] %}
+                <img src="{{ line['image'] }}" style="max-width: 80px; display: inline-block;">
               {% endif %}
               </td>
 
-              {% set line_title = line['product.name'] %}
+              {% set line_title = line['name'] %}
               {% set line_display = line.quantity  %}
 
               <td class="py-4" valign="top" align="left" style="padding: 20px 0;">
                 <div class="line-item__title pb-1" style="font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif; color: #42544f; font-weight: 400; margin: 0; padding-bottom: 5px; color: #304038; clear: both;">{{ line_title }}</div>
                 <div class="line-item__subtitle text-eyebrow-2 pb-1" style="color: #42544f; padding: 0; margin: 0; font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; padding-bottom: 5px; color: #304038; clear: both;">Quantity: {{ line_display }}</div>
-{#                <div class="line-item__subtitle text-eyebrow-2 pb-1" style="color: #42544f; padding: 0; margin: 0; font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; padding-bottom: 5px; color: #304038; clear: both;">{{ line_title }}</div>#}
-
-{#                  {% for i in line['attributes_json'] %}#}
-{#                      {% if i.attribute_name == 'Color' %}#}
-{#                        <div class="line-item__subtitle" style="font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif; color: #42544f; font-weight: 300; font-size: 10px; padding: 0; margin: 0; color: #304038; clear: both;">{{ i.value }}</div>#}
-{#                      {% endif %}#}
-{#                      {% if i.attribute_name == 'rate' %}#}
-{#                        <div class="line-item__subtitle" style="font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif; color: #42544f; font-weight: 300; font-size: 10px; padding: 0; margin: 0; color: #304038; clear: both;">{{ i.value }}</div>#}
-{#                      {% endif %}#}
-{#                  {% endfor %}#}
-
+              {% if line['title'] %}
+                <div class="line-item__subtitle text-eyebrow-2 pb-1" style="color: #42544f; padding: 0; margin: 0; font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; padding-bottom: 5px; color: #304038; clear: both;">{{ line['title'] }}</div>
+              {% endif %}
+              {% for metadata in line.get('metadata', []) %}
+                  <div class="line-item__subtitle" style="font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif; color: #42544f; font-weight: 300; font-size: 10px; padding: 0; margin: 0; color: #304038; clear: both;">{{ metadata }}</div>
+              {% endfor %}
               </td>
 
             </tr>
@@ -803,74 +797,6 @@
                                                             <p class="support__text"
                                                                style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; text-decoration: none; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; margin: 0;">
                                                                 Support</p>
-                                                        </a></div>
-
-                                                </td>
-                                            </tr>
-
-                                        </table>
-
-                                    </div>
-
-                                    <!--[if mso | IE]>
-                                    </td>
-
-                                    <td
-                                            class="" style="vertical-align:top;width:200px;"
-                                    >
-                                    <![endif]-->
-
-                                    <div class="mj-column-per-33 outlook-group-fix"
-                                         style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-
-                                        <table border="0" cellpadding="0" cellspacing="0" role="presentation"
-                                               style="vertical-align:top;" width="100%">
-
-                                            <tr>
-                                                <td align="center"
-                                                    style="font-size:0px;padding:10px 25px;word-break:break-word;">
-
-
-                                                    <table border="0" cellpadding="0" cellspacing="0"
-                                                           role="presentation" style="margin:0px;">
-
-                                                        <tr>
-                                                            <td style="padding:4px;">
-                                                                <table border="0" cellpadding="0" cellspacing="0"
-                                                                       role="presentation"
-                                                                       style="border-radius:3px;width:15px;">
-                                                                    <tr>
-                                                                        <td style="font-size:0;height:15px;vertical-align:middle;width:15px;">
-                                                                            <a href="tel:1-888-616-2872"
-                                                                               target="_blank">
-                                                                                <img height="15"
-                                                                                     src="https://cdn.shopify.com/s/files/1/1182/9022/t/10/assets/email-call.png"
-                                                                                     style="border-radius:3px;display:block;"
-                                                                                     width="15">
-                                                                            </a>
-                                                                        </td>
-                                                                    </tr>
-                                                                </table>
-                                                            </td>
-
-                                                        </tr>
-
-                                                    </table>
-
-
-                                                </td>
-                                            </tr>
-
-                                            <tr>
-                                                <td align="center"
-                                                    style="font-size:0px;padding:10px 25px;word-break:break-word;">
-
-                                                    <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:center;text-transform:uppercase;color:#000000;">
-                                                        <a href="tel:1-888-616-2872" class="support__link"
-                                                           style="text-decoration: none;">
-                                                            <p class="support__text"
-                                                               style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; text-decoration: none; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; margin: 0;">
-                                                                1-888-616-2872</p>
                                                         </a></div>
 
                                                 </td>

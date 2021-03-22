@@ -41,10 +41,12 @@ class HTML:
  </table> '''
 
 
-def listDictsToHTMLTable(data: list):
+def listDictsToHTMLTable(data: list, keys=None):
     if not data:
         return "Empty result"
-    header = [""] + list(data[0].keys())
+    if not keys:
+        keys = list(data[0].keys())
+    header = [""] + keys
     html = HTML(Header=header,
                 tableStyles={'margin': '3px'},
                 trStyles={'background-color': '#7cc3a97d'})
@@ -53,7 +55,7 @@ def listDictsToHTMLTable(data: list):
             BGC = 'aliceblue'
         else:
             BGC = '#c2d4e4'
-        html.addRow([i] + list(row.values()),
+        html.addRow([i] + [row[key] for key in keys],  #list(row.values()) +
                     trStyles={'background-color': BGC},
                     tdStyles={'padding': '0.5rem'})
     return html
