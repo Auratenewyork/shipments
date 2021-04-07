@@ -219,12 +219,27 @@ def update_repearment_order(DT, approve, note):
     )
 
 
-
-def list_repearment_orders(ExclusiveStartKey=None):
+def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
-    scan_kwargs = {'Limit': 20}
+    scan_kwargs = {'Limit': 50}
     if ExclusiveStartKey:
+        ExclusiveStartKey = int(ExclusiveStartKey)
         scan_kwargs['ExclusiveStartKey'] = ExclusiveStartKey
+
+    approve_expresion = None
+    if approve:
+        if approve.lower() == 'pending':
+            approve_expresion = Attr('approve').not_exists()
+        else:
+            approve_expresion = Attr('approve').eq(approve.lower())
+
+    if order_name and approve_expresion:
+        scan_kwargs['FilterExpression'] = Attr('order_name').contains(order_name) & approve_expresion
+    elif order_name:
+        scan_kwargs['FilterExpression'] = Attr('order_name').contains(order_name)
+    elif approve_expresion:
+        scan_kwargs['FilterExpression'] = approve_expresion
+
     response = table.scan(**scan_kwargs)
     return response['Items'], response.get('LastEvaluatedKey', {})

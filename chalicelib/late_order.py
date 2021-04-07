@@ -67,15 +67,15 @@ def get_oldest_shipment(sale):
 
 def find_late_orders():
     from app import BASE_DIR
-
-    emails = get_n_days_old_orders(3, late=True)
+    days_delay = 2
+    emails = get_n_days_old_orders(days_delay, late=True)
     template = Template(open(f'{BASE_DIR}/chalicelib/template/late_order.html').read())
 
     if emails:
         late_orders_report = []
         for sale in emails:
             shipment, email_type, moves, planned_date = get_oldest_shipment(sale)
-            if planned_date in dates_with_passed_some_work_days(2) \
+            if planned_date in dates_with_passed_some_work_days(days_delay) \
                     and (shipment['shipping_instructions'] == None or
                     'Planned date delayed' not in shipment['shipping_instructions']):
                 report = {
@@ -97,15 +97,10 @@ def find_late_orders():
                 send_email(f"A small hiccup on our end",
                             result,
                             email=sale['party.email'],
-                            from_email='care@auratenewyork.com',
-                          )
-                # send_email(f"A small hiccup on our end",
-                #            result,
-                #            email=['maxwell@auratenewyork.com'],
-                #            # email = sale['party.email'],
-                #            dev_recipients=True,
-                #            from_email='care@auratenewyork.com',
-                #            )
+                           # email=['maxwell@auratenewyork.com'],
+                           # dev_recipients=True,
+                           from_email='care@auratenewyork.com',
+                           )
                 # break
                 if email_type in ['mto', 'vermeil']:
                     update_planned_date(shipment, email_type)
@@ -114,7 +109,8 @@ def find_late_orders():
         if late_orders_report:
             send_email(f"Fulfil: found {len(late_orders_report)} late orders",
                        str(listDictsToHTMLTable(late_orders_report)),
-                       email=['maxwell@auratenewyork.com'],
+                       email=['maxwell@auratenewyork.com', 'jenny@auratenewyork.com'],
+                       # email=['roman.borodinov@uadevelopers.com'],
                        dev_recipients=True)
 
 

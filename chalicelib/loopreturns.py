@@ -1,7 +1,7 @@
 import hashlib
 import os
 import traceback
-
+import json
 from hashlib import sha1
 import hmac
 import base64
@@ -204,6 +204,17 @@ def return_created(body):
         }]
 
     response = requests.put(url, json=payload, headers=headers)
+
+    if response.status_code != 200:
+        content = f'''
+        error response from fullfill: {response.status_code}<br/>
+        text: {response.text}<br/>
+        url {url}<br/>
+        payload: <br/>
+        {json.dumps(payload)}
+        '''
+        send_email("Loop webhook error!!!!", content, dev_recipients=True)
+
     return response.text, errors
 
 

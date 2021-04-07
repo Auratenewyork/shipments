@@ -16,9 +16,10 @@ from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
     RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY)
 from chalicelib import web_scraper, loopreturns
+from chalicelib.add_tags_in_comments import add_AOV_tag_to_shipments
 from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
 from chalicelib.count_boxes import process_boxes
-from chalicelib.delivered_orders import delivered_orders
+from chalicelib.delivered_orders import delivered_orders, send_repearment_email
 from chalicelib.dynamo_operations import save_easypost_to_dynamo, \
     get_dynamo_last_id, save_shopify_sku, get_shopify_sku_info, \
     get_multiple_sku_info, save_repearment_order, list_repearment_orders, \
@@ -1012,9 +1013,9 @@ def sync_inventory(updated_sku=[]):
         )
 
 
-@app.schedule(Cron(0, 2, '?', '*', '*', '*'))
-def internal_shipments_event(event):
-    internal_shipments_api()
+# @app.schedule(Cron(0, 2, '?', '*', '*', '*'))
+# def internal_shipments_event(event):
+#     internal_shipments_api()
 
 
 @app.route('/internal_shipments', methods=['GET'])
@@ -1062,11 +1063,21 @@ def mto_notifications_api():
             moves.extend(i.get('all_moves', []))
         return moves
 
+    def create_report(_type, sale):
+        return {
+                  'NotificationType': _type,
+                  'Shopify Order': sale['reference'],
+                  'Customer Name': sale['party.name'],
+                  'Customer Email': sale['party.email'],
+                }
+
+    report = []
     emails_3 = get_n_days_old_orders(10)
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html').read())
 
     if emails_3:
         for sale in emails_3:
+            report.append(create_report('casting', sale))
             data = {
                 'YEAR': str(date.today().year),
                 'FINISH_DATE': sale['planned_date'],
@@ -1093,6 +1104,7 @@ def mto_notifications_api():
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html').read())
     if emails_12:
         for sale in emails_12:
+            report.append(create_report('polishing', sale))
             data = {
                 'YEAR': str(date.today().year),
                 'FINISH_DATE': sale['planned_date'],
@@ -1119,6 +1131,7 @@ def mto_notifications_api():
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_17_days.html').read())
     if emails_17:
         for sale in emails_17:
+            report.append(create_report('vermeil', sale))
             data = {
                 'YEAR': str(date.today().year),
                 'FINISH_DATE': sale['planned_date'],
@@ -1126,7 +1139,6 @@ def mto_notifications_api():
                 'items': get_moves(sale['c']),
             }
             result = template.render(**data)
-            # return Response(result, status_code=200, headers={'Content-Type': 'text/html'})
             send_email( f"Next steps for your gold vermeil",
                         result,
                         email = sale['party.email'],
@@ -1139,8 +1151,14 @@ def mto_notifications_api():
             #             dev_recipients=True,
             #             from_email='care@auratenewyork.com',
             #           )
-
             # break
+            # return Response(result, status_code=200, headers={'Content-Type': 'text/html'})
+
+    send_email( f"Fullfill MTO notifications:",
+                str(listDictsToHTMLTable(report)),
+                email=['maxwell@auratenewyork.com', 'jenny@auratenewyork.com'],
+                dev_recipients=True,
+              )
 
 
 @app.route('/api/unsubscribe', methods=['GET'])
@@ -1216,14 +1234,8 @@ def tracking_information(sale_reference):
                 break
         else:
             match_tracking.append([item, [], link])
-            # if tracking_title:
-            #     if carrier == 'USPS':
-            #         link = f'https://tools.usps.com/go/TrackConfirmAction?tLabels={tracking_title}'
-            #         match_tracking.append([item, [], link])
-            #     elif carrier == 'FedEx':
-            #         match_tracking.append([item, [], link])
-            #     else:
-            #         match_tracking.append([item, [], None])
+            # if tracking_title and carrier == 'FedEx':
+            #     match_tracking.append([item, [], link])
             # else:
             #     match_tracking.append([item, [], None])
 
@@ -1374,20 +1386,21 @@ def return_orders_api():
     writer_file = io.StringIO()
     writer = csv.writer(writer_file)
 
-    header = ['Email', 'Reference', 'Created At', "return Total", "exchange Total", "RETURNS (sku)","RETURNS (variantID)"]
+    header = ['Loop id', 'Email', 'Order ID',  'Reference', 'Order Number', 'status', 'Created At', "return Total", "RETURNS (sku)","RETURNS (variantID)", "quantity"]
     writer.writerow(header)
-    exchanges = []
+
+    # exchanges = []
+    # for item in orders:
+    #     if 'exe' in item['order_name']:
+    #         exchanges.append(item['order_name'])
+    #         exchanges.append('#' + item['order_name'][4:-2])
 
     for item in orders:
-        if 'exe' in item['order_name']:
-            exchanges.append(item['order_name'])
-            exchanges.append('#' + item['order_name'][4:-2])
-
-    for item in orders:
-        if item['exchanges'] or item['order_name'] in exchanges:
+        if item['exchanges']: # or item['order_name'] in exchanges:
             continue
         for ret in item['line_items']:
-            row = [item['customer'], item['order_name'], item['created_at'], item['return_total'], item['exchange_total'], ret['sku'], ret['variant_id']]
+            # row = [item['customer'], item['order_name'], item['created_at'], item[']:return_total'], item['exchange_total'], ret['sku'], ret['variant_id']]
+            row = [item['id'], item['customer'], item['order_id'], item['order_name'], item['order_number'], item['state'], item['created_at'], item['return_total'], ret['sku'], ret['variant_id'], 1]
             writer.writerow(row)
 
     send_loop_report(writer_file)
@@ -1551,40 +1564,41 @@ def repairmen_request_api():
         delta += 1
         added_files.append({'filename':f['filename'], 'image_url':file_path})
     order = body['order']
-    # order = {
-    #     "order_id": 3084579537068,
-    #     "order_name": "#94322",
-    #     "id": 8921573523628,
-    #     "sku": "AU0156F00010",
-    #     "PK": "AU0156F00010",
-    #     "name": "Gold Ball Studs",
-    #     "image": "https://cdn.shopify.com/s/files/1/0364/7253/products/Web_IMG_5531-EditR.png?v=1568838092",
-    #     "product_id": 391891255328,
-    #     "product_type": "Earring",
-    #     "title": "14k / Rose / Pair"
-    # }
     info = dict(
         DT=_date,
         order_id=order['order_id'],
         order_name=order['order_name'],
         sku=order['sku'],
+        sku_name=order['name'],
         description=body.get('message', ''),
         files=added_files,
+        email=body.get('email', ''),
+        service=body.get('service', '')
         # image_url=file_path
     )
     info = save_repearment_order(info)
-    # Send some email to user say that we received his request
+
+    #TODO: rmove after testing
+    body['email'] = 'maxwell@auratenewyork.com'
+
+    send_repearment_email(body.get('email'), 'confirmed')
     return info
 
 
 @app.route('/repairments', methods=['GET'], cors=cors_config)
 def repairmen_list_api():
+    # https://4p9vek36rc.execute-api.us-east-2.amazonaws.com/api/repairments?search=2345454&filter=Pending
     request = app.current_request
-    last_id = None
+    last_id, search, filter_ = None, None, None
     if request.query_params:
         last_id = request.query_params.get('last_id', None)
-        last_id = int(last_id)
-    items, last_key = list_repearment_orders(last_id)
+        search = request.query_params.get('search', None)
+        filter_ = request.query_params.get('filter', None)
+        if filter_ == 'Denied':
+            filter_ = 'declined'
+    else:
+        filter_ = 'pending'
+    items, last_key = list_repearment_orders(last_id, search, filter_)
     return {'items':items, 'last_id': last_key.get('DT', None)}
 
 
@@ -1594,5 +1608,22 @@ def repairmen_list_api():
     body = request.json_body
     order = body['order']
     update_repearment_order(order['DT'], order['approve'], order['note'])
-    # Send some email to user depends on the status and comment
+
+    #TODO: rmove after testing
+    body['email'] = 'maxwell@auratenewyork.com'
+
+    if order['approve'] == 'accepted':
+        send_repearment_email(body.get('email'), 'accepted')
+    elif order['approve'] == 'declined':
+        send_repearment_email(body.get('email'), 'declined',  order['note'])
     return order
+
+
+@app.schedule(Cron(0, 12, '?', '*', '*', '*'))
+def add_AOV_tag_event(event):
+    add_AOV_tag_to_shipments_api()
+
+
+@app.route('/aov_tag', methods=['GET'])
+def add_AOV_tag_to_shipments_api():
+    add_AOV_tag_to_shipments()

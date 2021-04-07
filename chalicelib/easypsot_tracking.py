@@ -210,6 +210,7 @@ def fulfill_mto_candidates(report_date):
     candidates = list(candidates)
     return candidates
 
+
 def late_order_candidates(planned_date):
     Shipment = client.model('stock.shipment.out')
     fields = ['sales', 'order_numbers', 'sale_date', 'planned_date',
@@ -252,7 +253,10 @@ def get_n_days_old_orders(days, vermeil=False, late=False):
             c = fulfill_mto_candidates(d)
         candidates.extend(c)
     # we are not sending emails if tracking number is printed
-    candidates = list(filter(lambda item: not item['tracking_number'], candidates))
+    candidates = filter(lambda item: not item['tracking_number'], candidates)
+    candidates = filter(lambda item: 'return' not in item.get('order_numbers', ''),
+                        candidates)
+    candidates = list(candidates)
 
     lines = get_sale_lines_info(candidates)
     candidates = add_product_info(candidates, lines)
