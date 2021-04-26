@@ -90,6 +90,8 @@ def extract_variants_from_order(order):
         {
             'order_id':order['id'],
             'order_name':order['name'],
+            'product_id':variant['product_id'],
+            'variant_id':variant['variant_id'],
             'id':variant['id'],
             'sku':variant['sku'],
          }

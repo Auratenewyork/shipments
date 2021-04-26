@@ -207,7 +207,7 @@ def save_repearment_order(info):
 def update_repearment_order(DT, approve, note):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
-    table.update_item(
+    res = table.update_item(
         Key={
             "DT": DT,
         },
@@ -243,3 +243,15 @@ def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None
 
     response = table.scan(**scan_kwargs)
     return response['Items'], response.get('LastEvaluatedKey', {})
+
+
+def get_repearment_order(DT):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(REPAIRMENT_TABLE)
+    try:
+        response = table.get_item(Key={'DT': DT})
+    except ClientError as e:
+        print(e.response['Error']['Message'])
+    else:
+        return response['Item']
+

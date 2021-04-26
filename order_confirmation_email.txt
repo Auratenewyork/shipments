@@ -1,0 +1,1463 @@
+    <!doctype html>
+    <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+      <head>
+        <title>
+          
+        </title>
+        <!--[if !mso]><!-- -->
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <!--<![endif]-->
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style type="text/css">
+          #outlook a { padding:0; }
+          body { margin:0;padding:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%; }
+          table, td { border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt; }
+          img { border:0;height:auto;line-height:100%; outline:none;text-decoration:none;-ms-interpolation-mode:bicubic; }
+          p { display:block;margin:13px 0; }
+        </style>
+        <!--[if mso]>
+        <xml>
+        <o:OfficeDocumentSettings>
+          <o:AllowPNG/>
+          <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+        </xml>
+        <![endif]-->
+        <!--[if lte mso 11]>
+        <style type="text/css">
+          .mj-outlook-group-fix { width:100% !important; }
+        </style>
+        <![endif]-->
+        
+        
+    <style type="text/css">
+      @media only screen and (min-width:480px) {
+        .mj-column-per-100 { width:100% !important; max-width: 100%; }
+.mj-column-per-50 { width:50% !important; max-width: 50%; }
+      }
+    </style>
+    
+  
+        <style type="text/css">
+        
+        
+
+    @media only screen and (max-width:480px) {
+      table.mj-full-width-mobile { width: 100% !important; }
+      td.mj-full-width-mobile { width: auto !important; }
+    }
+  
+        </style>
+        <style type="text/css">@font-face {
+    font-family: 'gt-america-extended-webfont';
+    src:
+      url('https://auratenewyork.com/assets/fonts/GT-America-Extended-Regular.woff') format('woff2'),
+      url('https://auratenewyork.com/assets/fonts/GT-America-Extended-Regular.woff2') format('woff');
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'gt-america-extended-webfont';
+    src:
+      url('https://auratenewyork.com/assets/fonts/GT-America-Extended-Medium.woff') format('woff2'),
+      url('https://auratenewyork.com/assets/fonts/GT-America-Extended-Medium.woff2') format('woff');
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'gt-america-standard-webfont';
+    src:
+      url('https://auratenewyork.com/assets/fonts/GT-America-Standard-Light-Italic.woff') format('woff2'),
+      url('https://auratenewyork.com/assets/fonts/GT-America-Standard-Light-Italic.woff2') format('woff');
+    font-weight: 300;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'gt-america-standard-webfont';
+    src:
+      url('https://auratenewyork.com/assets/fonts/GT-America-Standard-Light.woff') format('woff2'),
+      url('https://auratenewyork.com/assets/fonts/GT-America-Standard-Light.woff2') format('woff');
+    font-weight: 300;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'gt-america-standard-webfont';
+    src:
+      url('https://auratenewyork.com/assets/fonts/GT-America-Standard-Medium.woff') format('woff2'),
+      url('https://auratenewyork.com/assets/fonts/GT-America-Standard-Medium.woff2') format('woff');
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif;
+    font-weight: 300;
+  }
+  
+  p,
+  td,
+  a {
+    font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif;
+    color: #080A1C;
+    font-weight: 300;
+    line-height: 1.3;
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 32px;
+  }
+
+  h2 {
+    font-size: 24px;
+  }
+
+  h3 {
+    font-size: 16px;
+    margin-bottom: 0;
+    font-weight: 300;
+  }
+
+  p {
+    font-weight: 300;
+  }
+
+  /* Hero */
+  .hero table tr td {
+    background-size: cover !important;
+  }</style>
+        
+      </head>
+      <body>
+        
+        
+      <div style>
+        {% assign isGlobalEOrder = false %}
+      {% if order.attributes %}
+        {% for attribute in order.attributes %}
+          {% assign attributeFirst = attribute | first %}
+          {% if attributeFirst == 'Total order value(local currency)' %}
+            {%assign isGlobalEOrder = true %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}<!-- Logo --><!-- Logo -->
+      
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:20px 0;padding-bottom:10px;padding-top:10px;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="vertical-align:top;width:600px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;border-spacing:0px;">
+        <tbody>
+          <tr>
+            <td style="width:89px;">
+              
+        <a href="https://auratenewyork.com/" target="_blank">
+          
+      <img height="auto" src="https://assets.auratenewyork.com/email/email-aurate-logo.png" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:14px;" width="89">
+    
+        </a>
+      
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      <![endif]-->
+    
+    <!-- Hero -->
+      <!--[if mso | IE]>
+        <table
+           align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:600px;" width="600"
+        >
+          <tr>
+            <td  style="line-height:0;font-size:0;mso-line-height-rule:exactly;">
+              <v:image
+                 style="border:0;height:383px;mso-position-horizontal:center;position:absolute;top:0;width:600px;z-index:-3;" src="https://cdn.shopify.com/s/files/1/0364/7253/files/OrderConfirmation.png" xmlns:v="urn:schemas-microsoft-com:vml"
+              />
+      <![endif]-->
+      <div class="hero" style="margin:0 auto;max-width:600px;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+          <tr style="vertical-align:top;">
+            
+          <td style="width:0.01%;padding-bottom:64%;mso-padding-bottom-alt:0;">
+          </td><td background="https://cdn.shopify.com/s/files/1/0364/7253/files/OrderConfirmation.png" style="background:#304038 url(https://cdn.shopify.com/s/files/1/0364/7253/files/OrderConfirmation.png) no-repeat center center / cover;background-position:center center;background-repeat:no-repeat;padding:60px 0px;vertical-align:middle;">
+            
+      <!--[if mso | IE]>
+        <table
+           border="0" cellpadding="0" cellspacing="0" style="width:600px;" width="600"
+        >
+          <tr>
+            <td  style="">
+      <![endif]-->
+      <div class="mj-hero-content" style="margin:0px auto;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;margin:0px;">
+          <tr>
+            <td style>
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;margin:0px;">
+                
+                    <tr>
+                      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                        
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:40px;font-weight:300;line-height:50px;text-align:center;color:#ffffff;"><h1 class="hero__title" style="line-height: 1.125; letter-spacing: 2.24px; text-transform: uppercase; text-align: center; font-size: 24px;">IT'S CONFIRMED!</h1></div>
+    
+                      </td>
+                    </tr>
+                  
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <!--[if mso | IE]>
+            </td>
+          </tr>
+        </table>
+      <![endif]-->
+    
+          </td>
+          <td style="width:0.01%;padding-bottom:64%;mso-padding-bottom-alt:0;">
+        
+          </td></tr>
+      </table>
+    </div>
+    <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+    <![endif]-->
+    <!-- Body -->
+      
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:20px 0;padding-bottom:20px;padding-top:40px;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="width:600px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0;line-height:0;text-align:left;display:inline-block;width:100%;direction:ltr;">
+        <!--[if mso | IE]>
+        <table
+           border="0" cellpadding="0" cellspacing="0" role="presentation"
+        >
+          <tr>
+        
+              <td
+                 style="vertical-align:top;width:600px;"
+              >
+              <![endif]-->
+                
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:center;color:#000000;"><h2 class="text-h5" style="font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif; font-size: 32px; line-height: 1.375; font-weight: 300; margin: 0;">Excellent Choice{% if customer.first_name %}, {{ customer.first_name }}{% endif %}.</h2></div>
+    
+              </td>
+            </tr>
+          
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:center;color:#000000;">{% if requires_shipping %}
+              <p>Your gold is confirmed. Keep an eye out for more from us, as we want to keep you updated every step of the way.</p>
+            {% endif %}</div>
+    
+              </td>
+            </tr>
+          
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:center;color:#000000;">{% if requires_shipping %}
+              {% if isGlobalEOrder == false %}
+                <p class="text-eyebrow-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038;">Shipping method selected:</p>
+                <p>{{ shipping_method.title }}</p>
+                <p>Be on the lookout - your order should ship by the below date(s):</p>
+              {% endif %}
+              {% assign hasMadeToOrder = false %}
+              {% for line in line_items %}
+                {% for property in line.properties %}
+                  {% if property.first == "Made to order" %}
+                    {% assign hasMadeToOrder = true %}
+                  {% endif %}
+                {% endfor %}
+              {% endfor %}
+            {% endif %}</div>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+              <!--[if mso | IE]>
+              </td>
+              
+          </tr>
+          </table>
+        <![endif]-->
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      <![endif]-->
+    
+    <!-- Line items --><!-- Line Items -->
+      
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div style="background:#FFFFFF;background-color:#FFFFFF;margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFFFF;background-color:#FFFFFF;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:20px 0;padding-bottom:20px;padding-top:20px;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="vertical-align:top;width:600px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;line-height:22px;table-layout:auto;width:100%;border:none;">
+        {% for line in line_items %}
+      <tr style="border-bottom: 1px solid #ece6e2; border-top: 1px solid #ece6e2; vertical-align: top;">
+        <td class="py-4" style="padding: 20px 0; width: 100px;" width="100">
+          <img src="{{ line.product.featured_image | img_url: 'medium' }}" style="max-width: 80px; display: inline-block;">
+        </td>
+        <td class="py-4 pr-2" valign="top" align="left" style="padding: 20px 0; padding-right: 10px;">
+          <div class="line-item__title pb-1" style="font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif; color: #42544f; font-weight: 400; margin: 0; padding-bottom: 5px; color: #304038; clear: both;">{{ line.product.title }}</div>
+          <div class="line-item__subtitle pb-1 text-eyebrow-2" style="color: #42544f; padding: 0; margin: 0; font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; padding-bottom: 5px; color: #304038; clear: both;">Quantity: {{ line.quantity }}</div>
+          <div class="line-item__subtitle pb-1 text-eyebrow-2" style="color: #42544f; padding: 0; margin: 0; font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; padding-bottom: 5px; color: #304038; clear: both;">{{ line.variant.title }}</div>
+          {% assign property_size = line.properties | size %}
+          {% if property_size > 0 %}
+            {% for p in line.properties %}
+            {% assign first_character_in_key = p.first | truncate: 1, '' %}
+              {% unless p.last == blank or first_character_in_key == '_' %}
+                <div class="line-item__subtitle" style="font-family: 'gt-america-standard-webfont', 'Helvetica', sans-serif; color: #42544f; font-weight: 300; font-size: 10px; padding: 0; margin: 0; color: #304038; clear: both;">{{ p.first }}: {{ p.last }}</div>
+              {% endunless %}
+            {% endfor %}
+          {% endif %}
+        </td>
+        <td class="py-4" valign="top" align="right" style="padding: 20px 0;">
+          <span class="text-eyebrow-2 text-gold-dark whitespace-no-wrap" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; white-space: nowrap;">{{ line.line_price | money }}</span>
+        </td>
+      </tr>
+      {% endfor %}
+      </table>
+    
+              </td>
+            </tr>
+          
+            <tr>
+              <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;line-height:22px;table-layout:auto;width:100%;border:none;">
+        <tr>
+        <td class="text-eyebrow-2 py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding: 10px 0;">Subtotal</td>
+        <td class="text-eyebrow-2 text-gold-dark text-right py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right; padding: 10px 0;" align="right">{{ subtotal_price | money }}</td>
+      </tr>
+      {% if discounts %}
+        {% capture discount_title %}Discount {% if discounts.first.code %}({{ discounts.first.code }}){% endif %}{% endcapture %}
+        <tr>
+          <td class="text-eyebrow-2 py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding: 10px 0;">{{ discount_title }}</td>
+          <td class="text-eyebrow-2 text-gold-dark text-right" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right;" align="right">{{ discounts_savings | money }}</td>
+        </tr>
+      {% endif %}
+      <tr>
+        <td class="text-eyebrow-2 py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding: 10px 0;">Shipping</td>
+        <td class="text-eyebrow-2 text-gold-dark text-right py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right; padding: 10px 0;" align="right">{{ shipping_price | money }}</td>
+      </tr>
+      {% for tax_line in tax_lines %}
+      <tr>
+        <td class="text-eyebrow-2 py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding: 10px 0;">{{ tax_line.title }}</td>
+        <td class="text-eyebrow-2 text-gold-dark text-right py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right; padding: 10px 0;" align="right">{{ tax_line.price | money }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td class="py-2" style="padding: 10px 0;"></td>
+      </tr><tr>
+      </tr><tr style="border-top: 2px solid #ece6e2;">
+        <td class="text-eyebrow-2 pt-4" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding-top: 20px;">Total</td>
+        <td class="text-eyebrow-2 text-gold-dark text-right pt-4" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right; padding-top: 20px;" align="right">{{ total_price | money }}</td>
+      </tr>
+
+      {% assign transaction_size = 0 %}
+      {% for transaction in transactions %}
+        {% unless transaction.kind == "capture" or transaction.kind == "void" %}
+          {% assign transaction_size = transaction_size | plus: 1 %}
+        {% endunless %}
+      {% endfor %}
+
+      {% if transaction_size > 1 %}
+        {% for transaction in transactions %}
+          {% if transaction.status == "success" and transaction.kind == "authorization" or transaction.kind == "sale" %}
+            {% if transaction.payment_details.credit_card_company %}
+              {% capture transaction_name %}{{ transaction.payment_details.credit_card_company }} (ending in {{ transaction.payment_details.credit_card_last_four_digits }}){% endcapture %}
+            {% else %}
+              {% capture transaction_name %}{{ transaction.gateway | replace: "_", " " | capitalize }}{% endcapture %}
+            {% endif %}
+            <tr style="border-top: 2px solid #ece6e2;">
+              <td class="text-eyebrow-2 pt-4" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding-top: 20px;">{{ transaction_name }}</td>
+              <td class="text-eyebrow-2 text-gold-dark text-right pt-4" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right; padding-top: 20px;" align="right">{{ transaction.amount | money }}</td>
+            </tr>
+          {% endif %}
+          {% if transaction.kind == 'refund' %}
+            {% if transaction.payment_details.credit_card_company %}
+              {% assign refund_method_title = transaction.payment_details.credit_card_company %}
+            {% else %}
+              {% assign refund_method_title = transaction.gateway %}
+            {% endif %}
+            <tr style="border-top: 2px solid #ece6e2;">
+              <td class="text-eyebrow-2 pt-4" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding-top: 20px;">Refund ({{ refund_method_title | capitalize }})</td>
+              <td class="text-eyebrow-2 text-gold-dark text-right pt-4" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right; padding-top: 20px;" align="right">{{ transaction.amount | money }}</td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      </table>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      <![endif]-->
+    
+    <!-- Global-e Box -->{% if isGlobalEOrder == true %}
+{% assign localCurrency = order.attributes['Local currency used by customer'] %}
+      
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div style="background:#f5f2f0;background-color:#f5f2f0;margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#f5f2f0;background-color:#f5f2f0;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:4px 4px;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="vertical-align:top;width:592px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;line-height:22px;table-layout:auto;width:100%;border:none;">
+        <tr>
+        <td class="text-eyebrow-2 py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding: 10px 0;">Subtotal</td>
+        <td class="text-eyebrow-2 text-gold-dark  text-right py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right; padding: 10px 0;" align="right">{{ localCurrency }} {{ order.attributes['Products Total(local currency)'] }}</td>
+      </tr>
+      {% if order.attributes['Discounts Total(local currency)'] %}
+      <tr>
+        <td class="text-eyebrow-2 py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding: 10px 0;">Discount ({{ discount.code }})</td>
+        <td class="text-eyebrow-2 text-gold-dark text-right" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right;" align="right">- {{ localCurrency }} {{ order.attributes['Discounts Total(local currency)'] }}</td>
+      </tr>
+      {% endif %}
+      <tr>
+        <td class="text-eyebrow-2 py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding: 10px 0;">Shipping</td>
+        <td class="text-eyebrow-2 text-gold-dark text-right py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right; padding: 10px 0;" align="right">{{ localCurrency }} {{ order.attributes['Shipping price paid by customer(local currency)'] }}</td>
+      </tr>
+      <tr>
+        <td class="text-eyebrow-2 py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding: 10px 0;">Taxes</td>
+        <td class="text-eyebrow-2 text-gold-dark text-right py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right; padding: 10px 0;" align="right">{{ localCurrency }} {{ order.attributes['Duties'] }}</td>
+      </tr>
+      <tr>
+        <td class="py-2" style="padding: 10px 0;"></td>
+      </tr>
+      <tr style="border-top: 2px solid #ece6e2;">
+        <td class="text-eyebrow-2 py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038; padding: 10px 0;">Total</td>
+        <td class="text-eyebrow-2 text-gold-dark text-right py-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #c27030; text-align: right; padding: 10px 0;" align="right">{{ localCurrency }} {{ order.attributes['Total order value(local currency)'] }}</td>
+      </tr>
+      </table>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      
+    
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td height="10" style="height:10px;">
+      
+    <![endif]-->
+  
+      <div style="height:10px;">
+        &nbsp;
+      </div>
+      
+    <!--[if mso | IE]>
+    
+        </td></tr></table>
+      
+    <![endif]-->
+  
+    {% endif %}<!-- Gift message -->{% if attributes["Gift message"] %}
+      
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div style="background:#f5f2f0;background-color:#f5f2f0;margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#f5f2f0;background-color:#f5f2f0;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:4px 4px;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="width:592px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0;line-height:0;text-align:left;display:inline-block;width:100%;direction:ltr;">
+        <!--[if mso | IE]>
+        <table
+           border="0" cellpadding="0" cellspacing="0" role="presentation"
+        >
+          <tr>
+        
+              <td
+                 style="vertical-align:top;width:592px;"
+              >
+              <![endif]-->
+                
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:left;color:#000000;"><p class="text-eyebrow-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038;">Your gift message:</p>
+            <p>{{ attributes["Gift message"] }}</p></div>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+              <!--[if mso | IE]>
+              </td>
+              
+          </tr>
+          </table>
+        <![endif]-->
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      
+    
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td height="10" style="height:10px;">
+      
+    <![endif]-->
+  
+      <div style="height:10px;">
+        &nbsp;
+      </div>
+      
+    <!--[if mso | IE]>
+    
+        </td></tr></table>
+      
+    <![endif]-->
+  
+    {% endif %}<!-- Order note -->{% if note != blank %}
+      
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div style="background:#f5f2f0;background-color:#f5f2f0;margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#f5f2f0;background-color:#f5f2f0;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:4px 4px;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="width:592px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0;line-height:0;text-align:left;display:inline-block;width:100%;direction:ltr;">
+        <!--[if mso | IE]>
+        <table
+           border="0" cellpadding="0" cellspacing="0" role="presentation"
+        >
+          <tr>
+        
+              <td
+                 style="vertical-align:top;width:592px;"
+              >
+              <![endif]-->
+                
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:left;color:#000000;"><p class="text-eyebrow-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038;">Your order note:</p>
+            <p>{{ note }}</p></div>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+              <!--[if mso | IE]>
+              </td>
+              
+          </tr>
+          </table>
+        <![endif]-->
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      
+    
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td height="10" style="height:10px;">
+      
+    <![endif]-->
+  
+      <div style="height:10px;">
+        &nbsp;
+      </div>
+      
+    <!--[if mso | IE]>
+    
+        </td></tr></table>
+      
+    <![endif]-->
+  
+    {% endif %}<!-- Addresses -->{% if requires_shipping %}
+      
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div style="background:#ffffff;background-color:#ffffff;margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;background-color:#ffffff;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:20px 0;padding-bottom:40px;padding-top:20px;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="width:600px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0;line-height:0;text-align:left;display:inline-block;width:100%;direction:ltr;">
+        <!--[if mso | IE]>
+        <table
+           border="0" cellpadding="0" cellspacing="0" role="presentation"
+        >
+          <tr>
+        
+              <td
+                 style="vertical-align:top;width:600px;"
+              >
+              <![endif]-->
+                
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:center;color:#000000;"><p class="text-eyebrow-2" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; line-height: 1.675; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; color: #304038;">Your order will ship to:</p>
+            <p>{{ shipping_address.name }}<br>
+              {{ shipping_address.street }}<br>
+              {{ shipping_address.city }}, {{ shipping_address.province }} {{ shipping_address.zip }}<br>
+              {{ shipping_address.country }}</p></div>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+              <!--[if mso | IE]>
+              </td>
+              
+          </tr>
+          </table>
+        <![endif]-->
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      <![endif]-->
+    
+    {% endif %}<!-- Support --><!-- Support -->
+      
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="support-outlook" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div class="support" style="background:#f5f2f0;background-color:#f5f2f0;margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#f5f2f0;background-color:#f5f2f0;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:20px 0;padding-bottom:10px;padding-top:0;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+            <tr>
+              <td
+                 class="" width="600px"
+              >
+          
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div style="margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:20px 0;padding-bottom:0;padding-top:0;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="vertical-align:top;width:600px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+        <tbody>
+          <tr>
+            <td style="vertical-align:top;padding-top:0;padding-bottom:0;">
+              
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style width="100%">
+        
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;padding-bottom:0;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:center;text-transform:uppercase;color:#000000;"><h3 class="support__title" style="font-size: 16px; line-height: 1.125; letter-spacing: 2.24px; text-transform: uppercase;">Need help?</h3></div>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      
+              </td>
+            </tr>
+          
+            <tr>
+              <td
+                 class="" width="600px"
+              >
+          
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div style="margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:20px 0;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="vertical-align:top;width:300px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-50 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0px;">
+        
+      <tr>
+        <td style="padding:4px;vertical-align:middle;">
+          <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:3px;width:18px;">
+            <tr>
+              <td style="font-size:0;height:18px;vertical-align:middle;width:18px;">
+                <a href="https://auratenewyork.com/" target="_blank">
+                    <img height="18" src="https://cdn.shopify.com/s/files/1/1182/9022/t/10/assets/email-chat.png" style="border-radius:3px;display:block;" width="18">
+                  </a>
+                </td>
+              </tr>
+          </table>
+        </td>
+        
+      </tr>
+    
+      </table>
+    
+    
+              </td>
+            </tr>
+          
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:center;text-transform:uppercase;color:#000000;"><a href="https://auratenewyork.com/" class="support__link" style="text-decoration: none;">
+          <p class="support__text" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; text-decoration: none; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; margin: 0;">Chat with us</p>
+        </a></div>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+            <td
+               class="" style="vertical-align:top;width:300px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-50 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0px;">
+        
+      <tr>
+        <td style="padding:4px;vertical-align:middle;">
+          <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:3px;width:14px;">
+            <tr>
+              <td style="font-size:0;height:14px;vertical-align:middle;width:14px;">
+                <a href="https://auratenewyork.com/blogs/support" target="_blank">
+                    <img height="14" src="https://cdn.shopify.com/s/files/1/1182/9022/t/10/assets/email-support.png" style="border-radius:3px;display:block;" width="14">
+                  </a>
+                </td>
+              </tr>
+          </table>
+        </td>
+        
+      </tr>
+    
+      </table>
+    
+    
+              </td>
+            </tr>
+          
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:center;text-transform:uppercase;color:#000000;"><a href="https://auratenewyork.com/blogs/support" class="support__link" style="text-decoration: none;">
+          <p class="support__text" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-weight: 500; text-decoration: none; text-transform: uppercase; letter-spacing: 2.24px; font-size: 10px; margin: 0;">Support</p>
+        </a></div>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      
+              </td>
+            </tr>
+          
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      <![endif]-->
+    
+    <!-- Socials --><!-- Social -->
+      
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="social-outlook" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div class="social" style="background:#bfccb8;background-color:#bfccb8;margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#bfccb8;background-color:#bfccb8;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:20px 0;padding-bottom:10px;padding-top:10px;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="width:600px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0;line-height:0;text-align:left;display:inline-block;width:100%;direction:ltr;">
+        <!--[if mso | IE]>
+        <table
+           border="0" cellpadding="0" cellspacing="0" role="presentation"
+        >
+          <tr>
+        
+              <td
+                 style="vertical-align:top;width:600px;"
+              >
+              <![endif]-->
+                
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;padding-bottom:0;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:14px;font-weight:300;line-height:1;text-align:center;color:#000000;"><h3 class="social__title" style="font-family: 'gt-america-extended-webfont', 'Helvetica', sans-serif; font-size: 16px; line-height: 1.125; letter-spacing: 2.24px; text-transform: uppercase;">You make it shine</h3>
+        <p class="text-greenblue-dark" style="color: #304038;">Tag us @auratenewyork</p></div>
+    
+              </td>
+            </tr>
+          
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;padding-top:0;word-break:break-word;">
+                
+      
+     <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" role="presentation"
+      >
+        <tr>
+      
+              <td>
+            <![endif]-->
+              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="float:none;display:inline-table;">
+                
+      <tr>
+        <td style="padding:20px;vertical-align:middle;">
+          <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:3px;width:23px;">
+            <tr>
+              <td style="font-size:0;height:23px;vertical-align:middle;width:23px;">
+                <a href="https://instagram.com/auratenewyork" target="_blank">
+                    <img height="23" src="https://cdn.shopify.com/s/files/1/1182/9022/t/10/assets/email-instagram.png" style="border-radius:3px;display:block;" width="23">
+                  </a>
+                </td>
+              </tr>
+          </table>
+        </td>
+        
+      </tr>
+    
+              </table>
+            <!--[if mso | IE]>
+              </td>
+            
+              <td>
+            <![endif]-->
+              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="float:none;display:inline-table;">
+                
+      <tr>
+        <td style="padding:20px;vertical-align:middle;">
+          <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:3px;width:10px;">
+            <tr>
+              <td style="font-size:0;height:10px;vertical-align:middle;width:10px;">
+                <a href="https://www.facebook.com/auratenewyork" target="_blank">
+                    <img height="10" src="https://cdn.shopify.com/s/files/1/1182/9022/t/10/assets/email-facebook.png" style="border-radius:3px;display:block;" width="10">
+                  </a>
+                </td>
+              </tr>
+          </table>
+        </td>
+        
+      </tr>
+    
+              </table>
+            <!--[if mso | IE]>
+              </td>
+            
+              <td>
+            <![endif]-->
+              <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="float:none;display:inline-table;">
+                
+      <tr>
+        <td style="padding:20px;vertical-align:middle;">
+          <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:3px;width:20px;">
+            <tr>
+              <td style="font-size:0;height:20px;vertical-align:middle;width:20px;">
+                <a href="https://twitter.com/auratenewyork" target="_blank">
+                    <img height="20" src="https://cdn.shopify.com/s/files/1/1182/9022/t/10/assets/email-twitter.png" style="border-radius:3px;display:block;" width="20">
+                  </a>
+                </td>
+              </tr>
+          </table>
+        </td>
+        
+      </tr>
+    
+              </table>
+            <!--[if mso | IE]>
+              </td>
+            
+          </tr>
+        </table>
+      <![endif]-->
+    
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+              <!--[if mso | IE]>
+              </td>
+              
+          </tr>
+          </table>
+        <![endif]-->
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      <![endif]-->
+    
+    <!-- Copyright -->
+      
+      <!--[if mso | IE]>
+      <table
+         align="center" border="0" cellpadding="0" cellspacing="0" class="" style="width:600px;" width="600"
+      >
+        <tr>
+          <td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;">
+      <![endif]-->
+    
+      
+      <div style="background:#304038;background-color:#304038;margin:0px auto;max-width:600px;">
+        
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="background:#304038;background-color:#304038;width:100%;">
+          <tbody>
+            <tr>
+              <td style="direction:ltr;font-size:0px;padding:20px 0;padding-bottom:10px;padding-top:15px;text-align:center;">
+                <!--[if mso | IE]>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                
+        <tr>
+      
+            <td
+               class="" style="vertical-align:top;width:600px;"
+            >
+          <![endif]-->
+            
+      <div class="mj-column-per-100 mj-outlook-group-fix" style="font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
+        
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
+        
+            <tr>
+              <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                
+      <div style="font-family:'gt-america-standard-webfont', 'Helvetica', 'Arial', 'Tahoma', sans-serif;font-size:12px;font-weight:300;line-height:1;text-align:center;color:#bfccb8;">© {{'now' | date: '%Y' }} Aurate New York</div>
+    
+              </td>
+            </tr>
+          
+      </table>
+    
+      </div>
+    
+          <!--[if mso | IE]>
+            </td>
+          
+        </tr>
+      
+                  </table>
+                <![endif]-->
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+      </div>
+    
+      
+      <!--[if mso | IE]>
+          </td>
+        </tr>
+      </table>
+      <![endif]-->
+    
+    
+      </div>
+    
+      </body>
+    </html>
+  

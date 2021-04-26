@@ -23,7 +23,7 @@ from chalicelib.delivered_orders import delivered_orders, send_repearment_email
 from chalicelib.dynamo_operations import save_easypost_to_dynamo, \
     get_dynamo_last_id, save_shopify_sku, get_shopify_sku_info, \
     get_multiple_sku_info, save_repearment_order, list_repearment_orders, \
-    update_repearment_order
+    update_repearment_order, get_repearment_order
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment, get_easypost_record_by_reference_
@@ -44,6 +44,7 @@ from chalicelib.fulfil import (
     waiting_allocation)
 from chalicelib.internal_shipments import ProcessInternalShipment
 from chalicelib.late_order import find_late_orders
+from chalicelib.repearments import create_repearments_order
 from chalicelib.rubyhas import (
     api_call, build_sales_order, create_purchase_order, get_item_quantity,
     get_full_inventory)
@@ -1386,7 +1387,7 @@ def return_orders_api():
     writer_file = io.StringIO()
     writer = csv.writer(writer_file)
 
-    header = ['Loop id', 'Email', 'Order ID',  'Reference', 'Order Number', 'status', 'Created At', "return Total", "RETURNS (sku)","RETURNS (variantID)", "quantity"]
+    header = ['Loop id', 'Email', 'Order ID',  'Reference', 'Order Number', 'status', 'Created At', "return Total", "RETURNS (sku)","RETURNS (variantID)"]
     writer.writerow(header)
 
     # exchanges = []
@@ -1400,7 +1401,7 @@ def return_orders_api():
             continue
         for ret in item['line_items']:
             # row = [item['customer'], item['order_name'], item['created_at'], item[']:return_total'], item['exchange_total'], ret['sku'], ret['variant_id']]
-            row = [item['id'], item['customer'], item['order_id'], item['order_name'], item['order_number'], item['state'], item['created_at'], item['return_total'], ret['sku'], ret['variant_id'], 1]
+            row = [item['id'], item['customer'], item['order_id'], item['order_name'], item['order_number'], item['state'], item['created_at'], item['return_total'], ret['sku'], ret['variant_id']]
             writer.writerow(row)
 
     send_loop_report(writer_file)
@@ -1543,7 +1544,11 @@ def customer_orders_api():
             if v['PK'] == one_variant['sku']:
                 one_variant.update(v)
                 break
-    return shopify_variants
+    address = customer['default_address']
+    address.pop('id')
+    address.pop('customer_id')
+    return {'orders': shopify_variants, 'address': customer['default_address'],
+            'customer_id': customer['id'], 'email':email}
 
 
 @app.route('/repairmen_request', methods=['POST'], cors=cors_config)
@@ -1569,19 +1574,23 @@ def repairmen_request_api():
         order_id=order['order_id'],
         order_name=order['order_name'],
         sku=order['sku'],
+        variant_id=order['variant_id'],
+        product_id=order['product_id'],
         sku_name=order['name'],
         description=body.get('message', ''),
         files=added_files,
         email=body.get('email', ''),
-        service=body.get('service', '')
+        mailingAddress=body.get('mailingAddress', ''),
+        service=body.get('service', ''),
+        address=body.get('address', None),
+        customer_id=body.get('customer_id', None),
         # image_url=file_path
     )
     info = save_repearment_order(info)
-
-    #TODO: rmove after testing
-    body['email'] = 'maxwell@auratenewyork.com'
-
-    send_repearment_email(body.get('email'), 'confirmed')
+    email = body.get('email')
+    if not email:
+        email = 'maxwell@auratenewyork.com'
+    send_repearment_email(email, 'confirmed')
     return info
 
 
@@ -1613,11 +1622,22 @@ def repairmen_list_api():
     body['email'] = 'maxwell@auratenewyork.com'
 
     if order['approve'] == 'accepted':
+        item = get_repearment_order(order['DT'])
+        try:
+            create_repearments_order(item)
+        except Exception as e:
+            fp = io.StringIO()
+            traceback.print_exc(file=fp)
+            message = fp.getvalue()
+            send_email('Repearment exception',
+                       message,
+                       email='roman.borodinov@uadevelopers.com',
+                       dev_recipients=True,
+                       )
         send_repearment_email(body.get('email'), 'accepted')
     elif order['approve'] == 'declined':
         send_repearment_email(body.get('email'), 'declined',  order['note'])
     return order
-
 
 @app.schedule(Cron(0, 12, '?', '*', '*', '*'))
 def add_AOV_tag_event(event):

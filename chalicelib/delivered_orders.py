@@ -94,20 +94,29 @@ will update you should it be outside of this timeframe.
         }
     },
     'accepted': {
-        'subject':'About that warranty claim',
+        'subject':'Your repair has been accepted. ',
         'data':{
-            'PREH':'accepted Email',
-            'HEADER':'accepted Email',
+            'PREH':'What to do next. ',
+            'HEADER':'Accepted Repair',
             'TEXT':'''
+Body - We’ve received your repair request, and agree that your piece could use 
+some extra love. We want to handle this for you ASAP, as we take our jewelry 
+quality super seriously.
             ''',
+            'LINK': 'http://dpwsfuv8z8btb.cloudfront.net/info',
+            'LINK_TEXT': 'NEXT STEPS',
         }
     },
     'declined': {
-        'subject':'About that warranty claim',
+        'subject':'Your repair request. ',
         'data':{
-            'PREH':'declined Email',
-            'HEADER':'declined Email',
+            'PREH':'An update from us',
+            'HEADER':'Repair Denied',
             'TEXT':'''
+Hey there, we’re sorry your repair unfortunately did not meet the requirements 
+needed. We know this isn’t the news you probably wanted, so here’s a little 
+something from us for your next order. Use code ONUS for 15% off your next 
+purchase. And to learn more about your repair status, <a href="https://auratenewyork.com/pages/terms-of-service">click here</a>.
             ''',
         }
     },
@@ -122,7 +131,7 @@ will update you should it be outside of this timeframe.
     },
 }
 
-def send_repearment_email(email, case, NOTE=''):
+def send_repearment_email(email, case, NOTE=None):
     from app import BASE_DIR
     info = REPEARMENT_CASE[case]
     template = Template(
