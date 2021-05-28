@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import date, timedelta, datetime
 
 import pdfkit
@@ -597,3 +598,52 @@ def waiting_allocation():
         fields=fields
     )
     return list(shipments)
+
+
+def find_exchange_orders():
+    yesterday = datetime.utcnow() - timedelta(days=1)
+    Model = client.model('stock.shipment.out')
+    fields = ['state', 'moves', 'reference', 'order_numbers', 'shipping_instructions']
+    shipments = Model.search_read_all(
+        domain=["AND", ["create_date", ">=", {
+                    "__class__": "datetime",
+                    "year": yesterday.year,
+                    "month": yesterday.month,
+                    "day": yesterday.day,
+                    "hour": yesterday.hour,
+                    "minute": yesterday.minute,
+                    "second": 0,
+                    "microsecond": 0
+                }],
+                ['order_numbers', 'ilike', "%{}%".format('exe')]],
+        order=None,
+        fields=fields,
+    )
+    reference_list = []
+    for item in shipments:
+        try:
+            ref = item['order_numbers']
+            reference = '#' + re.match(r'[\s\S]+\(exe-(\d+)-\d\)', ref)[1]
+            if 'exe' not in item['shipping_instructions'].lower():
+                reference_list.append(item)
+        except Exception:
+            print(item['order_numbers'])
+    return reference_list
+
+
+def update_shipment(shipment, context):
+    Model = client.model('stock.shipment.out')
+    url = Model.path + f'/{shipment["id"]}'
+    response = requests.put(url, json=context, headers=headers)
+
+
+def add_exe_comment():
+    reference_list = find_exchange_orders()
+    for shipment in reference_list:
+        shipping_instructions = shipment['shipping_instructions']
+        if shipping_instructions:
+            shipping_instructions += '; \n\r EXE'
+        else:
+            shipping_instructions = 'EXE'
+        update_shipment(shipment,
+                        {'shipping_instructions': shipping_instructions})

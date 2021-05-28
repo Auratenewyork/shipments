@@ -1,15 +1,14 @@
 import datetime
 import os
 import secrets
-
-import client
 import requests
 
 false = False
 true = True
 
 env_name = os.environ.get('ENV', 'sandbox')
-if env_name == 'sandbox' or True:
+# if env_name == 'sandbox' or True:
+if False:
     RESHINE_URL = 'https://api-uat.reshyne.com/api/v1/'
 else:
     RESHINE_URL = 'https://api-app.reshyne.com/api/v1/'
@@ -19,7 +18,7 @@ def get_customer(headers, params, address, email):
     url = f'{RESHINE_URL}filter-customers'
     p = params.copy()
     p['email'] = email
-    p['name'] = address['first_name']
+    # p['name'] = address['first_name']
     p['page'] = 1
     response = requests.get(url, headers=headers, params=p)
     r = response.json()
@@ -31,7 +30,7 @@ def create_customer(headers, params, address, email):
     p = params.copy()
     p['user'] = {"email": email, "password": secrets.token_urlsafe(12),
               "first_name": address['first_name'], "last_name": address['last_name']}
-    p['phone_number'] = address['phone']
+    p['phone_number'] = address['phone'].replace('(', '').replace(')', '').replace('-', '').replace(' ', '')
     response = requests.post(url, headers=headers, json=p)
     r = response.json()
     return r['data']
@@ -52,6 +51,7 @@ def get_customer_address(headers, params):
     response = requests.get(url, headers=headers, params=params)
     r = response.json()
     return r['data']
+
 
 def get_city_info(headers, address):
     url = f'{RESHINE_URL}cities'
@@ -87,7 +87,7 @@ def create_customer_address(headers, params, address, customer_id):
     return r['data']
 
 def get_or_create_customer_address(headers, params, address, customer_id):
-    customer_address = get_customer_address(headers, {'customer_id':customer_id})
+    customer_address = get_customer_address(headers, {'customer_id': customer_id})
     if customer_address:
         return customer_address[0]
     else:
@@ -166,8 +166,8 @@ def get_services(headers, params, name):
      'rhodium plating': 'Rhodium Plating',
      'gem stone / diamond replacement services': 'Gemstone Replacement Service',
      'stone tightening': 'Stone Tightening'}
-
-    url = f'{RESHINE_URL}filter-services'
+    url = f'{RESHINE_URL}stores/{params["store_id"]}/portal-services'
+    # url = f'{RESHINE_URL}filter-services'
     p = params.copy()
     p['is_customer_side'] = 'true'
     response = requests.get(url, headers=headers, params=p)
@@ -181,7 +181,7 @@ def get_services(headers, params, name):
     # return services
 
 def test_fill_input_item(item):
-    if not item['address']:
+    if not item.get('address', None):
         item['address'] = {
             "first_name": "Nick",
             "last_name": "Miller",
@@ -199,9 +199,9 @@ def test_fill_input_item(item):
             "country_name": "United States",
             "default": true
         }
-    if not item['service']:
+    if not item.get('service', None):
         item['service'] = 'earring posts backs'
-    if not item['email']:
+    if not item.get('email', None):
         item['email'] = 'maxwell@auratenewyork.com'
     return item
 

@@ -16,14 +16,17 @@ from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
     RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY)
 from chalicelib import web_scraper, loopreturns
-from chalicelib.add_tags_in_comments import add_AOV_tag_to_shipments
+from chalicelib.add_tags_in_comments import add_AOV_tag_to_shipments, \
+    add_EXE_tag_to_ship_instructions
 from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
 from chalicelib.count_boxes import process_boxes
+from chalicelib.create_fulfil import create_fullfill_order
 from chalicelib.delivered_orders import delivered_orders, send_repearment_email
 from chalicelib.dynamo_operations import save_easypost_to_dynamo, \
     get_dynamo_last_id, save_shopify_sku, get_shopify_sku_info, \
     get_multiple_sku_info, save_repearment_order, list_repearment_orders, \
-    update_repearment_order, get_repearment_order
+    update_repearment_order, get_repearment_order, \
+    update_repearment_tracking_number, list_repearment_by_date
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment, get_easypost_record_by_reference_
@@ -41,7 +44,7 @@ from chalicelib.fulfil import (
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     client as fulfill_client, get_late_shipments, get_items_waiting_allocation,
     sale_with_discount, get_product, get_inventory_by_warehouse,
-    waiting_allocation)
+    waiting_allocation, add_exe_comment)
 from chalicelib.internal_shipments import ProcessInternalShipment
 from chalicelib.late_order import find_late_orders
 from chalicelib.repearments import create_repearments_order
@@ -1036,6 +1039,15 @@ def count_boxes_api():
     process_boxes()
 
 
+@app.schedule(Cron(0, 6, '?', '*', '*', '*'))
+def add_exe_comment_event(event):
+    add_exe_comment_api()
+
+
+@app.route('/exe_comment', methods=['GET'])
+def add_exe_comment_api():
+    add_exe_comment()
+
 
 @app.schedule(Cron(0, 22, '?', '*', '*', '*'))
 def mto_notifications_event(event):
@@ -1551,13 +1563,8 @@ def customer_orders_api():
             'customer_id': customer['id'], 'email':email}
 
 
-@app.route('/repairmen_request', methods=['POST'], cors=cors_config)
-def repairmen_request_api():
+def save_repearment_files(_date, files):
     BUCKET = 'aurate-repearment-images'
-    request = app.current_request
-    body = request.json_body
-    _date = int(time.time())
-    files = body['files']
     added_files = []
     delta = 0
     for f in files:
@@ -1567,8 +1574,20 @@ def repairmen_request_api():
         s3.put_object(Body=image, Bucket=BUCKET, Key=filename)
         file_path = f"https://{BUCKET}.s3.us-east-2.amazonaws.com/{filename}"
         delta += 1
-        added_files.append({'filename':f['filename'], 'image_url':file_path})
+        added_files.append({'filename': f['filename'], 'image_url': file_path})
+    return added_files
+
+
+@app.route('/repairmen_request', methods=['POST'], cors=cors_config)
+def repairmen_request_api():
+    request = app.current_request
+    body = request.json_body
+    _date = int(time.time())
+    files = body.get('files', [])
+    added_files = save_repearment_files(_date, files)
     order = body['order']
+    if body.get('added_files', None):
+        added_files.extend(order['added_files'])
     info = dict(
         DT=_date,
         order_id=order['order_id'],
@@ -1587,11 +1606,20 @@ def repairmen_request_api():
         # image_url=file_path
     )
     info = save_repearment_order(info)
+
     email = body.get('email')
-    if not email:
-        email = 'maxwell@auratenewyork.com'
     send_repearment_email(email, 'confirmed')
     return info
+
+
+@app.route('/repairmen_request', methods=['PUT'], cors=cors_config)
+def repairmen_request_api():
+    request = app.current_request
+    body = request.json_body
+    _date = body.get('DT', None) or int(time.time())
+    files = [body['file']]
+    added_files = save_repearment_files(_date, files)
+    return added_files[0]
 
 
 @app.route('/repairments', methods=['GET'], cors=cors_config)
@@ -1617,27 +1645,66 @@ def repairmen_list_api():
     body = request.json_body
     order = body['order']
     update_repearment_order(order['DT'], order['approve'], order['note'])
-
-    #TODO: rmove after testing
-    body['email'] = 'maxwell@auratenewyork.com'
-
+    if not body.get('email'):
+        body['email'] = 'maxwell@auratenewyork.com'
     if order['approve'] == 'accepted':
-        item = get_repearment_order(order['DT'])
-        try:
-            create_repearments_order(item)
-        except Exception as e:
-            fp = io.StringIO()
-            traceback.print_exc(file=fp)
-            message = fp.getvalue()
-            send_email('Repearment exception',
-                       message,
-                       email='roman.borodinov@uadevelopers.com',
-                       dev_recipients=True,
-                       )
-        send_repearment_email(body.get('email'), 'accepted')
+        send_repearment_email(body.get('email'), 'accepted', DT=order['DT'])
     elif order['approve'] == 'declined':
-        send_repearment_email(body.get('email'), 'declined',  order['note'])
+        send_repearment_email(body.get('email'), 'declined',  NOTE=order['note'])
     return order
+
+def send_exception():
+    fp = io.StringIO()
+    traceback.print_exc(file=fp)
+    message = fp.getvalue()
+    send_email('Repearment exception!!!!!',
+               message,
+               email='roman.borodinov@uadevelopers.com',
+               dev_recipients=True,
+               )
+
+@app.route('/repairmen_tracking', methods=['POST'], cors=cors_config)
+def repairmen_list_api():
+    request = app.current_request
+    body = request.json_body
+    update_repearment_tracking_number(int(body['DT']), body['tracking_number'])
+
+    # create repearment order
+    item = get_repearment_order(body['DT'])
+    try:
+        create_repearments_order(item)
+    except Exception as e:
+        send_exception()
+
+    create_fullfill_order(item)
+
+    # try:
+    #     create_fullfill_order(item)
+    # except Exception as e:
+    #     send_exception()
+
+    send_email("Repearment: added tracking number",
+               f"Current info {body['tracking_number']}, {body['DT']}",
+               email='maxwell@auratenewyork.com',
+               dev_recipients=True,)
+    return body
+
+
+
+@app.schedule(Cron(0, 12, '?', '*', '*', '*'))
+def repearment_reminder_event(event):
+    repearment_reminder_api()
+
+
+@app.route('/repearment_reminder', methods=['GET'])
+def repearment_reminder_api():
+    end = datetime.utcnow() - timedelta(days=2)
+    start = end - timedelta(days=1)
+    items, _ = list_repearment_by_date(datetime.timestamp(start), datetime.timestamp(end))
+    for item in items:
+        if not item.get('tracking_number', None):
+            send_repearment_email(item.get('email'), 'reminder', DT=item['DT'])
+
 
 @app.schedule(Cron(0, 12, '?', '*', '*', '*'))
 def add_AOV_tag_event(event):
@@ -1647,3 +1714,5 @@ def add_AOV_tag_event(event):
 @app.route('/aov_tag', methods=['GET'])
 def add_AOV_tag_to_shipments_api():
     add_AOV_tag_to_shipments()
+    add_EXE_tag_to_ship_instructions()
+

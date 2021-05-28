@@ -87,7 +87,7 @@ is being reviewed by our team. We aim to keep your expectations the
 highest, so rest assured knowing we take every claim very seriously.
 Stay on the lookout for more updates from us (including a timeline
 estimate) and of course reach out to care@auratenewyork.com with
-any questions. Let’s fix this!<br/>
+any questions. Let’s fix this!<br/><br/>
 Side note: We usually expect 3-4 weeks for something like this, but
 will update you should it be outside of this timeframe.            
             ''',
@@ -99,7 +99,7 @@ will update you should it be outside of this timeframe.
             'PREH':'What to do next. ',
             'HEADER':'Accepted Repair',
             'TEXT':'''
-Body - We’ve received your repair request, and agree that your piece could use 
+We’ve received your repair request, and agree that your piece could use 
 some extra love. We want to handle this for you ASAP, as we take our jewelry 
 quality super seriously.
             ''',
@@ -116,7 +116,7 @@ quality super seriously.
 Hey there, we’re sorry your repair unfortunately did not meet the requirements 
 needed. We know this isn’t the news you probably wanted, so here’s a little 
 something from us for your next order. Use code ONUS for 15% off your next 
-purchase. And to learn more about your repair status, <a href="https://auratenewyork.com/pages/terms-of-service">click here</a>.
+purchase. And to learn more about your repair status, <a href="https://auratenewyork.com/pages/terms-of-service">click here</a>.<br/>
             ''',
         }
     },
@@ -129,15 +129,30 @@ purchase. And to learn more about your repair status, <a href="https://auratenew
         ''',
         }
     },
+    'reminder': {
+        'subject': 'About that warranty claim',
+        'data': {
+            'PREH': 'Reminder!',
+            'HEADER': 'delivered Email',
+            'LINK_TEXT': 'NEXT STEPS',
+            'TEXT': '''
+            We’ve approved your repair request and ready to receive it. 
+            Use the link below and fill the tracking number to track your parcel.
+        ''',
+        }
+    },
 }
 
-def send_repearment_email(email, case, NOTE=None):
+def send_repearment_email(email, case, NOTE=None, DT=None):
     from app import BASE_DIR
     info = REPEARMENT_CASE[case]
+    if DT:
+        LINK = f"http://dpwsfuv8z8btb.cloudfront.net/info?DT={DT}"
+        info['data']['LINK'] = LINK
     template = Template(
         open(f'{BASE_DIR}/chalicelib/template/notification.html').read())
 
-    content = template.render(**info['data'], **{"NOTE": NOTE})
+    content = template.render(**info['data'], **{"NOTE": NOTE},)
 
     send_email(info['subject'],
                content,

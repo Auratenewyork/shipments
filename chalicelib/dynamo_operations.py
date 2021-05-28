@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import boto3
 import re
 from boto3.dynamodb.conditions import Key, Attr
@@ -133,10 +135,13 @@ def get_shopify_sku_info(sku):
 
     try:
         response = table.get_item(Key={'PK': sku})
+        if 'Item' in response:
+            return response['Item']
+        else:
+            return None
     except ClientError as e:
         print(e.response['Error']['Message'])
-    else:
-        return response['Item']
+        return None
 
 
 def get_multiple_sku_info(sku_list):
@@ -217,6 +222,18 @@ def update_repearment_order(DT, approve, note):
             ':c': note,
         },
     )
+def update_repearment_tracking_number(DT, tracking_number):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(REPAIRMENT_TABLE)
+    res = table.update_item(
+        Key={
+            "DT": DT,
+        },
+        UpdateExpression="set tracking_number=:t",
+        ExpressionAttributeValues={
+            ':t': tracking_number,
+        },
+    )
 
 
 def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None):
@@ -240,7 +257,21 @@ def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None
         scan_kwargs['FilterExpression'] = Attr('order_name').contains(order_name)
     elif approve_expresion:
         scan_kwargs['FilterExpression'] = approve_expresion
+    response = table.scan(**scan_kwargs)
+    response['Items'].reverse()
+    return response['Items'], response.get('LastEvaluatedKey', {})
 
+
+def list_repearment_by_date(DT_start, DT_end, ExclusiveStartKey=None):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(REPAIRMENT_TABLE)
+    scan_kwargs = {'Limit': 50}
+
+    if ExclusiveStartKey:
+        ExclusiveStartKey = int(ExclusiveStartKey)
+        scan_kwargs['ExclusiveStartKey'] = ExclusiveStartKey
+    scan_kwargs['FilterExpression'] = Key('DT').between(Decimal(DT_start), (Decimal(DT_end)))
+    # scan_kwargs['ConditionExpression'] = Attr('tracking_number').not_exists()
     response = table.scan(**scan_kwargs)
     return response['Items'], response.get('LastEvaluatedKey', {})
 
@@ -248,6 +279,7 @@ def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None
 def get_repearment_order(DT):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
+    DT = int(DT)
     try:
         response = table.get_item(Key={'DT': DT})
     except ClientError as e:
