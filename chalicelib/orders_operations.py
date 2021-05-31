@@ -2,7 +2,7 @@ import json
 import os
 
 from .fulfil import client
-from .utils import fill_rollback_file, make_rollbak_filename
+from .utils import fill_rollback_file, make_rollbaсk_filename
 
 
 DOMAIN = os.environ.get('FULFIL_API_DOMAIN', "aurate-sandbox")
@@ -28,7 +28,7 @@ def close_running_production_orders():
         errors = []
 
     if done:
-        filename = make_rollbak_filename('close_running_orders', server_name=DOMAIN)
+        filename = make_rollbaсk_filename('close_running_orders', server_name=DOMAIN)
         with open(filename, 'r') as rollback_file:
             data = json.loads(rollback_file.read())
 

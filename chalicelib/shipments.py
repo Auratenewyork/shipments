@@ -1,12 +1,19 @@
+import csv
 from datetime import timedelta
-import datetime
-import requests
 from fulfil_client import ClientError
 from retrying import retry
+import datetime
+import json
+import os
+import requests
 
 from chalicelib import (AURATE_STORAGE_ZONE)
 from chalicelib.common import listDictsToHTMLTable
-from .fulfil import client, headers, check_in_stock, get_movement
+from .fulfil import client, headers, check_in_stock, get_movement, get_fulfil_model_url
+from .utils import fill_rollback_file, make_rollbaсk_filename, fill_csv_file
+
+
+DOMAIN = os.environ.get('FULFIL_API_DOMAIN', "aurate-sandbox")
 
 
 @retry(stop_max_attempt_number=2, wait_fixed=50)
@@ -295,3 +302,109 @@ def customer_shipments_pull():
         fields=fields
     )
     return list(res)
+
+
+def get_previous_state(state):
+    states = {
+        'done': 'packed',
+        'packed': 'assigned',
+        'draft': 'assigned'
+    }
+    return states.get(state, state)
+
+
+def build_shipment_url(shipment_id, state):
+    suffixes = {
+        'done': 'done',
+        'packed': 'pack',
+        'cancel': 'cancel',
+    }
+    suffix = suffixes.get(state)
+    return f'{get_fulfil_model_url("stock.shipment.out")}/{shipment_id}/{suffix}'
+
+
+def complete_customer_shipments(state='done', excludes=("done", "cancel"), move_location_id=None, get_from_file=True):
+    Shipment = client.model('stock.shipment.out')
+    Move = client.model('stock.move')
+
+    domain = ["AND", ("state", "not in", excludes),
+        ["planned_date", "<", {"__class__": "date", "year": 2021, "month": 1, "day": 1}]
+    ]
+    fields = ['id', 'state', 'moves']
+    shipments = list(Shipment.search_read_all(domain, None, fields=fields))
+    print('Found {} incomplete shipments'.format(str(len(shipments))))
+
+    if get_from_file:
+        filename = 'rollback_data/05_18_2021_at_03PM_shipments_to_complete_production.json'
+        with open(filename, 'r') as rollback_file:
+            ids = json.loads(rollback_file.read())
+            domain = [['AND', ["id", "in", ids]]]
+            shipments = list(Shipment.search_read_all(domain, None, fields=fields))
+            print('{} shipments found by ids'.format(str(len(shipments))))
+    else:
+        ids = [sh['id'] for sh in shipments]
+    excludes = list(excludes)
+    excludes.append(state)
+    already_done = Shipment.search_read_all([['AND', ["id", "in", ids], ["state", "in", excludes]]], None, fields=['id'])
+    already_done = [sh['id'] for sh in already_done]
+    print(already_done)
+
+    if not shipments:
+        return
+
+    fill_rollback_file(shipments, 'complete_shipments', server_name=DOMAIN)
+    errors = []
+    done = []
+    changed = []
+    skipped = []
+    for shipment in shipments:
+        shipment_id = shipment['id']
+        if shipment_id in already_done:
+            skipped.append(shipment_id)
+
+        if skipped and shipment_id != skipped[-1]:
+            try:
+                resp = requests.put(build_shipment_url(shipment_id, state), headers=headers)
+            except Exception as e:
+                errors.append({'id': shipment_id, 'err': e.message})
+            else:
+                content = str(resp.content)
+                sh_state = shipment['state']
+                print(f'{resp.status_code}: {resp.url} == {shipment_id}-{sh_state} - {content}')
+                if resp.status_code != 200 or 'Error' in content:
+                    errors.append({'id': shipment_id, 'err': content})
+
+        if not errors or errors[-1]['id'] != shipment_id:
+            new_sh = Shipment.get(shipment_id)
+            new_state = new_sh['state']
+            if new_state not in excludes:
+                errors.append({'id': shipment_id, 'err': "not performed!"})
+            else:
+                done.append(shipment_id)
+                move_id = new_sh['moves'][-1]  # the latest stock move
+                move = Move.get(move_id)
+                sh = shipment.copy()
+                sh.pop('moves')
+                if shipment_id in already_done:
+                    sh['state'] = get_previous_state(state)
+                    if move_location_id and move['to_location'] != move_location_id:
+                        print(f'Wrong stock move for {shipment_id}')
+                sh['stock_move'] = move_id
+                sh['product_id'] = move['product']
+                sh['product_sku'] = move['item_blurb']['subtitle'][0][1]
+                sh['quantity'] = move['quantity']
+                sh['quantity_available'] = move['quantity_available']
+                changed.append(sh)
+
+    file_prefix = 'shipments_{}'.format(state)
+    if done:
+        fill_rollback_file(done, file_prefix, 'w+', server_name=DOMAIN)
+
+    if errors:
+        fill_rollback_file(errors, file_prefix + '_errors', 'w+', server_name=DOMAIN)
+
+    if changed:
+        fill_csv_file(changed, 'moves_report', server_name=DOMAIN)
+
+    print('Found {} shipments: \n{} - done; \n{} - skipped, \n{} - errors'.format(
+        len(shipments), len(done), len(skipped), len(errors)))
