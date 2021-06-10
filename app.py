@@ -26,7 +26,8 @@ from chalicelib.dynamo_operations import save_easypost_to_dynamo, \
     get_dynamo_last_id, save_shopify_sku, get_shopify_sku_info, \
     get_multiple_sku_info, save_repearment_order, list_repearment_orders, \
     update_repearment_order, get_repearment_order, \
-    update_repearment_tracking_number, list_repearment_by_date
+    update_repearment_tracking_number, list_repearment_by_date, \
+    update_repearment_order_info
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment, get_easypost_record_by_reference_
@@ -47,7 +48,8 @@ from chalicelib.fulfil import (
     waiting_allocation, add_exe_comment)
 from chalicelib.internal_shipments import ProcessInternalShipment
 from chalicelib.late_order import find_late_orders
-from chalicelib.repearments import create_repearments_order
+from chalicelib.repearments import create_repearments_order, \
+    get_sales_order_info
 from chalicelib.rubyhas import (
     api_call, build_sales_order, create_purchase_order, get_item_quantity,
     get_full_inventory)
@@ -1587,7 +1589,7 @@ def repairmen_request_api():
     added_files = save_repearment_files(_date, files)
     order = body['order']
     if body.get('added_files', None):
-        added_files.extend(order['added_files'])
+        added_files.extend(body['added_files'])
     info = dict(
         DT=_date,
         order_id=order['order_id'],
@@ -1640,7 +1642,7 @@ def repairmen_list_api():
 
 
 @app.route('/repairments', methods=['POST'], cors=cors_config)
-def repairmen_list_api():
+def repairmen_update_api():
     request = app.current_request
     body = request.json_body
     order = body['order']
@@ -1669,14 +1671,14 @@ def repairmen_list_api():
     body = request.json_body
     update_repearment_tracking_number(int(body['DT']), body['tracking_number'])
 
-    # create repearment order
     item = get_repearment_order(body['DT'])
     try:
-        create_repearments_order(item)
+        order = create_repearments_order(item)
     except Exception as e:
+        order = None
         send_exception()
-
-    create_fullfill_order(item)
+    if order:
+        update_repearment_order_info(int(body['DT']), order)
 
     # try:
     #     create_fullfill_order(item)
@@ -1704,6 +1706,22 @@ def repearment_reminder_api():
     for item in items:
         if not item.get('tracking_number', None):
             send_repearment_email(item.get('email'), 'reminder', DT=item['DT'])
+
+
+@app.route('/repearment_report', methods=['GET'])
+def repearment_report_api():
+    request = app.current_request
+    last_id = None
+    if request.query_params:
+        last_id = request.query_params.get('last_id', None)
+    items, last_key = list_repearment_orders(last_id)
+    for item in items:
+        if item['order_id']:
+            order_info = get_sales_order_info(item['order_id'])
+        if order_info:
+            item['order_info'] = order_info
+            break
+    return items
 
 
 @app.schedule(Cron(0, 12, '?', '*', '*', '*'))

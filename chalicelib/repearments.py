@@ -138,6 +138,7 @@ def create_rep_order(headers, store_id, customer_id, address_id, service):
     a = r['data']
     return r['data']
 
+
 def login():
     url = f'{RESHINE_URL}login'
     j = {
@@ -159,13 +160,15 @@ def get_services(headers, params):
 
 
 def get_services(headers, params, name):
-    service_names = {'ring reshaping': 'Ring Reshaping',
-     'earring posts backs': 'Earring Post Back',
-     'clasp repair/replacement': 'Clasp Repair/Replacement',
-     'jewelry polishing': 'Jewelry Polishing',
-     'rhodium plating': 'Rhodium Plating',
-     'gem stone / diamond replacement services': 'Gemstone Replacement Service',
-     'stone tightening': 'Stone Tightening'}
+    service_names = {
+        'ring reshaping': 'Ring Reshaping',
+        'earring posts backs': 'Earring Post Back',
+        'clasp repair/replacement': 'Clasp Repair/Replacement',
+        'jewelry polishing': 'Jewelry Polishing',
+        'rhodium plating': 'Rhodium Plating',
+        'gem stone / diamond replacement services': 'Gemstone Replacement Service',
+        'stone tightening': 'Stone Tightening'
+    }
     url = f'{RESHINE_URL}stores/{params["store_id"]}/portal-services'
     # url = f'{RESHINE_URL}filter-services'
     p = params.copy()
@@ -221,9 +224,58 @@ def create_repearments_order(item):
     customer_id = customer['id']
 
     service = get_services(headers, params, name=item['service'])
-    create_rep_order(headers, store_id, customer_id, address_id, service)
+    order = create_rep_order(headers, store_id, customer_id, address_id, service)
+    return order
 
 
+def get_order_info(store_id, _id, headers):
+    url = f'{RESHINE_URL}sales-order/{_id}'
+    response = requests.get(url, headers=headers)
+    r = response.json()
+    return r['data']
+
+
+def get_sales_order_info(_id):
+    token, store = login()
+    headers = {"AUTHORIZATION": f"Bearer {token}"}
+    params = {'store_id': store['id']}
+    store_id = store['id']
+    order_info = get_order_info(store_id=store_id, _id=_id, headers=headers)
+    return order_info
+
+
+
+"""
+42446, '[SH0002] AU Green Medium Shipper	AU Green Medium Shipper', 'SH0002',
+42447, '[SH0001] AU Green Small Shipper	AU Green Small Shipper', 'SH0001',
+
+50428, '[SU001] Labor & Metal - CASTING	Labor & Metal - CASTING', 'SU001',
+50429, '[SU002] Labor - Polishing	Labor - Polishing', 'SU002',
+50430, '[SU003] Labor & Metal - PLATING	Labor & Metal - PLATING', 'SU003',,
+
+
+21465, '[SU0001] Engraving Fee	Engraving Fee', 'SU0001',
+21466, '[SU0002] Overnight Ship Fee	Overnight Ship Fee', 'SU0002',
+
+21467, '[SU0003] Repair Fee	Repair Fee', 'SU0003',
+
+53974, '[SU0004] Ring Reshaping	Ring Reshaping', 'SU0004',
+53975, '[SU0005] Earring Posts Backs	Earring Posts Backs', 'SU0005',
+53976, '[SU0006] Clasp Repair/Replacement	Clasp Repair/Replacement', 'SU0006',
+53977, '[SU0007] Jewelry Polishing	Jewelry Polishing', 'SU0007',
+53978, '[SU0008] Rhodium Plating	Rhodium Plating', 'SU0008',
+53979, '[SU0009] Gemstone/Diamond Replacement Services	Gemstone/Diamond Replacement Services', 'SU0009',
+53980, '[SU0010] Stone Tightening Stone Tightening', 'SU0010',
+
+
+'ring reshaping': 'Ring Reshaping',
+'earring posts backs': 'Earring Post Back',
+'clasp repair/replacement': 'Clasp Repair/Replacement',
+'jewelry polishing': 'Jewelry Polishing',
+'rhodium plating': 'Rhodium Plating',
+'gem stone / diamond replacement services': 'Gemstone Replacement Service',
+'stone tightening': 'Stone Tightening'
+"""
 # def create_fullfill_order():
 #     create_return_sale()
 #

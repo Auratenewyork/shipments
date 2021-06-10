@@ -236,6 +236,21 @@ def update_repearment_tracking_number(DT, tracking_number):
     )
 
 
+def update_repearment_order_info(DT, order):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(REPAIRMENT_TABLE)
+    res = table.update_item(
+        Key={
+            "DT": DT,
+        },
+        UpdateExpression="set order_id=:t, order_no:n, net_cost:c ",
+        ExpressionAttributeValues={
+            ':t': order['id'],
+            ':n': order['order_no'],
+            ':c': Decimal(order['net_cost']),
+        },
+    )
+
 def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
