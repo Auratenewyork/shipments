@@ -8,6 +8,7 @@ import os
 import pickle
 import traceback
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from functools import lru_cache
 
 import boto3
@@ -1672,23 +1673,28 @@ def repairmen_list_api():
     update_repearment_tracking_number(int(body['DT']), body['tracking_number'])
 
     item = get_repearment_order(body['DT'])
-    try:
-        order = create_repearments_order(item)
-    except Exception as e:
-        order = None
-        send_exception()
-    if order:
-        update_repearment_order_info(int(body['DT']), order)
+    if 'repearment_id' not in item:
+        try:
+            order = create_repearments_order(item)
+        except Exception as e:
+            order = None
+            send_exception()
 
-    # try:
-    #     create_fullfill_order(item)
-    # except Exception as e:
-    #     send_exception()
+        if order:
+            try:
+                update_repearment_order_info(int(body['DT']), order)
+            except Exception as e:
+                send_exception()
 
-    send_email("Repearment: added tracking number",
-               f"Current info {body['tracking_number']}, {body['DT']}",
-               email='maxwell@auratenewyork.com',
-               dev_recipients=True,)
+        try:
+            create_fullfill_order(item)
+        except Exception as e:
+            send_exception()
+
+        send_email("Repearment: added tracking number",
+                   f"Current info {body['tracking_number']}, {body['DT']}",
+                   email='maxwell@auratenewyork.com',
+                   dev_recipients=True,)
     return body
 
 
@@ -1732,5 +1738,5 @@ def add_AOV_tag_event(event):
 @app.route('/aov_tag', methods=['GET'])
 def add_AOV_tag_to_shipments_api():
     add_AOV_tag_to_shipments()
-    add_EXE_tag_to_ship_instructions()
+    # add_EXE_tag_to_ship_instructions()
 

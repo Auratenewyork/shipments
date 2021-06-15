@@ -243,13 +243,14 @@ def update_repearment_order_info(DT, order):
         Key={
             "DT": DT,
         },
-        UpdateExpression="set order_id=:t, order_no:n, net_cost:c ",
+        UpdateExpression="set repearment_id=:t, repearment_no=:n, repearment_net_cost=:c ",
         ExpressionAttributeValues={
             ':t': order['id'],
             ':n': order['order_no'],
             ':c': Decimal(order['net_cost']),
         },
     )
+    print()
 
 def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None):
     dynamodb = boto3.resource('dynamodb')
@@ -273,8 +274,18 @@ def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None
     elif approve_expresion:
         scan_kwargs['FilterExpression'] = approve_expresion
     response = table.scan(**scan_kwargs)
-    response['Items'].reverse()
-    return response['Items'], response.get('LastEvaluatedKey', {})
+    items = response['Items']
+
+    # scan all table in the future replace by pagination
+    while 'LastEvaluatedKey' in response:
+        print(response['LastEvaluatedKey'])
+        scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        response = table.scan(**scan_kwargs)
+        items.extend(response['Items'])
+
+    items.reverse()
+
+    return items, response.get('LastEvaluatedKey', {})
 
 
 def list_repearment_by_date(DT_start, DT_end, ExclusiveStartKey=None):
