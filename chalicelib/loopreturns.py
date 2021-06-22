@@ -198,7 +198,7 @@ def return_created(body):
     #         break
     payload = [{
             "channel_identifier":  body['id'],  # Unique identifier for the return in the channel. This will be used as idempotency key to avoid duplication.
-            "reference": body["order_name"],  # Return order reference, RMA
+            "reference": 'return-'+body["order_name"],  # Return order reference, RMA
             "lines": lines,
             "warehouse": 140,
         }]

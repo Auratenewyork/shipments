@@ -966,7 +966,7 @@ def investor_order_event(event):
         print("No Sales orders was found with such discount code")
 
 
-@app.schedule(Cron(0, 7, '?', '*', '*', '*'))
+# @app.schedule(Cron(0, 7, '?', '*', '*', '*'))
 def sync_inventory_event(event):
     sync_inventory_api()
 

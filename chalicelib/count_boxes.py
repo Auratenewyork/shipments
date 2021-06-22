@@ -124,10 +124,13 @@ def collect_boxes(shipments):
     for shipment in shipments:
         quantity = 0
         b = col_boxes[shipment['warehouse']]
+        big_box = False
+        package_separately = False
+        sustainable_packaging = False
+
         for sale in shipment['sales_info']:
-            sustainable_packaging = 'Sustainable packaging' in sale['shipping_instructions']
-            package_separately = 'Package my items separately' in sale['shipping_instructions']
-            big_box = False
+            sustainable_packaging = 'Sustainable packaging' in sale.get('shipping_instructions', '')
+            package_separately = 'Package my items separately' in sale.get('shipping_instructions', '')
             for line in sale['lines_info']:
                 if have_big_box(line):
                     big_box = True
