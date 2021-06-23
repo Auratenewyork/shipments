@@ -6,6 +6,7 @@ import json
 import math
 import os
 import pickle
+import sentry_sdk
 import traceback
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -66,6 +67,16 @@ from chalicelib.sync_sku import get_inventory_positions, \
 from chalicelib.delivered_orders import return_orders
 from jinja2 import Template
 from chalice import CORSConfig
+from sentry_sdk.integrations.flask import FlaskIntegration
+from chalicelib.decorators import try_except
+
+
+SENTRY_PUB_KEY = os.environ.get('SENTRY_PUB_KEY')
+sentry_sdk.init(
+    dsn="https://{}@o878889.ingest.sentry.io/5831104".format(SENTRY_PUB_KEY),
+    integrations=[FlaskIntegration()],
+    traces_sample_rate=1.0
+)
 
 
 app_name = 'aurate-webhooks'
@@ -1740,3 +1751,8 @@ def add_AOV_tag_to_shipments_api():
     add_AOV_tag_to_shipments()
     # add_EXE_tag_to_ship_instructions()
 
+
+@app.route('/debug-sentry')
+@try_except(transaction='debug-sentry', test_tag='debug-sentry')
+def trigger_error():
+    division_by_zero = 1 / 0
