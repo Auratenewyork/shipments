@@ -9,12 +9,16 @@ import requests
 from fulfil_client import Client
 
 from chalicelib.email import send_email
+from chalicelib.decorators import try_except
+
 
 subdomain = os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox')
+
 
 def get_fulfil_model_url(param):
     FULFIL_API_URL = f'https://{subdomain}.fulfil.io/api/v2'
     return f'{FULFIL_API_URL}/model/{param}'
+
 
 headers = {
     'X-API-KEY': os.environ.get('FULFIL_API_KEY'),
@@ -127,8 +131,8 @@ def return_created(body):
     if not sale:
         errors.append(f"Can't create return, didn't find any sale with reference {body['order_name']}")
         return errors
-    sale = sale[0]
 
+    sale = sale[0]
     Model = client.model('sale.line')
     f_lines = Model.search_read_all(
         domain=[["AND", ["id", "in", sale['lines']]]],
@@ -136,6 +140,10 @@ def return_created(body):
         fields=['product', 'product.code', 'quantity'],
     )
     f_lines = list(f_lines)
+    if not f_lines:
+        errors.append(f"Can't create return, didn't find any sale lines with reference {body['order_name']}")
+        return errors
+
     order_id = sale['id']
     url = f'{get_fulfil_model_url("sale.sale")}/{order_id}/return_order'
 
@@ -145,11 +153,11 @@ def return_created(body):
         if not ll:
             errors.append(f"Line not found {body_l}\n")
             continue
+
         line = ll.__next__()
         line_id = line['id']
 
         lines.append({
-            "order_line_id": line_id,
             # Optional fields on line
             # ==================
             # "return_quantity": body_l[''],
@@ -159,15 +167,16 @@ def return_created(body):
 
             # If the return was created on an external returns platform,
             # the ID of the line
+            "order_line_id": line_id,
             "channel_identifier": body_l['line_item_id'],
-
-
-            # "note": "tracking_number " + body['tracking_number'],
             "return_reason": body_l["return_reason"],  # Created if not exists
+            # "note": "tracking_number " + body['tracking_number'],
         })
+
     if not lines:
         errors.append("Can't create return, didn't find any line")
         return errors
+
     if body['exchanges']:
         Model = client.model('product.product')
 
@@ -197,11 +206,11 @@ def return_created(body):
     #                       f"there is more exchanges than returns")
     #         break
     payload = [{
-            "channel_identifier":  body['id'],  # Unique identifier for the return in the channel. This will be used as idempotency key to avoid duplication.
-            "reference": 'return-'+body["order_name"],  # Return order reference, RMA
-            "lines": lines,
-            "warehouse": 140,
-        }]
+        "channel_identifier": body['id'],  # Unique identifier for the return in the channel. This will be used as idempotency key to avoid duplication.
+        "reference": 'return-' + body["order_name"],  # Return order reference, RMA
+        "lines": lines,
+        "warehouse": 140,
+    }]
 
     response = requests.put(url, json=payload, headers=headers)
 
@@ -231,24 +240,17 @@ def process_restock(body):
     return body
 
 
+@try_except
 def process_request(request):
     triggers = {'return': process_return, 'label': process_label,
                 'restock': process_restock}
 
     body = request.json_body
-    result = "something goes wrong"
     sign_check = check_request_signature(request)
-    try:
-        if sign_check:
-            for key, function in triggers.items():
-                if body['trigger'].startswith(key):
-                    result = function(body)
-        else:
-            result = "Signature check failed !!"
-    except Exception:
-        result = "SOMETHING GOES WRONG !!!!!"
-        traceback.print_exc()
+    if not sign_check:
+        return "Signature check failed !!!"
 
-    return result
-
-
+    for key, function in triggers.items():
+        if body['trigger'].startswith(key):
+            return function(body)
+    return 'Webhook handler not found !!!'
