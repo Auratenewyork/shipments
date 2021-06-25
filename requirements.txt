@@ -1,6 +1,6 @@
 attrs==19.3.0
 Babel==2.8.0
-blinker=1.4
+blinker==1.4
 boto3==1.12.30
 botocore==1.15.30
 certifi==2019.11.28
