@@ -3,20 +3,17 @@ from functools import wraps
 from sentry_sdk import capture_exception, configure_scope
 
 
-def try_except(transaction='try_except', **tag):
+def try_except(*tag_list, **tags):
     def decorated_function(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                if transaction or tag:
-                    with configure_scope() as scope:
-                        scope.transaction = transaction
-                        if tag:
-                            scope.set_tag(*list(tag.items())[0])
-                        capture_exception(e, scope=scope)
-                else:
-                    capture_exception(e)
+                with configure_scope() as scope:
+                    scope.transaction = func.__name__
+                    for key, value in tags.items():
+                        scope.set_tag(key, value)
+                    capture_exception(e, scope=scope)
         return wrapper
     return decorated_function

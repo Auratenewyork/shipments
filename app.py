@@ -1753,6 +1753,13 @@ def add_AOV_tag_to_shipments_api():
 
 
 @app.route('/debug-sentry')
-@try_except(transaction='debug-sentry', test_tag='debug-sentry')
+@try_except(test_tag='debug-sentry')  # transaction='debug-sentry',
 def trigger_error():
     division_by_zero = 1 / 0
+    return 1
+
+
+@app.schedule(Cron(0, 12, '?', '*', '*', '*'))
+@try_except()
+def test_cron_with_error(event):
+    raise Exception('POOR WORLD')

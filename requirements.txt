@@ -1,5 +1,6 @@
 attrs==19.3.0
 Babel==2.8.0
+blinker=1.4
 boto3==1.12.30
 botocore==1.15.30
 certifi==2019.11.28
@@ -46,3 +47,4 @@ pynacl>=1.0.1
 cffi>=1.1
 cryptography==2.9.2
 pysftp==0.2.9
+
