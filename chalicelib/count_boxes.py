@@ -129,8 +129,8 @@ def collect_boxes(shipments):
         sustainable_packaging = False
 
         for sale in shipment['sales_info']:
-            sustainable_packaging = 'Sustainable packaging' in sale.get('shipping_instructions', '')
-            package_separately = 'Package my items separately' in sale.get('shipping_instructions', '')
+            sustainable_packaging = 'Sustainable packaging' in sale.get('shipping_instructions', '') if sale.get('shipping_instructions', '') else False
+            package_separately = 'Package my items separately' in sale.get('shipping_instructions', '') if sale.get('shipping_instructions', '') else False
             for line in sale['lines_info']:
                 if have_big_box(line):
                     big_box = True
