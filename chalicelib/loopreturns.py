@@ -240,7 +240,6 @@ def process_restock(body):
     return body
 
 
-@try_except
 def process_request(request):
     triggers = {'return': process_return, 'label': process_label,
                 'restock': process_restock}

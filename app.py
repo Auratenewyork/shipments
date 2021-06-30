@@ -14,6 +14,8 @@ from functools import lru_cache
 
 import boto3
 from chalice import Chalice, Cron, Response
+from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
+
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
     RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY)
@@ -74,8 +76,9 @@ from chalicelib.decorators import try_except
 SENTRY_PUB_KEY = os.environ.get('SENTRY_PUB_KEY')
 sentry_sdk.init(
     dsn="https://{}@o878889.ingest.sentry.io/5831104".format(SENTRY_PUB_KEY),
-    integrations=[FlaskIntegration()],
-    traces_sample_rate=1.0
+    integrations=[FlaskIntegration(), AwsLambdaIntegration()],
+    traces_sample_rate=1.0,
+    environment=os.environ.get('ENV', 'sandbox')
 )
 
 
@@ -1667,6 +1670,7 @@ def repairmen_update_api():
         send_repearment_email(body.get('email'), 'declined',  NOTE=order['note'])
     return order
 
+
 def send_exception():
     fp = io.StringIO()
     traceback.print_exc(file=fp)
@@ -1752,7 +1756,11 @@ def add_AOV_tag_to_shipments_api():
     # add_EXE_tag_to_ship_instructions()
 
 
-@app.route('/debug-sentry')
+@app.route('/debug-sentry', methods=['GET'])
+def trigger_api():
+    trigger_error()
+
+
 @try_except(test_tag='debug-sentry')  # transaction='debug-sentry',
 def trigger_error():
     division_by_zero = 1 / 0
@@ -1762,4 +1770,14 @@ def trigger_error():
 @app.schedule(Cron(0, 12, '?', '*', '*', '*'))
 @try_except()
 def test_cron_with_error(event):
-    raise Exception('POOR WORLD')
+    raise Exception('POOR WORLD11')
+
+
+@app.route('/test_sentry', methods=['GET'])
+def r_error():
+    division_by_zero = 1 / 0
+    return 1
+
+@app.route('/ourplace', methods=['POST'])
+def ger_error():
+    return 1
