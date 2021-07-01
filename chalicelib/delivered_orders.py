@@ -116,7 +116,7 @@ quality super seriously.
 Hey there, we’re sorry your repair unfortunately did not meet the requirements 
 needed. We know this isn’t the news you probably wanted, so here’s a little 
 something from us for your next order. Use code ONUS for 15% off your next 
-purchase. And to learn more about your repair status, <a href="https://auratenewyork.com/pages/terms-of-service">click here</a>.<br/>
+purchase. And to learn more about your repair status, <a href="https://auratenewyork.com/blogs/support/tagged/care-repair">click here</a>.<br/>
             ''',
         }
     },
