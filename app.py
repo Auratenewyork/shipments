@@ -1793,6 +1793,6 @@ def tmall_api():
     with configure_scope() as scope:
         scope.set_tag('tmall-debug', 'debug')
         scope.set_tag('method', request.method)
-        sentry_sdk.set_context('body', text)
+        sentry_sdk.set_context('request_body', text)
         capture_message('Tmall request!', scope=scope)
     send_email("tmall hook", text, email=['aurate2021@gmail.com'])
