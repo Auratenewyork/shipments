@@ -69,6 +69,7 @@ from chalicelib.sync_sku import get_inventory_positions, \
 from chalicelib.delivered_orders import return_orders
 from jinja2 import Template
 from chalice import CORSConfig
+from sentry_sdk import capture_message, configure_scope
 from sentry_sdk.integrations.flask import FlaskIntegration
 from chalicelib.decorators import try_except
 
@@ -1783,3 +1784,15 @@ def r_error():
 @app.route('/ourplace', methods=['POST'])
 def ger_error():
     return 1
+
+
+@app.route('/tmall-hook', methods=['GET', 'POST', 'PUT'])
+def tmall_api():
+    request = app.current_request
+    text = str(request.raw_body)
+    with configure_scope() as scope:
+        scope.set_tag('tmall-debug', 'debug')
+        scope.set_tag('method', request.method)
+        sentry_sdk.set_context('body', text)
+        capture_message('Tmall request!', scope=scope)
+    send_email("tmall hook", text, email=['aurate2021@gmail.com'])
