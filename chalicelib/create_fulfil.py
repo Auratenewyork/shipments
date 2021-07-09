@@ -132,7 +132,7 @@ def create_fullfill_order(item):
         lines.append(service_line)
     payload = [{
             "channel_identifier":  DT,  # Unique identifier for the return in the channel. This will be used as idempotency key to avoid duplication.
-            "reference": f'repearment-{item["order_name"]}',  # Return order reference, RMA
+            "reference": f'repair-{item["order_name"]}',  # Return order reference, RMA
             "lines": lines,
             "warehouse": 57,
         }]

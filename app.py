@@ -1620,6 +1620,7 @@ def repairmen_request_api():
         service=body.get('service', ''),
         address=body.get('address', None),
         customer_id=body.get('customer_id', None),
+        approve='pending'
         # image_url=file_path
     )
     info = save_repearment_order(info)
@@ -1653,7 +1654,7 @@ def repairmen_list_api():
     else:
         filter_ = 'pending'
     items, last_key = list_repearment_orders(last_id, search, filter_)
-    return {'items':items, 'last_id': last_key.get('DT', None)}
+    return {'items': items, 'last_id': last_key.get('DT', None)}
 
 
 @app.route('/repairments', methods=['POST'], cors=cors_config)
@@ -1662,6 +1663,7 @@ def repairmen_update_api():
     body = request.json_body
     order = body['order']
     update_repearment_order(order['DT'], order['approve'], order['note'])
+
     if not body.get('email'):
         body['email'] = 'maxwell@auratenewyork.com'
     if order['approve'] == 'accepted':
@@ -1713,7 +1715,6 @@ def repairmen_list_api():
     return body
 
 
-
 @app.schedule(Cron(0, 12, '?', '*', '*', '*'))
 def repearment_reminder_event(event):
     repearment_reminder_api()
@@ -1735,7 +1736,8 @@ def repearment_report_api():
     last_id = None
     if request.query_params:
         last_id = request.query_params.get('last_id', None)
-    items, last_key = list_repearment_orders(last_id)
+        approve = request.query_params.get('filter', 'pending')
+    items, last_key = list_repearment_orders(last_id, approve=approve)
     for item in items:
         if item['order_id']:
             order_info = get_sales_order_info(item['order_id'])
