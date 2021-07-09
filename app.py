@@ -6,6 +6,7 @@ import json
 import math
 import os
 import pickle
+import sentry_sdk
 import traceback
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -13,6 +14,8 @@ from functools import lru_cache
 
 import boto3
 from chalice import Chalice, Cron, Response
+from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
+
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
     RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY)
@@ -66,6 +69,17 @@ from chalicelib.sync_sku import get_inventory_positions, \
 from chalicelib.delivered_orders import return_orders
 from jinja2 import Template
 from chalice import CORSConfig
+from sentry_sdk.integrations.flask import FlaskIntegration
+from chalicelib.decorators import try_except
+
+
+SENTRY_PUB_KEY = os.environ.get('SENTRY_PUB_KEY')
+sentry_sdk.init(
+    dsn="https://{}@o878889.ingest.sentry.io/5831104".format(SENTRY_PUB_KEY),
+    integrations=[FlaskIntegration(), AwsLambdaIntegration()],
+    traces_sample_rate=1.0,
+    environment=os.environ.get('ENV', 'sandbox')
+)
 
 
 app_name = 'aurate-webhooks'
@@ -1606,6 +1620,7 @@ def repairmen_request_api():
         service=body.get('service', ''),
         address=body.get('address', None),
         customer_id=body.get('customer_id', None),
+        approve='pending'
         # image_url=file_path
     )
     info = save_repearment_order(info)
@@ -1639,7 +1654,7 @@ def repairmen_list_api():
     else:
         filter_ = 'pending'
     items, last_key = list_repearment_orders(last_id, search, filter_)
-    return {'items':items, 'last_id': last_key.get('DT', None)}
+    return {'items': items, 'last_id': last_key.get('DT', None)}
 
 
 @app.route('/repairments', methods=['POST'], cors=cors_config)
@@ -1648,6 +1663,7 @@ def repairmen_update_api():
     body = request.json_body
     order = body['order']
     update_repearment_order(order['DT'], order['approve'], order['note'])
+
     if not body.get('email'):
         body['email'] = 'maxwell@auratenewyork.com'
     if order['approve'] == 'accepted':
@@ -1655,6 +1671,7 @@ def repairmen_update_api():
     elif order['approve'] == 'declined':
         send_repearment_email(body.get('email'), 'declined',  NOTE=order['note'])
     return order
+
 
 def send_exception():
     fp = io.StringIO()
@@ -1698,7 +1715,6 @@ def repairmen_list_api():
     return body
 
 
-
 @app.schedule(Cron(0, 12, '?', '*', '*', '*'))
 def repearment_reminder_event(event):
     repearment_reminder_api()
@@ -1720,7 +1736,8 @@ def repearment_report_api():
     last_id = None
     if request.query_params:
         last_id = request.query_params.get('last_id', None)
-    items, last_key = list_repearment_orders(last_id)
+        approve = request.query_params.get('filter', 'pending')
+    items, last_key = list_repearment_orders(last_id, approve=approve)
     for item in items:
         if item['order_id']:
             order_info = get_sales_order_info(item['order_id'])
@@ -1740,3 +1757,29 @@ def add_AOV_tag_to_shipments_api():
     add_AOV_tag_to_shipments()
     # add_EXE_tag_to_ship_instructions()
 
+
+@app.route('/debug-sentry', methods=['GET'])
+def trigger_api():
+    trigger_error()
+
+
+@try_except(test_tag='debug-sentry')  # transaction='debug-sentry',
+def trigger_error():
+    division_by_zero = 1 / 0
+    return 1
+
+
+@app.schedule(Cron(0, 12, '?', '*', '*', '*'))
+@try_except()
+def test_cron_with_error(event):
+    raise Exception('POOR WORLD11')
+
+
+@app.route('/test_sentry', methods=['GET'])
+def r_error():
+    division_by_zero = 1 / 0
+    return 1
+
+@app.route('/ourplace', methods=['POST'])
+def ger_error():
+    return 1

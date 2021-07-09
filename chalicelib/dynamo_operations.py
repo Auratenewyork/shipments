@@ -129,6 +129,7 @@ def save_sku_to_dynamo(sku_s):
 
     return
 
+
 def get_shopify_sku_info(sku):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(SHOPIFY_SKU)
@@ -255,6 +256,48 @@ def update_repearment_order_info(DT, order):
 def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
+    # scan_kwargs = {'Limit': 50}
+    scan_kwargs = {}
+    scan_kwargs['IndexName'] = 'approve-DT-index'
+    scan_kwargs['ScanIndexForward'] = False
+    scan_kwargs['KeyConditionExpression'] = Key('approve').eq(approve.lower())
+
+    if ExclusiveStartKey:
+        ExclusiveStartKey = int(ExclusiveStartKey)
+        scan_kwargs['ExclusiveStartKey'] = ExclusiveStartKey
+
+    # approve_expresion = Attr('approve').eq('declined')
+    # scan_kwargs['FilterExpression'] = approve_expresion
+
+    response = table.query(**scan_kwargs)
+    items = response['Items']
+
+    # # scan all table in the future replace by pagination
+    while 'LastEvaluatedKey' in response:
+        print(response['LastEvaluatedKey'])
+        scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        response = table.scan(**scan_kwargs)
+        items.extend(response['Items'])
+    if items:
+        items = batch_get_repearments(items)
+    return items, response.get('LastEvaluatedKey', {})
+
+
+def batch_get_repearments(items):
+    dynamodb = boto3.resource('dynamodb')
+
+    batch_keys = {
+       REPAIRMENT_TABLE: {'Keys': [{'DT': item['DT']} for item in items]}
+    }
+    response = dynamodb.batch_get_item(RequestItems=batch_keys)
+    items = response['Responses'][REPAIRMENT_TABLE]
+    items.sort(key=lambda x: x['DT'], reverse=True)
+    return items
+
+
+def list_repearment_orders_(ExclusiveStartKey=None, order_name=None, approve=None):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(REPAIRMENT_TABLE)
     scan_kwargs = {'Limit': 50}
     if ExclusiveStartKey:
         ExclusiveStartKey = int(ExclusiveStartKey)
@@ -284,7 +327,6 @@ def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None
         items.extend(response['Items'])
 
     items.reverse()
-
     return items, response.get('LastEvaluatedKey', {})
 
 

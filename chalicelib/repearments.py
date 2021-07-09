@@ -183,6 +183,7 @@ def get_services(headers, params, name):
             return s
     # return services
 
+
 def test_fill_input_item(item):
     if not item.get('address', None):
         item['address'] = {
