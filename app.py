@@ -1106,7 +1106,7 @@ def mto_notifications_api():
     emails_3 = get_n_days_old_orders(10)
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_3_days.html').read())
 
-    if emails_3:
+    if emails_3 and isinstance(emails_3, list):
         for sale in emails_3:
             report.append(create_report('casting', sale))
             data = {
@@ -1133,7 +1133,7 @@ def mto_notifications_api():
 
     emails_12 = get_n_days_old_orders(15)
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_12_days.html').read())
-    if emails_12:
+    if emails_12  and isinstance(emails_12, list):
         for sale in emails_12:
             report.append(create_report('polishing', sale))
             data = {
@@ -1160,7 +1160,7 @@ def mto_notifications_api():
 
     emails_17 = get_n_days_old_orders(20, vermeil=True)
     template = Template(open(f'{BASE_DIR}/chalicelib/template/mto_17_days.html').read())
-    if emails_17:
+    if emails_17 and isinstance(emails_17, list):
         for sale in emails_17:
             report.append(create_report('vermeil', sale))
             data = {
@@ -1795,4 +1795,4 @@ def tmall_api():
         scope.set_tag('method', request.method)
         sentry_sdk.set_context('request_body', text)
         capture_message('Tmall request!', scope=scope)
-    send_email("tmall hook", text, email=['aurate2021@gmail.com'])
+    send_email("tmall hook", text, email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'])
