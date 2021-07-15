@@ -73,6 +73,7 @@ from chalice import CORSConfig
 from sentry_sdk import capture_message, configure_scope
 from sentry_sdk.integrations.flask import FlaskIntegration
 from chalicelib.decorators import try_except
+from chalicelib.orders_operations import create_fulfill_order
 
 
 SENTRY_PUB_KEY = os.environ.get('SENTRY_PUB_KEY')
@@ -87,6 +88,8 @@ sentry_sdk.init(
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
 TIMEOUT = int(os.environ.get('TIMEOUT', 500))
+
+FULFIL_API_DOMAIN = os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox')
 
 app = Chalice(app_name=app_name)
 s3 = boto3.client('s3', region_name='us-east-2')
@@ -1789,10 +1792,17 @@ def ger_error():
 
 @app.route('/tmall-hook', methods=['GET', 'POST', 'PUT'])
 def tmall_api():
+
     request = app.current_request
     data = {'request.raw_body': request.raw_body}
-    capture_to_sentry(
-        'Tmall request!',
-        data,
-        email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
-        method=request.method)
+    if 'sandbox' in FULFIL_API_DOMAIN:
+        channel_id = 17
+    else:
+        channel_id = 16
+    order = create_fulfill_order(request.json_body, channel_id=channel_id)
+
+    # capture_to_sentry(
+    #     'Tmall request!',
+    #     data,
+    #     email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
+    #     method=request.method)

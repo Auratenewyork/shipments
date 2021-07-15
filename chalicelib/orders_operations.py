@@ -59,3 +59,9 @@ def open_runnig_orders(filename='rollback_data/close_running_orders_04_30_2021_a
 
     if errors:
         fill_rollback_file(errors, 'open_running_orders_errors', 'w+', server_name=DOMAIN)
+
+
+def create_fulfill_order(data, channel_id=1):
+    SaleChannel = client.model('sale.channel')
+    record = SaleChannel.create_order(channel_id, data)
+    return record
