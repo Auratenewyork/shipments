@@ -1791,4 +1791,8 @@ def ger_error():
 def tmall_api():
     request = app.current_request
     data = {'request.raw_body': request.raw_body}
-    capture_to_sentry('Tmall request!', data, method=request.method)
+    capture_to_sentry(
+        'Tmall request!',
+        data,
+        email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
+        method=request.method)

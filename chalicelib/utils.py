@@ -32,10 +32,11 @@ def fill_csv_file(data, filename, access_mode='w', server_name=''):
         dict_writer.writerows(data)
 
 
-def capture_to_sentry(message, data, **tags):
+def capture_to_sentry(message, data, email=None, **tags):
     with configure_scope() as scope:
         for tag, value in tags.items():
             scope.set_tag(tag, value)
         sentry_sdk.set_context('DATA', data)
         capture_message(message, scope=scope)
-    send_email(message, str(data), email=['aurate2021@gmail.com'])
+    if email:
+        send_email(message, str(data), email=email)
