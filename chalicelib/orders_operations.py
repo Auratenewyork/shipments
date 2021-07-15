@@ -1,6 +1,8 @@
 import json
 import os
 
+from fulfil_client import ClientError
+
 from .fulfil import client
 from .utils import fill_rollback_file, make_rollbaсk_filename
 
@@ -63,5 +65,7 @@ def open_runnig_orders(filename='rollback_data/close_running_orders_04_30_2021_a
 
 def create_fulfill_order(data, channel_id=1):
     SaleChannel = client.model('sale.channel')
-    record = SaleChannel.create_order(channel_id, data)
-    return record
+    try:
+        return SaleChannel.create_order(channel_id, data)
+    except ClientError as e:
+        return e

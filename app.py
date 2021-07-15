@@ -15,6 +15,7 @@ from functools import lru_cache
 import boto3
 from chalice import Chalice, Cron, Response
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
+from fulfil_client import ClientError
 
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
@@ -1795,14 +1796,20 @@ def tmall_api():
 
     request = app.current_request
     data = {'request.raw_body': request.raw_body}
-    if 'sandbox' in FULFIL_API_DOMAIN:
-        channel_id = 17
-    else:
-        channel_id = 16
-    order = create_fulfill_order(request.json_body, channel_id=channel_id)
-
     # capture_to_sentry(
     #     'Tmall request!',
     #     data,
     #     email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
     #     method=request.method)
+    if 'sandbox' in FULFIL_API_DOMAIN:
+        channel_id = 17
+    else:
+        channel_id = 16
+
+    record = create_fulfill_order(request.json_body, channel_id=channel_id)
+
+    if isinstance(record, ClientError):
+        return Response(status_code=record.code, body=record.description)
+
+    body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
+    return Response(status_code=201, body=body)
