@@ -67,6 +67,7 @@ from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
 from chalicelib.delivered_orders import return_orders
+from chalicelib.utils import capture_to_sentry
 from jinja2 import Template
 from chalice import CORSConfig
 from sentry_sdk import capture_message, configure_scope
@@ -1789,10 +1790,5 @@ def ger_error():
 @app.route('/tmall-hook', methods=['GET', 'POST', 'PUT'])
 def tmall_api():
     request = app.current_request
-    text = str(request.raw_body)
-    with configure_scope() as scope:
-        scope.set_tag('tmall-debug', 'debug')
-        scope.set_tag('method', request.method)
-        sentry_sdk.set_context('request_body', text)
-        capture_message('Tmall request!', scope=scope)
-    send_email("tmall hook", text, email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'])
+    data = {'request.raw_body': request.raw_body}
+    capture_to_sentry('Tmall request!', data, method=request.method)

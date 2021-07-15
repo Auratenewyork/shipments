@@ -1,8 +1,11 @@
 import csv
 from datetime import datetime
-
 import json
 import os
+
+from chalicelib.email import send_email
+import sentry_sdk
+from sentry_sdk import capture_message, configure_scope
 
 
 ROLLBACK_DIR = os.environ.get('ROLLBACK_DIR', 'rollback')
@@ -27,3 +30,12 @@ def fill_csv_file(data, filename, access_mode='w', server_name=''):
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(data)
+
+
+def capture_to_sentry(message, data, **tags):
+    with configure_scope() as scope:
+        for tag, value in tags.items():
+            scope.set_tag(tag, value)
+        sentry_sdk.set_context('DATA', data)
+        capture_message(message, scope=scope)
+    send_email(message, str(data), email=['aurate2021@gmail.com'])
