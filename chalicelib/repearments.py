@@ -86,9 +86,14 @@ def create_customer_address(headers, params, address, customer_id):
     r = response.json()
     return r['data']
 
+
+def compare_addresses(customer_address, address):
+    return True
+
+
 def get_or_create_customer_address(headers, params, address, customer_id):
     customer_address = get_customer_address(headers, {'customer_id': customer_id})
-    if customer_address:
+    if customer_address and compare_addresses(customer_address, address):
         return customer_address[0]
     else:
         customer_address = create_customer_address(headers, params, address, customer_id)
