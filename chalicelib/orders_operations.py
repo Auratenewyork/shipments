@@ -1,7 +1,7 @@
 import json
 import os
 
-from fulfil_client import ClientError
+from fulfil_client import ClientError, Client
 
 from .fulfil import client
 from .utils import fill_rollback_file, make_rollbaсk_filename
@@ -64,6 +64,9 @@ def open_runnig_orders(filename='rollback_data/close_running_orders_04_30_2021_a
 
 
 def create_fulfill_order(data, channel_id='1'):
+    client = Client('aurate-sandbox', '43cf9ddb7acc4ac69586b8f1081d65ab')  # for sandbox
+    channel_id = '17'  # for sandbox
+
     SaleChannel = client.model('sale.channel')
     try:
         return SaleChannel.create_order(channel_id, data)
