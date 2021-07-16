@@ -1,7 +1,7 @@
 import json
 import os
 
-from fulfil_client import ClientError, Client
+from fulfil_client import ClientError, ServerError, Client
 
 from .fulfil import client
 from .utils import fill_rollback_file, make_rollbaсk_filename
@@ -70,5 +70,5 @@ def create_fulfill_order(data, channel_id='1'):
     SaleChannel = client.model('sale.channel')
     try:
         return SaleChannel.create_order(channel_id, data)
-    except ClientError as e:
+    except (ClientError, ServerError) as e:
         return e

@@ -15,7 +15,7 @@ from functools import lru_cache
 import boto3
 from chalice import Chalice, Cron, Response
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
-from fulfil_client import ClientError
+from fulfil_client import ClientError, ServerError
 
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
@@ -68,10 +68,9 @@ from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
 from chalicelib.delivered_orders import return_orders
-from chalicelib.utils import capture_to_sentry
+from chalicelib.utils import capture_to_sentry, capture_error
 from jinja2 import Template
 from chalice import CORSConfig
-from sentry_sdk import capture_message, configure_scope
 from sentry_sdk.integrations.flask import FlaskIntegration
 from chalicelib.decorators import try_except
 from chalicelib.orders_operations import create_fulfill_order
@@ -1793,13 +1792,12 @@ def ger_error():
 
 @app.route('/tmall-hook', methods=['GET', 'POST', 'PUT'])
 def tmall_api():
-
     request = app.current_request
     data = {'request.raw_body': request.raw_body}
     capture_to_sentry(
         'Tmall request!',
-        data,
-        email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
+        data=data,
+        email=['aurate2021@gmail.com', 'ro1man.borodinov@uadevelopers.com'],
         method=request.method)
     if 'sandbox' in FULFIL_API_DOMAIN:
         channel_id = '17'
@@ -1807,13 +1805,11 @@ def tmall_api():
         channel_id = '16'
 
     record = create_fulfill_order(request.json_body, channel_id=channel_id)
-    if isinstance(record, ClientError):
-        # sentry_sdk.capture_exception(record, request_data=data)
-        return False
-        return Response(status_code=record.code, body=record.description)
+    if isinstance(record, (ClientError, ServerError)):
+        capture_error(record, errors_source='Tmall->Fulfill')
+        # return Response(status_code=record.code, body=record.message)
+        return Response(status_code=record.code, body=False)
 
     body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
-    return True
-    return Response(status_code=201, body=body)
-
-
+    # return Response(status_code=201, body=body)
+    return Response(status_code=201, body=True)
