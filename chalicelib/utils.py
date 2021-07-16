@@ -1,8 +1,11 @@
 import csv
 from datetime import datetime
-
 import json
 import os
+
+from chalicelib.email import send_email
+import sentry_sdk
+from sentry_sdk import capture_message as sentry_message, configure_scope, capture_exception
 
 
 ROLLBACK_DIR = os.environ.get('ROLLBACK_DIR', 'rollback')
@@ -27,3 +30,35 @@ def fill_csv_file(data, filename, access_mode='w', server_name=''):
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(data)
+
+
+def capture_message(message, data, email=None, **tags):
+    with configure_scope() as scope:
+        for tag, value in tags.items():
+            scope.set_tag(tag, value)
+        sentry_sdk.set_context('DATA', data)
+        sentry_message(message, scope=scope)
+    if email:
+        send_email(message, str(data), email=email)
+
+
+def capture_message(message, data=None, email=None, **tags):
+    with configure_scope() as scope:
+        for tag, value in tags.items():
+            scope.set_tag(tag, value)
+        if data:
+            sentry_sdk.set_context('DATA', data)
+        sentry_message(message, scope=scope)
+    if email:
+        send_email(message, str(data), email=email)
+
+
+def capture_error(error, data=None, email=None, **tags):
+    with configure_scope() as scope:
+        for tag, value in tags.items():
+            scope.set_tag(tag, value)
+        if data:
+            sentry_sdk.set_context('DATA', data)
+        capture_exception(error, scope=scope)
+    if email:
+        send_email(error, str(data), email=email)
