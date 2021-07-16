@@ -26,6 +26,7 @@ PyJWT==1.7.1
 PyPDF2==1.26.0
 python-dateutil==2.8.1
 python-http-client==3.2.5
+pytest==6.2.4
 pytz==2019.3
 reportlab==3.5.42
 requests==2.23.0

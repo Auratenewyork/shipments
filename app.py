@@ -15,6 +15,7 @@ from functools import lru_cache
 import boto3
 from chalice import Chalice, Cron, Response
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
+from fulfil_client import ClientError
 
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
@@ -67,11 +68,13 @@ from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
 from chalicelib.delivered_orders import return_orders
-from chalicelib.utils import capture_message, capture_error
+from chalicelib.utils import capture_to_sentry
 from jinja2 import Template
 from chalice import CORSConfig
+from sentry_sdk import capture_message, configure_scope
 from sentry_sdk.integrations.flask import FlaskIntegration
 from chalicelib.decorators import try_except
+from chalicelib.orders_operations import create_fulfill_order
 
 
 SENTRY_PUB_KEY = os.environ.get('SENTRY_PUB_KEY')
@@ -86,6 +89,8 @@ sentry_sdk.init(
 app_name = 'aurate-webhooks'
 env_name = os.environ.get('ENV', 'sandbox')
 TIMEOUT = int(os.environ.get('TIMEOUT', 500))
+
+FULFIL_API_DOMAIN = os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox')
 
 app = Chalice(app_name=app_name)
 s3 = boto3.client('s3', region_name='us-east-2')
@@ -1788,10 +1793,25 @@ def ger_error():
 
 @app.route('/tmall-hook', methods=['GET', 'POST', 'PUT'])
 def tmall_api():
+
     request = app.current_request
     data = {'request.raw_body': request.raw_body}
-    capture_message(
+    capture_to_sentry(
         'Tmall request!',
-        data=data,
+        data,
         email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
         method=request.method)
+    if 'sandbox' in FULFIL_API_DOMAIN:
+        channel_id = '17'
+    else:
+        channel_id = '16'
+
+    record = create_fulfill_order(request.json_body, channel_id=channel_id)
+    if isinstance(record, ClientError):
+        # sentry_sdk.capture_exception(record, request_data=data)
+        return False
+        return Response(status_code=record.code, body=record.description)
+
+    body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
+    return True
+    return Response(status_code=201, body=body)
