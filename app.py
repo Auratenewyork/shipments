@@ -1797,7 +1797,7 @@ def tmall_api():
     capture_to_sentry(
         'Tmall request!',
         data=data,
-        email=['aurate2021@gmail.com', 'ro1man.borodinov@uadevelopers.com'],
+        email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
         method=request.method)
     if 'sandbox' in FULFIL_API_DOMAIN:
         channel_id = '17'
