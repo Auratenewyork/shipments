@@ -1803,15 +1803,13 @@ def tmall_api():
         channel_id = '17'
     else:
         channel_id = '16'
-
-    record = create_fulfill_order(request.json_body, channel_id=channel_id)
+    record = create_fulfill_order(request.json_body.get('Content'), channel_id=channel_id)
     if isinstance(record, (ClientError, ServerError)):
-        capture_error(record, errors_source='Tmall->Fulfill')
-        # return Response(status_code=record.code, body=record.message)
+        capture_error(record, data=data, errors_source='Tmall->Fulfill')
+        return Response(status_code=record.code, body=record.message)
         return Response(status_code=record.code, body=False)
 
-    body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
-
+    # body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
     # return Response(status_code=201, body=body)
     return Response(status_code=201, body=True)
 
