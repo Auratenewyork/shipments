@@ -32,7 +32,7 @@ from chalicelib.dynamo_operations import save_easypost_to_dynamo, \
     get_multiple_sku_info, save_repearment_order, list_repearment_orders, \
     update_repearment_order, get_repearment_order, \
     update_repearment_tracking_number, list_repearment_by_date, \
-    update_repearment_order_info
+    update_repearment_order_info, add_tmall_label
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment, get_easypost_record_by_reference_
@@ -1811,5 +1811,15 @@ def tmall_api():
         return Response(status_code=record.code, body=False)
 
     body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
+
     # return Response(status_code=201, body=body)
     return Response(status_code=201, body=True)
+
+
+@app.route('/tmall-label', methods=['POST'])
+def tmall_label_api():
+    request = app.current_request
+    body = request.json_body
+    item = dict(id=body['tid'], labels=body['url'])
+    add_tmall_label(item)
+    return True

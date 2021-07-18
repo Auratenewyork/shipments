@@ -10,6 +10,7 @@ from botocore.exceptions import ClientError
 EASYPOST_TABLE = 'easypost_ids'
 SHOPIFY_SKU = 'shopify_sku'
 REPAIRMENT_TABLE = 'repairment'
+TMALL_LABEL_TABLE = 'tmall-labels'
 
 
 def save_easypost_to_dynamo(info):
@@ -355,3 +356,8 @@ def get_repearment_order(DT):
     else:
         return response['Item']
 
+
+def add_tmall_label(item):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(TMALL_LABEL_TABLE)
+    table.put_item(Item=item)
