@@ -87,14 +87,19 @@ def create_customer_address(headers, params, address, customer_id):
     return r['data']
 
 
-def compare_addresses(customer_address, address):
-    return True
+def find_customer_address(customer_address, address):
+    for customer_a in customer_address:
+        if (customer_a['street1'] == address['address1'] and
+            customer_a['street2'] == address['address2'] and
+            customer_a['zip_code'] == address['zip']):
+            return customer_a
 
 
 def get_or_create_customer_address(headers, params, address, customer_id):
     customer_address = get_customer_address(headers, {'customer_id': customer_id})
-    if customer_address and compare_addresses(customer_address, address):
-        return customer_address[0]
+    customer_address = find_customer_address(customer_address, address)
+    if customer_address:
+        return customer_address
     else:
         customer_address = create_customer_address(headers, params, address, customer_id)
         return customer_address
