@@ -167,10 +167,16 @@ def return_created(body):
 
             # If the return was created on an external returns platform,
             # the ID of the line
+            # "order_line_id": line_id,
+            # "channel_identifier": body_l['line_item_id'],
+            # "return_reason": body_l["return_reason"],  # Created if not exists
+            # "note": "tracking_number " + body['tracking_number'],
+
+            "note": body_l['return_comment'],
+            "return_quantity": 1,
             "order_line_id": line_id,
             "channel_identifier": body_l['line_item_id'],
             "return_reason": body_l["return_reason"],  # Created if not exists
-            # "note": "tracking_number " + body['tracking_number'],
         })
 
     if not lines:

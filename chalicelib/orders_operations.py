@@ -66,14 +66,14 @@ def open_runnig_orders(filename='rollback_data/close_running_orders_04_30_2021_a
 
 def create_fulfill_order(data, channel_id='1'):
     client = Client('aurate-sandbox', '43cf9ddb7acc4ac69586b8f1081d65ab')  # for sandbox
-    channel_id = '4'  # for sandbox and shopify channel
+    channel_id = 4  # for sandbox and shopify channel
 
-    data['amount'] = Decimal(data['amount'])
-    data['currency_code'] = 'USD'
-    data['payment_term'] = 'Net 30'
-    for line in data['sale_lines']:
-        line['amount'] = Decimal(line['amount'])
-        line['unit_price'] = Decimal(line['unit_price'])
+    # data['amount'] = Decimal(data['amount'])
+    # data['currency_code'] = 'USD'
+    data['payment_term'] = 'Due on receipt'
+    # for line in data['sale_lines']:
+    #     line['amount'] = Decimal(line['amount'])
+    #     line['unit_price'] = Decimal(line['unit_price'])
 
     SaleChannel = client.model('sale.channel')
     try:

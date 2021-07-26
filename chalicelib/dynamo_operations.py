@@ -224,6 +224,8 @@ def update_repearment_order(DT, approve, note):
             ':c': note,
         },
     )
+
+
 def update_repearment_tracking_number(DT, tracking_number):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
@@ -253,6 +255,7 @@ def update_repearment_order_info(DT, order):
         },
     )
     print()
+
 
 def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None):
     dynamodb = boto3.resource('dynamodb')
@@ -361,3 +364,14 @@ def add_tmall_label(item):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(TMALL_LABEL_TABLE)
     table.put_item(Item=item)
+
+
+def get_tmall_label(tid):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(TMALL_LABEL_TABLE)
+    try:
+        response = table.get_item(Key={'id': tid})
+    except ClientError as e:
+        print(e.response['Error']['Message'])
+    else:
+        return response['Item']

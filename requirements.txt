@@ -48,4 +48,4 @@ pynacl>=1.0.1
 cffi>=1.1
 cryptography==2.9.2
 pysftp==0.2.9
-
+pymupdf

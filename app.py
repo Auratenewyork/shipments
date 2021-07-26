@@ -6,6 +6,8 @@ import json
 import math
 import os
 import pickle
+
+import requests
 import sentry_sdk
 import traceback
 from datetime import date, datetime, timedelta
@@ -32,7 +34,7 @@ from chalicelib.dynamo_operations import save_easypost_to_dynamo, \
     get_multiple_sku_info, save_repearment_order, list_repearment_orders, \
     update_repearment_order, get_repearment_order, \
     update_repearment_tracking_number, list_repearment_by_date, \
-    update_repearment_order_info, add_tmall_label
+    update_repearment_order_info, add_tmall_label, get_tmall_label
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment, get_easypost_record_by_reference_
@@ -1688,6 +1690,7 @@ def send_exception():
                dev_recipients=True,
                )
 
+
 @app.route('/repairmen_tracking', methods=['POST'], cors=cors_config)
 def repairmen_list_api():
     request = app.current_request
@@ -1807,11 +1810,13 @@ def tmall_api():
     if isinstance(record, (ClientError, ServerError)):
         capture_error(record, data=data, errors_source='Tmall->Fulfill')
         return Response(status_code=record.code, body=record.message)
-        return Response(status_code=record.code, body=False)
+        # return Response(status_code=record.code, body=False)
+    if type(record) == list:
+        record = record[0]
 
-    # body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
-    # return Response(status_code=201, body=body)
-    return Response(status_code=201, body=True)
+    body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
+    return Response(status_code=201, body=body)
+    # return Response(status_code=201, body=True)
 
 
 @app.route('/tmall-label', methods=['POST'])
@@ -1821,3 +1826,19 @@ def tmall_label_api():
     item = dict(id=body['tid'], labels=body['url'])
     add_tmall_label(item)
     return True
+
+
+@app.route('/tmall-label/{tid}', methods=['GET'])
+def fulfill_label_api(tid):
+    item = get_tmall_label(tid)
+    label = item['labels'][0]
+    response = requests.get(label)
+    pdf_data = response.content
+
+    import fitz
+
+    doc = fitz.open(stream=bytes(pdf_data), filetype="pdf")
+    page = doc.loadPage(0)  # number of page
+    pix = page.getPixmap()
+    output = pix.getPNGData()
+    return Response(status_code=201, body=output, headers={'Content-Type':"image/png"})
