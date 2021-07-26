@@ -9,6 +9,7 @@ chardet==3.0.4
 Click==7.0
 docutils==0.15.2
 enum-compat==0.0.3
+fitz==0.0.1.dev2
 Flask==1.1.1
 fulfil-client==0.14.1
 html5lib==1.0.1

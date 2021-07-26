@@ -1841,4 +1841,4 @@ def fulfill_label_api(tid):
     page = doc.loadPage(0)  # number of page
     pix = page.getPixmap()
     output = pix.getPNGData()
-    return Response(status_code=201, body=output, headers={'Content-Type':"image/png"})
+    return Response(status_code=201, body=output, headers={'Content-Type': "image/png"})
