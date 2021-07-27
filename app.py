@@ -1796,27 +1796,35 @@ def ger_error():
 @app.route('/tmall-hook', methods=['GET', 'POST', 'PUT'])
 def tmall_api():
     request = app.current_request
+    json_body = request.json_body
+    if not json_body:
+        capture_to_sentry(
+            'Empty Tmall request!',
+            email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
+            method=request.method)
+        return Response(status_code=400, body='Bad Request')
+
     data = {'request.raw_body': request.raw_body}
     capture_to_sentry(
         'Tmall request!',
         data=data,
         email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
         method=request.method)
+
     if 'sandbox' in FULFIL_API_DOMAIN:
         channel_id = '17'
     else:
         channel_id = '16'
-    record = create_fulfill_order(request.json_body.get('Content'), channel_id=channel_id)
+    record = create_fulfill_order(json_body.get('Content'), channel_id=channel_id)
     if isinstance(record, (ClientError, ServerError)):
         capture_error(record, data=data, errors_source='Tmall->Fulfill')
         return Response(status_code=record.code, body=record.message)
-        # return Response(status_code=record.code, body=False)
+
     if type(record) == list:
         record = record[0]
 
     body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
     return Response(status_code=201, body=body)
-    # return Response(status_code=201, body=True)
 
 
 @app.route('/tmall-label', methods=['POST'])
