@@ -75,8 +75,8 @@ from jinja2 import Template
 from chalice import CORSConfig
 from sentry_sdk.integrations.flask import FlaskIntegration
 from chalicelib.decorators import try_except
-from chalicelib.orders_operations import create_fulfill_order
-
+from chalicelib.orders_operations import create_fulfill_order, \
+    cancel_fulfill_order
 
 SENTRY_PUB_KEY = os.environ.get('SENTRY_PUB_KEY')
 sentry_sdk.init(
@@ -1730,7 +1730,8 @@ def repearment_reminder_event(event):
 
 @app.route('/repearment_reminder', methods=['GET'])
 def repearment_reminder_api():
-    end = datetime.utcnow() - timedelta(days=2)
+    # end = datetime.utcnow() - timedelta(days=2)
+    end = datetime.utcnow() - timedelta(days=4)  # To remind 3 times
     start = end - timedelta(days=1)
     items, _ = list_repearment_by_date(datetime.timestamp(start), datetime.timestamp(end))
     for item in items:
@@ -1777,22 +1778,6 @@ def trigger_error():
     return 1
 
 
-@app.schedule(Cron(0, 12, '?', '*', '*', '*'))
-@try_except()
-def test_cron_with_error(event):
-    raise Exception('POOR WORLD11')
-
-
-@app.route('/test_sentry', methods=['GET'])
-def r_error():
-    division_by_zero = 1 / 0
-    return 1
-
-@app.route('/ourplace', methods=['POST'])
-def ger_error():
-    return 1
-
-
 @app.route('/tmall-hook', methods=['GET', 'POST', 'PUT'])
 def tmall_api():
     request = app.current_request
@@ -1802,21 +1787,29 @@ def tmall_api():
         data=data,
         email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
         method=request.method)
-    if 'sandbox' in FULFIL_API_DOMAIN:
-        channel_id = '17'
-    else:
-        channel_id = '16'
-    record = create_fulfill_order(request.json_body.get('Content'), channel_id=channel_id)
-    if isinstance(record, (ClientError, ServerError)):
-        capture_error(record, data=data, errors_source='Tmall->Fulfill')
-        return Response(status_code=record.code, body=record.message)
-        # return Response(status_code=record.code, body=False)
-    if type(record) == list:
-        record = record[0]
+    body = request.json_body
+    if body.get('Event') == 'taobao_trade_TradePAID':
+        record = create_fulfill_order(request.json_body.get('Content'))
+        if isinstance(record, (ClientError, ServerError)):
+            capture_error(record, data=data, errors_source='Tmall->Fulfill')
+            return Response(status_code=record.code, body=record.message)
+            # return Response(status_code=record.code, body=False)
+        if type(record) == list:
+            record = record[0]
+        body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
+        return Response(status_code=201, body=body)
 
-    body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
-    return Response(status_code=201, body=body)
-    # return Response(status_code=201, body=True)
+    if body.get('Event') == 'taobao_refund_RefundSuccess':
+        result = cancel_fulfill_order(request.json_body.get('Content'))
+        if isinstance(result, (ClientError, ServerError)):
+            capture_error(result, data=data, errors_source='Tmall->Fulfill')
+            return Response(status_code=result.code, body=result.message)
+            # return Response(status_code=record.code, body=False)
+        # body = {'Order': {'id': result.id, 'rec_name': result.rec_name}}
+        body = 'Order canceled'
+        return Response(status_code=200, body=body)
+
+    return Response(status_code=200, body='trigger ignored')
 
 
 @app.route('/tmall-label', methods=['POST'])
@@ -1842,3 +1835,25 @@ def fulfill_label_api(tid):
     pix = page.getPixmap()
     output = pix.getPNGData()
     return Response(status_code=201, body=output, headers={'Content-Type': "image/png"})
+
+
+@app.route('/tmall-label-url/{tid}', methods=['GET'])
+def fulfill_label_api(tid):
+    item = get_tmall_label(tid)
+    labels = item['labels']
+    labels_text = '<br>' .join((f'<a href="{l}">{l}</a>' for l in labels))
+    text = f'''
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+</head>
+
+<body>
+<p>For order with reference {tid} use pdf by link below </p>
+    {labels_text}  
+</body>
+</html>
+    '''
+    return Response(status_code=201, body=text, headers={'Content-Type': "text/html"})
