@@ -69,10 +69,10 @@ def open_runnig_orders(filename='rollback_data/close_running_orders_04_30_2021_a
 
 
 def create_fulfill_order(data, channel_id='1'):
-    # client = Client('aurate-sandbox', '43cf9ddb7acc4ac69586b8f1081d65ab')  # for sandbox
-    # channel_id = 17  # for sandbox and Tmall channel
+    client = Client('aurate-sandbox', '43cf9ddb7acc4ac69586b8f1081d65ab')  # for sandbox
+    channel_id = 17  # for sandbox and Tmall channel
     # channel_id = 16  # for prod and Tmall channel
-    channel_id = 3  # for Shopify channel
+    # channel_id = 3  # for Shopify channel
 
 
     # convert China time to utc
@@ -81,13 +81,6 @@ def create_fulfill_order(data, channel_id='1'):
     china_confirmed_at = datetime.strptime(confirmed_at, '%Y-%m-%d %H:%M:%S').replace(tzinfo=tz)
     utc_confirmed_at = china_confirmed_at.astimezone(pytz.timezone('utc'))
     data['confirmed_at'] = utc_confirmed_at.strftime('%Y-%m-%d %H:%M:%S')
-
-    # data['amount'] = Decimal(data['amount'])
-    # data['currency_code'] = 'CNY'
-    # data['payment_term'] = 'Due on receipt'
-    # for line in data['sale_lines']:
-    #     line['amount'] = Decimal(line['amount'])
-    #     line['unit_price'] = Decimal(line['unit_price'])
 
     SaleChannel = client.model('sale.channel')
     try:
