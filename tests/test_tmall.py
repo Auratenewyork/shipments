@@ -2,8 +2,6 @@ import json
 import random
 import requests
 
-from app import app
-
 
 def create_order_data(data=None):
     if not data:
@@ -30,7 +28,22 @@ def test_tmall_hook_should_create_and_cancel_order():
 
     refund_data['sale_lines'][0] = order_data['sale_lines'][0]
     refund_data['amount'] = order_data['amount']
-    import ipdb; ipdb.set_trace()
+    response = requests.post(
+        'http://127.0.0.1:8000/tmall-hook',
+        headers={"content-type": "application/json"},
+        data=json.dumps({'Event': 'taobao_refund_RefundSuccess', 'Content': order_data}))
+    assert response.status_code == 200
+
+
+def test_tmall_hook_should_capture_error():
+    order_data = create_order_data()
+    order_data['status'] = 'paid'
+    response = requests.post(
+        'http://127.0.0.1:8000/tmall-hook',
+        headers={"content-type": "application/json"},
+        data=json.dumps({'Event': 'taobao_trade_TradePAID', 'Content': order_data}))
+    assert response.status_code == 400
+    assert 'UserError' in response.content
 
 
 

@@ -1785,7 +1785,7 @@ def tmall_api():
     if not body:
         capture_to_sentry(
             'Empty Tmall request!',
-            email=['aurate2021@gmail.com', 'roman.borodinoav@uadevelopers.com'],
+            email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
             method=request.method)
         return Response(status_code=400, body='Bad Request')
 
@@ -1793,7 +1793,7 @@ def tmall_api():
     capture_to_sentry(
         'Tmall request!',
         data=data,
-        email=['aurate2021@gmail.com', 'roman.borodinoav@uadevelopers.com'],
+        email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
         method=request.method)
     try:
         if body.get('Event') == 'taobao_trade_TradePAID':
@@ -1805,7 +1805,7 @@ def tmall_api():
 
         if body.get('Event') == 'taobao_refund_RefundSuccess':
             cancel_fulfill_order(body.get('Content'))
-            return Response(status_codede=200, body='Order canceled')
+            return Response(status_code=200, body='Order canceled')
 
     except (ClientError, ServerError) as e:
         capture_error(e, data=data, errors_source='Tmall->Fulfill')
