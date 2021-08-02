@@ -13,7 +13,7 @@ class TmallOrderConverter:
             address['phone'],
             address['city']
         )
-        return 'fake-{}@qq.com'.format(hash(base_val))
+        return 'email{}@qq.com'.format(hash(base_val))
 
     def validate_email(self):
         for address_type in ('billing_address', 'shipping_address'):
