@@ -69,12 +69,10 @@ def open_runnig_orders(filename='rollback_data/close_running_orders_04_30_2021_a
 
 
 def create_fulfill_order(data, channel_id='1'):
-    client = Client('aurate-sandbox', '43cf9ddb7acc4ac69586b8f1081d65ab')  # for sandbox
-    channel_id = 17  # for sandbox and Tmall channel
+    # client = Client('aurate-sandbox', '43cf9ddb7acc4ac69586b8f1081d65ab')  # for sandbox
+    # channel_id = 17  # for sandbox and Tmall channel
     # channel_id = 16  # for prod and Tmall channel
-    # channel_id = 3  # for Shopify channel
-
-
+    channel_id = 3  # for Shopify channel
     # convert China time to utc
     confirmed_at = data['confirmed_at']
     tz = pytz.timezone('Asia/Shanghai')
