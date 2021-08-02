@@ -103,7 +103,7 @@ We’ve received your repair request, and agree that your piece could use
 some extra love. We want to handle this for you ASAP, as we take our jewelry 
 quality super seriously.
             ''',
-            'LINK': 'http://dpwsfuv8z8btb.cloudfront.net/info',
+            'LINK': 'https://warrantyclaims.auratenewyork.com/info',
             'LINK_TEXT': 'NEXT STEPS',
         }
     },
@@ -147,7 +147,7 @@ def send_repearment_email(email, case, NOTE=None, DT=None):
     from app import BASE_DIR
     info = REPEARMENT_CASE[case]
     if DT:
-        LINK = f"http://dpwsfuv8z8btb.cloudfront.net/info?DT={DT}"
+        LINK = f"https://warrantyclaims.auratenewyork.com/info?DT={DT}"
         info['data']['LINK'] = LINK
     template = Template(
         open(f'{BASE_DIR}/chalicelib/template/notification.html').read())
