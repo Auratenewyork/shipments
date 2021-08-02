@@ -77,6 +77,7 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 from chalicelib.decorators import try_except
 from chalicelib.orders_operations import create_fulfill_order, \
     cancel_fulfill_order
+from chalicelib.tmall_utils import TmallOrderConverter
 
 SENTRY_PUB_KEY = os.environ.get('SENTRY_PUB_KEY')
 sentry_sdk.init(
@@ -1797,6 +1798,7 @@ def tmall_api():
         method=request.method)
     try:
         if body.get('Event') == 'taobao_trade_TradePAID':
+            order = TmallOrderConverter(body.get('Content')).get_order()
             record = create_fulfill_order(body.get('Content'))
             if type(record) == list:
                 record = record[0]
