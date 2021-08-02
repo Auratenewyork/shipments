@@ -1781,11 +1781,11 @@ def trigger_error():
 @app.route('/tmall-hook', methods=['GET', 'POST', 'PUT'])
 def tmall_api():
     request = app.current_request
-    json_body = request.json_body
-    if not json_body:
+    body = request.json_body
+    if not body:
         capture_to_sentry(
             'Empty Tmall request!',
-            email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
+            email=['aurate2021@gmail.com', 'roman.borodinoav@uadevelopers.com'],
             method=request.method)
         return Response(status_code=400, body='Bad Request')
 
@@ -1793,30 +1793,23 @@ def tmall_api():
     capture_to_sentry(
         'Tmall request!',
         data=data,
-        email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
+        email=['aurate2021@gmail.com', 'roman.borodinoav@uadevelopers.com'],
         method=request.method)
+    try:
+        if body.get('Event') == 'taobao_trade_TradePAID':
+            record = create_fulfill_order(body.get('Content'))
+            if type(record) == list:
+                record = record[0]
+            body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
+            return Response(status_code=201, body=body)
 
-    body = request.json_body
-    if body.get('Event') == 'taobao_trade_TradePAID':
-        record = create_fulfill_order(request.json_body.get('Content'))
-        if isinstance(record, (ClientError, ServerError)):
-            capture_error(record, data=data, errors_source='Tmall->Fulfill')
-            return Response(status_code=record.code, body=record.message)
-            # return Response(status_code=record.code, body=False)
-        if type(record) == list:
-            record = record[0]
-        body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}
-        return Response(status_code=201, body=body)
+        if body.get('Event') == 'taobao_refund_RefundSuccess':
+            cancel_fulfill_order(body.get('Content'))
+            return Response(status_codede=200, body='Order canceled')
 
-    if body.get('Event') == 'taobao_refund_RefundSuccess':
-        result = cancel_fulfill_order(request.json_body.get('Content'))
-        if isinstance(result, (ClientError, ServerError)):
-            capture_error(result, data=data, errors_source='Tmall->Fulfill')
-            return Response(status_code=result.code, body=result.message)
-            # return Response(status_code=record.code, body=False)
-        # body = {'Order': {'id': result.id, 'rec_name': result.rec_name}}
-        body = 'Order canceled'
-        return Response(status_code=200, body=body)
+    except (ClientError, ServerError) as e:
+        capture_error(e, data=data, errors_source='Tmall->Fulfill')
+        return Response(status_code=e.code, body=e.message)
 
 
 @app.route('/tmall-label', methods=['POST'])

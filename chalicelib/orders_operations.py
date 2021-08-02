@@ -83,10 +83,7 @@ def create_fulfill_order(data, channel_id='1'):
     data['confirmed_at'] = utc_confirmed_at.strftime('%Y-%m-%d %H:%M:%S')
 
     SaleChannel = client.model('sale.channel')
-    try:
-        return SaleChannel.create_order(channel_id, data)
-    except (ClientError, ServerError) as e:
-        return e
+    return SaleChannel.create_order(channel_id, data)
 
 
 def cancel_fulfill_order(data):
@@ -102,11 +99,7 @@ def cancel_fulfill_order(data):
     if shipments and shipments[0]['state'] != 'done':
         shipment = shipments[0]
         url = f'{get_fulfil_model_url("stock.shipment.out")}/{shipment["id"]}/cancel'
-        try:
-            requests.put(url, headers=headers)
-        except (ClientError, ServerError) as e:
-            return e
-
+        requests.put(url, headers=headers)
 
     Sale = client.model('sale.sale')
     fields = ['id', 'state']
@@ -119,8 +112,7 @@ def cancel_fulfill_order(data):
     if sales and sales[0]['state'] != 'done':
         sale = sales[0]
         url = f'{get_fulfil_model_url("sale.sale")}/{sale["id"]}/cancel'
-        try:
-            requests.put(url, headers=headers)
-        except (ClientError, ServerError) as e:
-            return e
+        requests.put(url, headers=headers)
+
+    return True
 

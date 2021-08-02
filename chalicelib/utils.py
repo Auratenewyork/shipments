@@ -9,6 +9,9 @@ from sentry_sdk import capture_message, configure_scope, capture_exception
 
 
 ROLLBACK_DIR = os.environ.get('ROLLBACK_DIR', 'rollback')
+FULFIL_API_DOMAIN = os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox')
+ENV = os.environ.get('ENV', 'local')
+EVIRONMENT = '{}-{}'.format(FULFIL_API_DOMAIN, ENV)
 
 
 def make_rollbaсk_filename(filename, server_name='', suffix='json'):
@@ -33,6 +36,7 @@ def fill_csv_file(data, filename, access_mode='w', server_name=''):
 
 
 def capture_to_sentry(message, data=None, email=None, **tags):
+    tags.setdefault('environment', EVIRONMENT)
     with configure_scope() as scope:
         for tag, value in tags.items():
             scope.set_tag(tag, value)
@@ -44,6 +48,7 @@ def capture_to_sentry(message, data=None, email=None, **tags):
 
 
 def capture_error(error, data=None, email=None, **tags):
+    tags.setdefault('environment', EVIRONMENT)
     with configure_scope() as scope:
         for tag, value in tags.items():
             scope.set_tag(tag, value)
