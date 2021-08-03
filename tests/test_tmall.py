@@ -31,7 +31,7 @@ def test_tmall_hook_should_create_and_cancel_order():
     response = requests.post(
         'http://127.0.0.1:8000/tmall-hook',
         headers={"content-type": "application/json"},
-        data=json.dumps({'Event': 'taobao_refund_RefundSuccess', 'Content': order_data}))
+        data=json.dumps({'Event': 'taobao_refund_RefundSuccess', 'Content': refund_data}))
     assert response.status_code == 200
 
 
@@ -43,24 +43,26 @@ def test_tmall_hook_should_capture_error():
         headers={"content-type": "application/json"},
         data=json.dumps({'Event': 'taobao_trade_TradePAID', 'Content': order_data}))
     assert response.status_code == 400
-    assert 'UserError' in response.content
-
+    assert 'UserError' in str(response.content)
 
 
 ORDER_DATA = {
     "channel_identifier": "1741644415596323129",
     "reference": "1741644415596323129",
     "confirmed_at": "2021-07-18 21:40:15",
-    "customer": {
+    "customer":
+    {
         "name": "jacky huang",
-        "contacts": [
+        "contacts":
+        [
             [
                 "email",
                 "312129003@qq.com"
             ]
         ]
     },
-    "billing_address": {
+    "billing_address":
+    {
         "name": "jacky huang",
         "address1": "hunan chagnsha",
         "address2": "address2",
@@ -71,7 +73,8 @@ ORDER_DATA = {
         "email": "312129003@qq.com",
         "phone": "+8613397642288"
     },
-    "shipping_address": {
+    "shipping_address":
+    {
         "name": "jacky huang",
         "address1": "hunan chagnsha",
         "address2": "address2",
@@ -82,10 +85,18 @@ ORDER_DATA = {
         "email": "312129003@qq.com",
         "phone": "+8613397642288"
     },
-    "sale_lines": [{"sku":"AU0315B00700","quantity":1,"unit_price":"1081.57","amount":"1081.57","comment":"AURATE\\u6247\\u5f62\\u73cd\\u73e0\\u6212\\u6307\\u590d\\u53e4\\u8bbe\\u8ba1\\u611f\\u7eaf\\u94f6\\u954014K\\u91d1\\u6307\\u6212\\u53e0\\u6212"}],
-    "shipping_lines": [
-
+    "sale_lines":
+    [
+        {
+            "sku": "AU0315B00700",
+            "quantity": 1,
+            "unit_price": "1081.57",
+            "amount": "1081.57",
+            "comment": "AURATE\\u6247\\u5f62\\u73cd\\u73e0\\u6212\\u6307\\u590d\\u53e4\\u8bbe\\u8ba1\\u611f\\u7eaf\\u94f6\\u954014K\\u91d1\\u6307\\u6212\\u53e0\\u6212"
+        }
     ],
+    "shipping_lines":
+    [],
     "amount": "1081.57",
     "currency_code": "CNY",
     "payment_term": "Due on receipt",

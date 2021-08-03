@@ -26,10 +26,10 @@ class TmallOrderConverter:
                     address['email'] = self.make_fake_email(address)
         customer = self.order['customer']
         contact = customer['contacts'][0]
-        email = contact[0]
+        email = contact[1]
         if email in self.default_emails:
             faked_email = faked_email or self.make_fake_email(contact)
-            contact.insert(1, faked_email)
+            contact[1] = faked_email
 
     def get_order(self):
         self.validate_email()

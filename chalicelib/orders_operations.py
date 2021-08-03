@@ -11,8 +11,6 @@ from .fulfil import client, get_fulfil_model_url, headers
 from .utils import fill_rollback_file, make_rollbaсk_filename
 
 
-
-
 def close_running_production_orders():
     DOMAIN = os.environ.get('FULFIL_API_DOMAIN', "aurate-sandbox")
 
