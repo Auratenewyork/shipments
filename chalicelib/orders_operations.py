@@ -1,19 +1,16 @@
 import json
 import os
-from datetime import datetime
-from decimal import Decimal
-
-import pytz
 import requests
-from fulfil_client import ClientError, ServerError, Client
 
 from .fulfil import client, get_fulfil_model_url, headers
 from .utils import fill_rollback_file, make_rollbaсk_filename
+from .tmall_utils import get_tmall_channel_id
+
+
+DOMAIN = os.environ.get('FULFIL_API_DOMAIN', "aurate-sandbox")
 
 
 def close_running_production_orders():
-    DOMAIN = os.environ.get('FULFIL_API_DOMAIN', "aurate-sandbox")
-
     Production = client.model('production')
     orders = Production.search_read_all(
         ['state', '=', 'running'], None, fields=['id', 'inputs', 'outputs'])
@@ -70,14 +67,7 @@ def create_fulfill_order(data, channel_id='1'):
     # client = Client('aurate-sandbox', '43cf9ddb7acc4ac69586b8f1081d65ab')  # for sandbox
     # channel_id = 17  # for sandbox and Tmall channel
     # channel_id = 16  # for prod and Tmall channel
-    channel_id = 3  # for Shopify channel
-    # convert China time to utc
-    confirmed_at = data['confirmed_at']
-    tz = pytz.timezone('Asia/Shanghai')
-    china_confirmed_at = datetime.strptime(confirmed_at, '%Y-%m-%d %H:%M:%S').replace(tzinfo=tz)
-    utc_confirmed_at = china_confirmed_at.astimezone(pytz.timezone('utc'))
-    data['confirmed_at'] = utc_confirmed_at.strftime('%Y-%m-%d %H:%M:%S')
-
+    channel_id = get_tmall_channel_id()
     SaleChannel = client.model('sale.channel')
     return SaleChannel.create_order(channel_id, data)
 
@@ -111,4 +101,3 @@ def cancel_fulfill_order(data):
         requests.put(url, headers=headers)
 
     return True
-

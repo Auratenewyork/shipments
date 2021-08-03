@@ -21,6 +21,7 @@ def test_tmall_hook_should_create_and_cancel_order():
         headers={"content-type": "application/json"},
         data=json.dumps({'Event': 'taobao_trade_TradePAID', 'Content': order_data}))
     assert response.status_code == 201
+    print(response.content)
 
     refund_data = REFUND_DATA.copy()
     refund_data['channel_identifier'] = order_data['channel_identifier']
@@ -47,9 +48,9 @@ def test_tmall_hook_should_capture_error():
 
 
 ORDER_DATA = {
-    "channel_identifier": "1741644415596323129",
-    "reference": "1741644415596323129",
-    "confirmed_at": "2021-07-18 21:40:15",
+    "channel_identifier": "TEST-7937805",
+    "reference": "TEST-7937805",
+    "confirmed_at": "2021-08-02 19:38:11",
     "customer":
     {
         "name": "jacky huang",
@@ -108,9 +109,9 @@ ORDER_DATA = {
 
 
 REFUND_DATA = {
-    "channel_identifier": "TEST-74806142",
-    "reference": "TEST-74806142",
-    "confirmed_at": "2021-07-18 21:40:15",
+    "channel_identifier": "TEST-7937805",
+    "reference": "TEST-7937805",
+    "confirmed_at": "2021-08-02 19:38:11",
     "customer":
     {
         "name": None,
