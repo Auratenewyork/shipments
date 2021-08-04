@@ -408,3 +408,16 @@ def complete_customer_shipments(state='done', excludes=("done", "cancel"), move_
 
     print('Found {} shipments: \n{} - done; \n{} - skipped, \n{} - errors'.format(
         len(shipments), len(done), len(skipped), len(errors)))
+
+
+def get_shipments_by_location(location="Rocio"):
+    Shipment = client.model('stock.shipment.out')
+    domain = [
+        "AND",
+        ("moves.from_location.name", "=", "Rocio"),
+        ("state", "=", "assigned"),
+        ("picking_status", "!=", "in-progress")
+    ]
+    shipments = list(Shipment.search_read_all(domain, None, fields=('id',)))
+
+
