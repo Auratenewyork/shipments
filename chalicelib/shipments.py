@@ -419,5 +419,11 @@ def get_shipments_by_location(location="Rocio"):
         ("picking_status", "!=", "in-progress")
     ]
     shipments = list(Shipment.search_read_all(domain, None, fields=('id',)))
+    return [shipment['id'] for shipment in shipments]
 
 
+def create_shipments_batch(ids, warehouse, batch_name):
+    Batch = client.model('stock.shipment.out.batch')
+    value_list = [{'name': 'batch_name', 'shipments': [('add', ids)], 'warehouse': warehouse}]
+    new_record_ids = Batch.create(value_list)
+    return new_record_ids
