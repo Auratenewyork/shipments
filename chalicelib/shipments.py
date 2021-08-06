@@ -8,9 +8,10 @@ import os
 import requests
 
 from chalicelib import (AURATE_STORAGE_ZONE)
+from chalicelib.decorators import try_except
 from chalicelib.common import listDictsToHTMLTable
 from .fulfil import client, headers, check_in_stock, get_movement, get_fulfil_model_url
-from .utils import fill_rollback_file, make_rollbaсk_filename, fill_csv_file
+from .utils import fill_rollback_file, make_rollbaсk_filename, fill_csv_file, capture_to_sentry
 
 
 DOMAIN = os.environ.get('FULFIL_API_DOMAIN', "aurate-sandbox")
@@ -48,7 +49,6 @@ def join_shipments(candidates):
                                       movement.get('quantity'))
             result = result and in_stock
         return result
-
 
     if len(candidates) > 1:
         # filtering that all moves from merge candidates are on the store
@@ -98,7 +98,6 @@ def join_shipments(candidates):
 
 
 def merge_shipments():
-
     def compare(l, r, fields):
         res = True
         for f in fields:
@@ -410,20 +409,48 @@ def complete_customer_shipments(state='done', excludes=("done", "cancel"), move_
         len(shipments), len(done), len(skipped), len(errors)))
 
 
-def get_shipments_by_location(location="Rocio"):
+def get_shipments_by_location(location, gt_id=None, fields=('id',)):
     Shipment = client.model('stock.shipment.out')
     domain = [
         "AND",
-        ("moves.from_location.name", "=", "Rocio"),
+        ("moves.from_location.name", "=", location),
         ("state", "=", "assigned"),
-        ("picking_status", "!=", "in-progress")
+        ("picking_status", "!=", "in-progress"),
+        ('shipping_batch', '=', None)
     ]
-    shipments = list(Shipment.search_read_all(domain, None, fields=('id',)))
-    return [shipment['id'] for shipment in shipments]
+    if gt_id:
+        domain.append(("id", "<", gt_id))
+
+    return list(Shipment.search_read_all(domain, None, fields=fields))
 
 
 def create_shipments_batch(ids, warehouse, batch_name):
     Batch = client.model('stock.shipment.out.batch')
-    value_list = [{'name': 'batch_name', 'shipments': [('add', ids)], 'warehouse': warehouse}]
+    value_list = [{'name': batch_name, 'shipments': [('add', ids)], 'warehouse': warehouse}]
     new_record_ids = Batch.create(value_list)
     return new_record_ids
+
+
+@try_except(task='Rocio shipments batch creation')
+def make_batch_for_rocio_shipments():
+    ids = get_shipments_by_location(location='Rocio', fields=('id', 'moves'))
+    if ids:
+        batch_name = 'Rocio-{}'.format(ids[0]['id'])
+        moves = ids[0]['moves']
+        if moves:
+            Move = client.model('stock.move')
+            moves = list(Move.search_read_all(
+                domain=["AND", ("id", "=", moves[0])],
+                order=None,
+                fields=['product.code']
+            ))
+            if moves:
+                batch_name = moves[0]['product.code']
+        ids = [shipment['id'] for shipment in ids]
+        batch_data = create_shipments_batch(ids, 4, batch_name)
+        capture_to_sentry(
+            'Rocio Batch created',
+            shipments=ids,
+            batch_data=batch_data,
+            email=['aurate2021@gmail.com'])
+        print('Rocio Batch created for {}'.format(str(ids)))

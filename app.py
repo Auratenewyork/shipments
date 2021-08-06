@@ -63,7 +63,8 @@ from chalicelib.rubyhas import (
 from chalicelib.send_sftp import send_loop_report
 from chalicelib.shipments import (
     get_split_candidates, split_shipment, join_shipments, merge_shipments,
-    pull_shipments_by_date, weekly_pull, customer_shipments_pull)
+    pull_shipments_by_date, weekly_pull, customer_shipments_pull,
+    make_batch_for_rocio_shipments)
 from chalicelib.shopify import shopify_products, get_shopify_products, \
     filter_shopify_customer, get_customer_orders, extract_variants_from_order
 from chalicelib.sync_sku import get_inventory_positions, \
@@ -1788,7 +1789,7 @@ def tmall_api():
             'Empty Tmall request!',
             email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
             method=request.method)
-        return Response(status_code=400, body='Bad Request')
+        return Response(status_code=400, body='Bad Request!')
 
     data = {'request.raw_body': request.raw_body}
     capture_to_sentry(
@@ -1859,3 +1860,8 @@ def fulfill_label_api(tid):
 </html>
     '''
     return Response(status_code=201, body=text, headers={'Content-Type': "text/html"})
+
+
+@app.schedule(Cron(0, '14-19/4', '?', '*', '*', '*'))
+def make_batch_shipments(event):
+    make_batch_for_rocio_shipments()
