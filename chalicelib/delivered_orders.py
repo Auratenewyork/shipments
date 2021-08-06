@@ -157,5 +157,5 @@ def send_repearment_email(email, case, NOTE=None, DT=None):
     send_email(info['subject'],
                content,
                email=email,
-               dev_recipients=True,
+               dev_recipients=False,
                from_email='care@auratenewyork.com')

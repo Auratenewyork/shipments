@@ -257,6 +257,9 @@ def get_sales_order_info(_id):
 
 
 """
+Services and SKU associated with them
+
+
 42446, '[SH0002] AU Green Medium Shipper	AU Green Medium Shipper', 'SH0002',
 42447, '[SH0001] AU Green Small Shipper	AU Green Small Shipper', 'SH0001',
 
@@ -287,48 +290,3 @@ def get_sales_order_info(_id):
 'gem stone / diamond replacement services': 'Gemstone Replacement Service',
 'stone tightening': 'Stone Tightening'
 """
-# def create_fullfill_order():
-#     create_return_sale()
-#
-#
-# def create_sale_line(sale):
-#     model = client.model('sale.line')
-#     value_list = [
-#         {"sale": sale,
-#          "item_blurb": {
-#              "subtitle": [["SKU", "AU0328EK0000"]],
-#                                       "description": "[AU0328EK0000] Birthstone Ear Chain Threader (Garnet - Jan, Yellow, 14K)",
-#                                       "title": "Birthstone Ear Chain Threader (Garnet - Jan, Yellow, 14K)"},
-#          "amount_blurb": {"title": "-$150.00"},
-#          "quantity_blurb": {"subtitle": [["Avl", 1], ["Hand", 1]],
-#                             "description": "Ship (from stock) From Aurate HQ",
-#                             "title": "Ordered: -1"},
-#          "price_blurb": {"subtitle": [["LIST", "$150.00"]], "title": "$150.00"},
-#          "delivery_mode": "ship", "product_uom_category": 1,
-#          "allow_open_amount": False, "unit": 1, "is_gift_card": False,
-#          "unit_price": {"__class__": "Decimal", "decimal": "150"},
-#          "warehouse": 57, "party": 40846, "type": "line", "product": 3226,
-#          "description": "[AU0328EK0000] Birthstone Ear Chain Threader (Garnet - Jan, Yellow, 14K)",
-#          "quantity_buildable": 0,
-#          "product_type": "goods",
-#          "unit_digits": 0,
-#          "is_return": False,
-#          "amount": {"__class__": "Decimal", "decimal": "0"},
-#          "carrier_service": 424,
-#          "discount": {"__class__": "Decimal", "decimal": "0"}, "carrier": 9}]
-#     new_record_ids = model.create(value_list)
-#     return new_record_ids
-#
-# def create_return_sale():
-#     model = client.model('sale.sale')
-#     value_list = [
-#         {'channel': 3, 'party': 40846,
-#          'sale_date': datetime.date.today().isoformat(),
-#          'shipment_address': 59296, "payment_term": 1,
-#          }]
-#     new_record_ids = model.create(value_list)
-#     lines = create_sale_line(new_record_ids[0])
-#
-#     print(new_record_ids)
-#
-#
