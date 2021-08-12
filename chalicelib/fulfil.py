@@ -127,6 +127,29 @@ def get_product(_id):
     return product
 
 
+def get_product_by_code(code, fields=('id',)):
+    Model = client.model('product.product')
+    domain = ["AND", ["code", '=', code]]
+    products = list(Model.search_read_all(domain, order=None, fields=fields))
+    return products and products[0]
+
+
+def get_available_quantity(product, locations):
+    if isinstance(product, int):
+        product = get_product(product)
+    elif isinstance(product, str):
+        product = get_product_by_code(product, ('id', 'warehouse_quantities'))
+
+    if not product:
+        return
+
+    data = product['warehouse_quantities'].get('data', [])
+    for wh in data:
+        if wh['location_name'] in locations:
+            return (wh['product_id'], wh['quantity_available'])
+    return [product['id'], 0]
+
+
 def get_internal_shipment(params):
     shipment_id = params.get('id')
     reference = params.get('reference')

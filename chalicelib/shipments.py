@@ -1,3 +1,5 @@
+from itertools import groupby
+
 import csv
 from datetime import timedelta
 from fulfil_client import ClientError
@@ -7,10 +9,10 @@ import json
 import os
 import requests
 
-from chalicelib import (AURATE_STORAGE_ZONE)
+from chalicelib import (AURATE_STORAGE_ZONE, COMPANY, USD)
 from chalicelib.decorators import try_except
 from chalicelib.common import listDictsToHTMLTable
-from .fulfil import client, headers, check_in_stock, get_movement, get_fulfil_model_url
+from .fulfil import client, headers, check_in_stock, get_movement, get_fulfil_model_url, get_available_quantity
 from .utils import fill_rollback_file, make_rollbaсk_filename, fill_csv_file, capture_to_sentry
 
 
@@ -429,6 +431,86 @@ def create_shipments_batch(ids, warehouse, batch_name):
     value_list = [{'name': batch_name, 'shipments': [('add', ids)], 'warehouse': warehouse}]
     new_record_ids = Batch.create(value_list)
     return new_record_ids
+
+
+def build_internal_shipment_data(products, from_location, to_location, **kwargs):
+    moves = []
+    for product_value in products:
+        if isinstance(product_value, dict):
+            product = product_value['id']
+            quantity = product_value['quantity']
+        else:
+            product = product_value
+            quantity = 1
+        moves.append(build_stock_move_data(product, quantity, from_location, to_location))
+    today_ = datetime.date.today().strftime("%Y-%m-%d")
+
+    reference = kwargs.get('reference', 'from {} to {}'.format(from_location, to_location))
+
+    return {
+        "planned_date": today_,
+        "planned_start_date": today_,
+        'effective_date': kwargs.get('effective_date'),
+        "from_location": from_location,
+        "to_location": to_location,
+        "reference": reference,
+        # 'state': kwargs.get('state', 'waiting'),
+        # 'company': kwargs.get('company', COMPANY),
+        # 'transit_required': False,
+        "moves": [["create", moves]]
+    }
+
+
+def build_stock_move_data(product, quantity, from_location, to_location, **kwargs):
+    return {
+        "product": product,
+        "quantity": quantity,
+        "to_location": to_location,
+        "from_location": from_location,
+        # "currency": kwargs.get('currency', USD),
+        "uom": kwargs.get('uom', 1)
+    }
+
+
+def create_internal_shipments_from_csv(file_name, from_location=4, to_location=198):
+    with open(file_name, newline='') as csvfile:
+        data = csv.DictReader(csvfile)
+        data = sorted(data, key=lambda x: x['reference'])
+    unshipped = []
+    shipments = []
+    not_available = []
+    for reference, items in groupby(data, key=lambda x: x['reference']):
+        products = []
+        for row in items:
+            sku = row['sku']
+            quantity = int(row['quantity'])
+            product_id, available_quantity = get_available_quantity(sku, locations=(row['from'], 'Aurate HQ'))
+            if quantity > available_quantity:
+                not_available.append([product_id, sku, quantity, available_quantity])
+                print('{} - shipped {} instead of {}'.format(sku, available_quantity, quantity))
+                quantity = available_quantity
+
+                if quantity <= 0:
+                    unshipped.append(sku)
+                    continue
+            products.append({'id': product_id, 'quantity': quantity})
+
+        if products:
+            shipment = build_internal_shipment_data(
+                products,
+                from_location,
+                to_location,
+                reference=reference)
+            shipments.append(shipment)
+        break  # Just one shipment for testing
+    Shipment = client.model('stock.shipment.internal')
+    print('-' * 100)
+    if unshipped:
+        print('Unshipped {} \n'.format(unshipped))
+        print('Shipped less {} \n'.format(not_available))
+    shipments = Shipment.create(shipments)
+    print('Shipments created{}'.format(shipments))
+    return shipments
 
 
 @try_except(task='Rocio shipments batch creation')
