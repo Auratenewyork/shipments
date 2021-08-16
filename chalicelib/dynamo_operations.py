@@ -99,7 +99,10 @@ def save_shopify_sku(products):
                     image = i['src']
                     break
             else:
-                image = product['image']['src']
+                if product['image']:
+                    image = product['image']['src']
+                else:
+                    image = ''
 
 
             sku = variant['sku']

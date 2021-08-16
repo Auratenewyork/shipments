@@ -7,7 +7,6 @@ false = False
 true = True
 
 env_name = os.environ.get('ENV', 'sandbox')
-# if env_name == 'sandbox' or True:
 
 RESHINE_URL = 'https://api-live.reshyne.com/api/v1/'
 

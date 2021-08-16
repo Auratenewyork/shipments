@@ -725,7 +725,7 @@ def pull_sku_quantities(event, context):
     BUCKET = 'aurate-sku'
     i = 0
     fields = ['id', 'quantity_available', 'quantity_on_hand', 'code',
-              'sale_order_count', 'categories', 'quantity_waiting_consumption',
+              'sale_order_count', 'quantity_waiting_consumption',
               'rec_name', 'name', 'average_price', 'quantity_outbound',
               'quantity_on_confirmed_purchase_orders', 'quantity_returned',
               'quantity_inbound', 'cost_price', 'average_daily_sales',
@@ -1582,10 +1582,11 @@ def customer_orders_api():
             if v['PK'] == one_variant['sku']:
                 one_variant.update(v)
                 break
-    address = customer['default_address']
+
+    address = customer.get('default_address', None)
     address.pop('id')
     address.pop('customer_id')
-    return {'orders': shopify_variants, 'address': customer['default_address'],
+    return {'orders': shopify_variants, 'address': address,
             'customer_id': customer['id'], 'email':email}
 
 
@@ -1621,7 +1622,7 @@ def repairmen_request_api():
         sku=order['sku'],
         variant_id=order['variant_id'],
         product_id=order['product_id'],
-        sku_name=order['name'],
+        sku_name=order.get('name', ''),
         description=body.get('message', ''),
         files=added_files,
         email=body.get('email', ''),
