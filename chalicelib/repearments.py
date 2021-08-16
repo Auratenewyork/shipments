@@ -8,10 +8,8 @@ true = True
 
 env_name = os.environ.get('ENV', 'sandbox')
 # if env_name == 'sandbox' or True:
-if False:
-    RESHINE_URL = 'https://api-uat.reshyne.com/api/v1/'
-else:
-    RESHINE_URL = 'https://api-app.reshyne.com/api/v1/'
+
+RESHINE_URL = 'https://api-live.reshyne.com/api/v1/'
 
 
 def get_customer(headers, params, address, email):
