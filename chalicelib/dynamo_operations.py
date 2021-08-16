@@ -1,3 +1,4 @@
+import csv
 from decimal import Decimal
 
 import boto3
@@ -358,6 +359,34 @@ def get_repearment_order(DT):
         print(e.response['Error']['Message'])
     else:
         return response['Item']
+
+
+def get_customer_data_from_repairs(customers):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(REPAIRMENT_TABLE)
+    scan_kwargs = {'Limit': 50}
+    scan_kwargs['FilterExpression'] = Attr('address.name').is_in(customers)
+    response = table.scan(**scan_kwargs)
+    items = response.get('Items')
+    if items:
+        headers = [
+            'Name', 'Order', 'Sku', 'Photo', 'Service', 'Status',
+            'Tracking_number', 'Description', 'Note']
+        with open('customers.csv', 'w', newline='') as csvfile:
+            cwriter = csv.writer(csvfile)
+            cwriter.writerow(headers)
+            for item in items:
+                cwriter.writerow([
+                    item['address']['name'],
+                    item['order_name'],
+                    item['sku'],
+                    item['files'][0]['image_url'],
+                    item['service'],
+                    item['approve'],
+                    item['tracking_number'],
+                    item['description'],
+                    item.get('note', '')])
+    return items
 
 
 def add_tmall_label(item):

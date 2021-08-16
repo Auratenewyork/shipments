@@ -461,6 +461,12 @@ def build_internal_shipment_data(products, from_location, to_location, **kwargs)
     }
 
 
+@try_except(task='Update Internal Shipment')
+def update_shipment_state(shipment_id, state):
+    url = f'{get_fulfil_model_url("stock.shipment.internal")}/{shipment_id}/{state}'
+    return requests.put(url, headers=headers)
+
+
 def build_stock_move_data(product, quantity, from_location, to_location, **kwargs):
     return {
         "product": product,
@@ -472,7 +478,7 @@ def build_stock_move_data(product, quantity, from_location, to_location, **kwarg
     }
 
 
-def create_internal_shipments_from_csv(file_name, from_location=4, to_location=198):
+def create_internal_shipments_from_csv(file_name, from_location=3, to_location=198):
     with open(file_name, newline='') as csvfile:
         data = csv.DictReader(csvfile)
         data = sorted(data, key=lambda x: x['reference'])
@@ -502,7 +508,7 @@ def create_internal_shipments_from_csv(file_name, from_location=4, to_location=1
                 to_location,
                 reference=reference)
             shipments.append(shipment)
-        break  # Just one shipment for testing
+
     Shipment = client.model('stock.shipment.internal')
     print('-' * 100)
     if unshipped:
