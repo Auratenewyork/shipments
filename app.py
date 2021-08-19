@@ -1824,21 +1824,21 @@ def tmall_label_api():
     add_tmall_label(item)
     return True
 
+# Can be used if install fitz
+# @app.route('/tmall-label/{tid}', methods=['GET'])
+# def fulfill_label_api(tid):
+#     item = get_tmall_label(tid)
+#     label = item['labels'][0]
+#     response = requests.get(label)
+#     pdf_data = response.content
 
-@app.route('/tmall-label/{tid}', methods=['GET'])
-def fulfill_label_api(tid):
-    item = get_tmall_label(tid)
-    label = item['labels'][0]
-    response = requests.get(label)
-    pdf_data = response.content
+#     import fitz
 
-    import fitz
-
-    doc = fitz.open(stream=bytes(pdf_data), filetype="pdf")
-    page = doc.loadPage(0)  # number of page
-    pix = page.getPixmap()
-    output = pix.getPNGData()
-    return Response(status_code=201, body=output, headers={'Content-Type': "image/png"})
+#     doc = fitz.open(stream=bytes(pdf_data), filetype="pdf")
+#     page = doc.loadPage(0)  # number of page
+#     pix = page.getPixmap()
+#     output = pix.getPNGData()
+#     return Response(status_code=201, body=output, headers={'Content-Type': "image/png"})
 
 
 @app.route('/tmall-label-url/{tid}', methods=['GET'])
