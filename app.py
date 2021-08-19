@@ -1656,16 +1656,19 @@ def repairmen_request_api():
 def repairmen_list_api():
     # https://4p9vek36rc.execute-api.us-east-2.amazonaws.com/api/repairments?search=2345454&filter=Pending
     request = app.current_request
-    last_id, search, filter_ = None, None, None
+    last_id, search, filter_, extra_filter = None, None, None, None
     if request.query_params:
         last_id = request.query_params.get('last_id', None)
         search = request.query_params.get('search', None)
         filter_ = request.query_params.get('filter', None)
         if filter_ == 'Denied':
             filter_ = 'declined'
+        elif filter_ == 'Processed':
+            filter_ = 'Accepted'
+            extra_filter = 'tracking_number'
     else:
         filter_ = 'pending'
-    items, last_key = list_repearment_orders(last_id, search, filter_)
+    items, last_key = list_repearment_orders(last_id, search, filter_, extra_filter)
     return {'items': items, 'last_id': last_key.get('DT', None)}
 
 
@@ -1681,7 +1684,7 @@ def repairmen_update_api():
     if order['approve'] == 'accepted':
         send_repearment_email(body.get('email'), 'accepted', DT=order['DT'])
     elif order['approve'] == 'declined':
-        send_repearment_email(body.get('email'), 'declined',  NOTE=order['note'])
+        send_repearment_email(body.get('email'), 'declined', NOTE=order['note'])
     return order
 
 
