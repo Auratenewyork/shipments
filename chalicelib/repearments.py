@@ -75,10 +75,15 @@ def create_customer_address(headers, params, address, customer_id):
             "address_type": "r",
             # "store_id": 1,   comes with params
             "customer_id": customer_id,
+
+            # for beta version
+            "city": address['city'],
+            "phone_number": address['phone'],
         })
     city_info = get_city_info(headers, address)
     if city_info:
         p.update(city_info)
+        p.pop('city_id')  # for beta version
     response = requests.post(url, headers=headers, json=p)
     r = response.json()
     return r['data']
@@ -149,8 +154,8 @@ def create_rep_order(headers, store_id, customer_id, address_id, service):
 def login():
     url = f'{RESHINE_URL}login'
     j = {
-        "username": "auratenewyork",
-        "password": "auratenewyork"
+        "username": "aurate",
+        "password": "aurate123"
     }
     response = requests.post(url, json=j)
     res = response.json()
@@ -191,35 +196,7 @@ def get_services(headers, params, name):
     # return services
 
 
-def test_fill_input_item(item):
-    if not item.get('address', None):
-        item['address'] = {
-            "first_name": "Nick",
-            "last_name": "Miller",
-            "company": "Aurate New York",
-            "address1": "580 5th avenue",
-            "address2": "",
-            "city": "New York",
-            "province": "New York",
-            "country": "United States",
-            "zip": "10012",
-            "phone": "+12016550927",
-            "name": "Nick Miller",
-            "province_code": "NY",
-            "country_code": "US",
-            "country_name": "United States",
-            "default": true
-        }
-    if not item.get('service', None):
-        item['service'] = 'earring posts backs'
-    if not item.get('email', None):
-        item['email'] = 'maxwell@auratenewyork.com'
-    return item
-
-
 def create_repearments_order(item):
-    item = test_fill_input_item(item)
-
     token, store = login()
     headers = {"AUTHORIZATION": f"Bearer {token}"}
     params = {'store_id': store['id']}

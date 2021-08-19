@@ -1576,16 +1576,18 @@ def customer_orders_api():
     for order in orders:
         shopify_variants.extend(extract_variants_from_order(order))
     variants = get_multiple_sku_info(sku_list=[v['sku'] for v in shopify_variants])
-
     for one_variant in shopify_variants:
         for v in variants:
             if v['PK'] == one_variant['sku']:
                 one_variant.update(v)
                 break
 
-    address = customer.get('default_address', None)
-    address.pop('id')
-    address.pop('customer_id')
+    address = customer.get('default_address', {})
+    address.pop('id', None)
+    address.pop('customer_id', None)
+    address['first_name'] = customer.get('first_name', '')
+    address['last_name'] = customer.get('last_name', '')
+
     return {'orders': shopify_variants, 'address': address,
             'customer_id': customer['id'], 'email':email}
 
