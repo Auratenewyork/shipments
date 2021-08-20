@@ -158,4 +158,4 @@ def send_repearment_email(email, case, NOTE=None, DT=None):
                content,
                email=email,
                dev_recipients=False,
-               from_email='care@auratenewyork.com')
+               from_email='warrantyclaims@auratenewyork.com')

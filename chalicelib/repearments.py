@@ -62,6 +62,12 @@ def get_city_info(headers, address):
                     "country_id": i['state']['country']['id']}
 
 
+def format_phone(number):
+    if not number:
+        return '111111111'
+    return ''.join((digit for digit in number if digit.isdigit()))
+
+
 def create_customer_address(headers, params, address, customer_id):
     url = f'{RESHINE_URL}customer-addresses'
     p = params.copy()
@@ -78,7 +84,7 @@ def create_customer_address(headers, params, address, customer_id):
 
             # for beta version
             "city": address['city'],
-            "phone_number": address['phone'],
+            "phone_number": format_phone(address['phone']),
         })
     city_info = get_city_info(headers, address)
     if city_info:
@@ -108,7 +114,7 @@ def get_or_create_customer_address(headers, params, address, customer_id):
 
 def create_rep_order(headers, store_id, customer_id, address_id, service):
     url = f'{RESHINE_URL}sales-order'
-    options = service['service_options'][0:1]
+    options = service['options'][0:1]
     # options = []
     params = {
         "store_id": store_id,  # 49
@@ -119,31 +125,63 @@ def create_rep_order(headers, store_id, customer_id, address_id, service):
         # "rate_id": "rate_a6470ccfe40147588c2a3613e9276cad",
         "is_round_trip_shipping": true,
         "is_drop_off": true,
-        "items": [{
-            "status": 1,
-            "service_cost": service['price'],  # 25
-            "service_option_total_cost": "40.00",
-            "qty": 1,
-            "method": "POST",
-            "price_group_service_id": service['id'],
-            "name": "",
-            "brand": "",
-            "item_options": [
-                {
-                    "option_id": o['id'],
-                    "field_type": o['field_type'],
-                    "field_label": o['name'],
-                    "field_text": ', '.join(o['field_text1']),
-                    "field_value": o['other_option_value'],
-                    "formula": o['formula'],
-                    "cost": 0,
-                    "method": "POST",
-                    # "meta_data": o['meta_data']
-
-                }
-                for o in options
-            ]
-        }]
+        "line_items": [
+        #     {
+        #     "status": 1,
+        #     "service_cost": service['price'],  # 25
+        #     "service_option_total_cost": "40.00",
+        #     "qty": 1,
+        #     "method": "POST",
+        #     "price_group_service_id": service['id'],
+        #     "name": "",
+        #     "brand": "",
+        #     "item_options": [
+        #         {
+        #             "option_id": o['id'],
+        #             "field_type": o['field_type'],
+        #             "field_label": o['name'],
+        #             "field_text": ', '.join(o['field_text1']),
+        #             "field_value": o['other_option_value'],
+        #             # "formula": o['formula'],
+        #             "cost": 0,
+        #             "method": "POST",
+        #             # "meta_data": o['meta_data']
+        #
+        #         }
+        #         for o in options
+        #     ]
+        # },
+            {
+                "service_id": service['id'],
+                "service_cost": service['price'],
+                "total_service_option_cost": 0,
+                "qty": 1,
+                "item_value": 0,
+                "insurance_amount": 0,
+                "method": "POST",
+                "options": [
+                        {
+                        "option_id": o['id'],
+                        # "field_type": o['field_type'],
+                        "field_label": o['name'],
+                        "field_text": ', '.join(o['field_text1']),
+                        "price": 0,
+                        "method": "POST",
+                        "images": [{
+                            "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgID",
+                            "method": "POST",
+                            "image_type": "customer_before"
+                        },],
+                        "values": [{
+                            "price": 0.0,
+                            "value": 'custom',
+                            "method": "POST"
+                        }]
+                    }
+                    for o in options
+                ]
+            },
+        ]
     }
     response = requests.post(url, headers=headers, json=params)
     r = response.json()
@@ -164,11 +202,11 @@ def login():
     return token, store
 
 
-def get_services(headers, params):
-    url = f'{RESHINE_URL}filter-services'
-    response = requests.get(url, headers=headers, params=params)
-    r = response.json()
-    return r['data']
+# def get_services(headers, params):
+#     url = f'{RESHINE_URL}filter-services'
+#     response = requests.get(url, headers=headers, params=params)
+#     r = response.json()
+#     return r['data']
 
 
 def get_services(headers, params, name):

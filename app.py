@@ -1772,17 +1772,6 @@ def add_AOV_tag_to_shipments_api():
     # add_EXE_tag_to_ship_instructions()
 
 
-@app.route('/debug-sentry', methods=['GET'])
-def trigger_api():
-    trigger_error()
-
-
-@try_except(test_tag='debug-sentry')  # transaction='debug-sentry',
-def trigger_error():
-    division_by_zero = 1 / 0
-    return 1
-
-
 @app.route('/tmall-hook', methods=['GET', 'POST', 'PUT'])
 def tmall_api():
     request = app.current_request
