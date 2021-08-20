@@ -262,7 +262,7 @@ def update_repearment_order_info(DT, order):
     print()
 
 
-def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None):
+def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None, extra_filter=None):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
     # scan_kwargs = {'Limit': 50}
@@ -283,16 +283,15 @@ def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None
 
     # # scan all table in the future replace by pagination
     while 'LastEvaluatedKey' in response:
-        print(response['LastEvaluatedKey'])
         scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         response = table.scan(**scan_kwargs)
         items.extend(response['Items'])
     if items:
-        items = batch_get_repearments(items)
+        items = batch_get_repearments(items, extra_filter)
     return items, response.get('LastEvaluatedKey', {})
 
 
-def batch_get_repearments(items):
+def batch_get_repearments(items, extra_filter=None):
     dynamodb = boto3.resource('dynamodb')
 
     batch_keys = {
@@ -301,6 +300,9 @@ def batch_get_repearments(items):
     response = dynamodb.batch_get_item(RequestItems=batch_keys)
     items = response['Responses'][REPAIRMENT_TABLE]
     items.sort(key=lambda x: x['DT'], reverse=True)
+    if extra_filter:
+        items = [item for item in items if item.get(extra_filter)]
+
     return items
 
 
