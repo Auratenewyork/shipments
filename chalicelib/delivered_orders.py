@@ -124,7 +124,7 @@ purchase. And to learn more about your repair status, <a href="https://auratenew
         'subject': 'About that warranty claim',
         'data': {
             'PREH': 'Well delivered!',
-            'HEADER': 'delivered Email',
+            'HEADER': 'Delivered Email',
             'TEXT': '''
         ''',
         }
@@ -133,7 +133,7 @@ purchase. And to learn more about your repair status, <a href="https://auratenew
         'subject': 'About that warranty claim',
         'data': {
             'PREH': 'Reminder!',
-            'HEADER': 'delivered Email',
+            'HEADER': 'Request Approved!',
             'LINK_TEXT': 'NEXT STEPS',
             'TEXT': '''
             We’ve approved your repair request and ready to receive it. 

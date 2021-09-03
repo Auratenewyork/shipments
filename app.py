@@ -1860,3 +1860,5 @@ def fulfill_label_api(tid):
 @app.schedule(Cron(0, '14-19/4', '?', '*', '*', '*'))
 def make_batch_shipments(event):
     make_batch_for_rocio_shipments()
+
+

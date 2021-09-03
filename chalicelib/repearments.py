@@ -11,6 +11,37 @@ env_name = os.environ.get('ENV', 'sandbox')
 RESHINE_URL = 'https://api-live.reshyne.com/api/v1/'
 
 
+def get_store_address(headers, params):
+    url = f'{RESHINE_URL}store-addresses'
+    response = requests.get(url, headers=headers, params=params)
+    r = response.json()
+    if not r['data']:
+        return create_store_address(headers, params)
+    return r['data'][0]['id']
+
+
+def create_store_address(headers, params):
+    url = f'{RESHINE_URL}store-addresses'
+    params = params.copy()
+    params.update({
+        "street1" : "580 5th Avenue",
+        "street2" : "Suite 2300",
+        "city" : 'New York',
+        # "city_id" : 'New York',
+        "state_id" : 37,
+        "country_id" : 231,
+        "number" : "+111111111111",
+        "zip_code" : 10036,
+        "is_default" : True,
+        "is_active" : True,
+        "label" : "office",
+    })
+    response = requests.post(url, headers=headers, json=params)
+    r = response.json()
+    return r['data']['id']
+
+
+
 def get_customer(headers, params, address, email):
     url = f'{RESHINE_URL}filter-customers'
     p = params.copy()
@@ -167,18 +198,17 @@ def create_rep_order(headers, store_id, customer_id, address_id, service):
                         "field_text": ', '.join(o['field_text1']),
                         "price": 0,
                         "method": "POST",
-                        "images": [{
-                            "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgID",
-                            "method": "POST",
-                            "image_type": "customer_before"
-                        },],
-                        "values": [{
-                            "price": 0.0,
-                            "value": 'custom',
-                            "method": "POST"
-                        }]
-                    }
-                    for o in options
+                        # "images": [{
+                        #     "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgID",
+                        #     "method": "POST",
+                        #     "image_type": "customer_before"
+                        # },],
+                        # "values": [{
+                        #         "price": 0.0,
+                        #         "value_id": v['id'],
+                        #         "method": "POST"
+                        #     } for v in o['values']]
+                        } for o in options
                 ]
             },
         ]
@@ -239,6 +269,8 @@ def create_repearments_order(item):
     headers = {"AUTHORIZATION": f"Bearer {token}"}
     params = {'store_id': store['id']}
     store_id = store['id']
+
+    store_address = get_store_address(headers, params)
 
     customer = get_or_create_customer(headers, params, address=item['address'], email=item['email'])
     address = get_or_create_customer_address(headers, params, address=item['address'], customer_id=customer['id'])

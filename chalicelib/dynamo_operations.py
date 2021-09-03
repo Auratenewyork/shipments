@@ -370,7 +370,8 @@ def get_repearment_order(DT):
 def get_customer_data_from_repairs(customers):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
-    scan_kwargs = {'Limit': 50}
+    scan_kwargs = {}
+    # scan_kwargs = {'Limit': 50}
     scan_kwargs['FilterExpression'] = Attr('approve').eq('accepted')
     response = table.scan(**scan_kwargs)
     items = response.get('Items')
