@@ -80,17 +80,42 @@ def get_customer_address(headers, params):
     r = response.json()
     return r['data']
 
+def get_country_id(headers, address):
+    url = f'{RESHINE_URL}countries'
+    response = requests.get(url, headers=headers)
+    r = response.json()
+    for i in r['data']:
+        if i['name'] == address['country']:
+            return i['id']
+    return None
+
+
+def get_state_id(headers, address, country_id):
+    url = f'{RESHINE_URL}countries/231/states'
+    response = requests.get(url, headers=headers)
+    r = response.json()
+    for i in r['data']:
+        if i['name'] == address['province']:
+            return i['id']
+    return None
+
 
 def get_city_info(headers, address):
+    # country_id = get_country_id(headers, address)
+    # state_id = get_state_id(headers, address, country_id)
+    # return {"state_id": state_id, "country_id": country_id}
     url = f'{RESHINE_URL}cities'
     response = requests.get(url, headers=headers, params={'name':address['city']})
     r = response.json()
+    result = {}
     for i in r['data']:
         if i['name'].startswith(address['city']) and \
                 i['state']['name'] == address['province'] and \
                 i['state']['country']['name'] == address['country']:
-            return {"city_id" : i['id'], "state_id":  i['state']['id'],
+            result = {"city_id" : i['id'], "state_id":  i['state']['id'],
                     "country_id": i['state']['country']['id']}
+
+
 
 
 def format_phone(number):
@@ -120,7 +145,7 @@ def create_customer_address(headers, params, address, customer_id):
     city_info = get_city_info(headers, address)
     if city_info:
         p.update(city_info)
-        p.pop('city_id')  # for beta version
+        p.pop('city_id', None)  # for beta version
     response = requests.post(url, headers=headers, json=p)
     r = response.json()
     return r['data']
@@ -223,7 +248,7 @@ def login():
     url = f'{RESHINE_URL}login'
     j = {
         "username": "aurate",
-        "password": "aurate123"
+        "password": "UU4BVpCS"
     }
     response = requests.post(url, json=j)
     res = response.json()

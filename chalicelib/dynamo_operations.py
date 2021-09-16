@@ -252,17 +252,32 @@ def update_repearment_order_info(DT, order):
         Key={
             "DT": DT,
         },
-        UpdateExpression="set repearment_id=:t, repearment_no=:n, repearment_net_cost=:c ",
+        UpdateExpression="set repearment_id=:t, repearment_no=:n, repearment_total=:c ",
         ExpressionAttributeValues={
             ':t': order['id'],
             ':n': order['order_no'],
-            ':c': Decimal(order['net_cost']),
+            ':c': Decimal(order['total']),
         },
     )
     print()
 
 
-def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None, extra_filter=None):
+def paginate_items(items, page=1, page_size=10):
+    items.sort(key=lambda x: x['DT'], reverse=True)
+    return items[(page-1)*page_size:page*page_size], len(items)
+
+
+def search_repearments_order(order_name, approve, page, page_size):
+    items = list_repearment_orders_(order_name=order_name, approve=approve)
+    items, total = paginate_items(items)
+    return items, {}, total
+
+
+def list_repearment_orders(ExclusiveStartKey=None, order_name=None,
+                           approve=None, extra_filter=None, page=1, page_size=10):
+    if order_name:
+        return search_repearments_order(order_name, approve, page, page_size)
+
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
     # scan_kwargs = {'Limit': 50}
@@ -280,6 +295,7 @@ def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None
 
     response = table.query(**scan_kwargs)
     items = response['Items']
+    items, total = paginate_items(items, page, page_size)
 
     # # scan all table in the future replace by pagination
     while 'LastEvaluatedKey' in response:
@@ -288,12 +304,13 @@ def list_repearment_orders(ExclusiveStartKey=None, order_name=None, approve=None
         items.extend(response['Items'])
     if items:
         items = batch_get_repearments(items, extra_filter)
-    return items, response.get('LastEvaluatedKey', {})
+
+    return items, response.get('LastEvaluatedKey', {}), total
 
 
 def batch_get_repearments(items, extra_filter=None):
     dynamodb = boto3.resource('dynamodb')
-
+    # items = items[:99]
     batch_keys = {
        REPAIRMENT_TABLE: {'Keys': [{'DT': item['DT']} for item in items]}
     }
@@ -309,7 +326,7 @@ def batch_get_repearments(items, extra_filter=None):
 def list_repearment_orders_(ExclusiveStartKey=None, order_name=None, approve=None):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
-    scan_kwargs = {'Limit': 50}
+    scan_kwargs = {}
     if ExclusiveStartKey:
         ExclusiveStartKey = int(ExclusiveStartKey)
         scan_kwargs['ExclusiveStartKey'] = ExclusiveStartKey
@@ -332,13 +349,13 @@ def list_repearment_orders_(ExclusiveStartKey=None, order_name=None, approve=Non
 
     # scan all table in the future replace by pagination
     while 'LastEvaluatedKey' in response:
-        print(response['LastEvaluatedKey'])
+        # print(response['LastEvaluatedKey'])
         scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         response = table.scan(**scan_kwargs)
         items.extend(response['Items'])
 
-    items.reverse()
-    return items, response.get('LastEvaluatedKey', {})
+    # items.reverse()
+    return items
 
 
 def list_repearment_by_date(DT_start, DT_end, ExclusiveStartKey=None):
@@ -367,6 +384,7 @@ def get_repearment_order(DT):
         return response['Item']
 
 
+
 def get_customer_data_from_repairs(customers):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
@@ -375,6 +393,7 @@ def get_customer_data_from_repairs(customers):
     scan_kwargs['FilterExpression'] = Attr('approve').eq('accepted')
     response = table.scan(**scan_kwargs)
     items = response.get('Items')
+    return items
     if items:
         headers = [ "DT", "Date",
             'Name', 'Email', 'Order', 'Sku', 'Photo', 'Service', 'Status',

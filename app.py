@@ -1658,6 +1658,8 @@ def repairmen_list_api():
     request = app.current_request
     last_id, search, filter_, extra_filter = None, None, None, None
     if request.query_params:
+        page = int(request.query_params.get('page', 1) or 1)
+        page_size = int(request.query_params.get('page_size', 50))
         last_id = request.query_params.get('last_id', None)
         search = request.query_params.get('search', None)
         filter_ = request.query_params.get('filter', None)
@@ -1668,8 +1670,10 @@ def repairmen_list_api():
             extra_filter = 'tracking_number'
     else:
         filter_ = 'pending'
-    items, last_key = list_repearment_orders(last_id, search, filter_, extra_filter)
-    return {'items': items, 'last_id': last_key.get('DT', None)}
+        page, page_size = 1, 50
+    items, last_key, total = list_repearment_orders(
+        last_id, search, filter_, extra_filter, page, page_size)
+    return {'items': items, 'last_id': last_key.get('DT', None), 'total': total}
 
 
 @app.route('/repairments', methods=['POST'], cors=cors_config)
@@ -1711,6 +1715,7 @@ def repairmen_list_api():
             order = create_repearments_order(item)
         except Exception as e:
             order = None
+            print(body)
             send_exception()
 
         if order:
@@ -1724,10 +1729,10 @@ def repairmen_list_api():
         except Exception as e:
             send_exception()
 
-        send_email("Repearment: added tracking number",
-                   f"Current info {body['tracking_number']}, {body['DT']}",
-                   email='maxwell@auratenewyork.com',
-                   dev_recipients=True,)
+        # send_email("Repearment: added tracking number",
+        #            f"Current info {body['tracking_number']}, {body['DT']}",
+        #            email='maxwell@auratenewyork.com',
+        #            dev_recipients=True,)
     return body
 
 
@@ -1837,6 +1842,7 @@ def tmall_label_api():
 
 @app.route('/tmall-label-url/{tid}', methods=['GET'])
 def fulfill_label_api(tid):
+    tid = tid.strip().strip(',')
     item = get_tmall_label(tid)
     labels = item['labels']
     labels_text = '<br>' .join((f'<a href="{l}">{l}</a>' for l in labels))
@@ -1862,3 +1868,61 @@ def make_batch_shipments(event):
     make_batch_for_rocio_shipments()
 
 
+@app.route('/a', methods=['GET'])
+def a():
+    print('a')
+    from chalicelib.dynamo_operations import get_customer_data_from_repairs
+    items = get_customer_data_from_repairs(None)
+    for item in items:
+        if item.get("tracking_number", None):  # and not item['repearment_id']
+            if int(item['DT']) in (1629385113, 1629478242, 1628780892, 1627563799, 1628699794, 1628217043, 1629313613, 1628704782, 1627506999, 1628633724, 1628141742, 1628017484, 1627445203, 1627405155):
+                # print({"DT": item['DT'], "tracking_number": item.get("tracking_number", None), 'repearment_id': item.get('repearment_id', None)})
+                params = {"DT": int(item['DT']), "tracking_number": item["tracking_number"]}
+                requests.post("http://localhost:8000/repairmen_tracking", json=params)
+
+
+
+"""
+{'DT': Decimal('1628191377'), 'tracking_number': '282406450423', 'repearment_id': None}
+{'DT': Decimal('1627677607'), 'tracking_number': '283075667030', 'repearment_id': None}
+{'DT': Decimal('1629294725'), 'tracking_number': '774619788507', 'repearment_id': None}
+{'DT': Decimal('1627310846'), 'tracking_number': '282069551492', 'repearment_id': None}
+{'DT': Decimal('1628527898'), 'tracking_number': '283232388525', 'repearment_id': None}
+{'DT': Decimal('1627776034'), 'tracking_number': '1Z06242X0387786303', 'repearment_id': None}
+{'DT': Decimal('1627497800'), 'tracking_number': '1ZEY57370352783461', 'repearment_id': None}
+{'DT': Decimal('1627490770'), 'tracking_number': '9400128206334337587234', 'repearment_id': None}
+{'DT': Decimal('1628042327'), 'tracking_number': '1ZAW53220152639323', 'repearment_id': None}
+{'DT': Decimal('1629297764'), 'tracking_number': '283013213637', 'repearment_id': None}
+{'DT': Decimal('1629140439'), 'tracking_number': '282821342180', 'repearment_id': None}
+{'DT': Decimal('1628685386'), 'tracking_number': '282887300442', 'repearment_id': None}
+{'DT': Decimal('1628047404'), 'tracking_number': '774496255776', 'repearment_id': None}
+{'DT': Decimal('1626881792'), 'tracking_number': 'asdf', 'repearment_id': None}
+{'DT': Decimal('1627352478'), 'tracking_number': '2823 2570 6027', 'repearment_id': None}
+{'DT': Decimal('1628112300'), 'tracking_number': '774489393859', 'repearment_id': None}
+{'DT': Decimal('1628614009'), 'tracking_number': '9500113942661237873519', 'repearment_id': None}
+{'DT': Decimal('1628273911'), 'tracking_number': '282735190250', 'repearment_id': None}
+{'DT': Decimal('1628041815'), 'tracking_number': '1ZAW53220152639323', 'repearment_id': None}
+{'DT': Decimal('1627671140'), 'tracking_number': '282349375983', 'repearment_id': None}
+{'DT': Decimal('1627322171'), 'tracking_number': '283077264249', 'repearment_id': None}
+{'DT': Decimal('1627583382'), 'tracking_number': '282241995900', 'repearment_id': None}
+
+ 
+ 
+ - {'DT': Decimal('1629297881'), 'tracking_number': '283013251134', 'repearment_id': None} service default
+ 
+ - {'DT': Decimal('1629385113'), 'tracking_number': '282960790128', 'repearment_id': None}
+ - {'DT': Decimal('1629478242'), 'tracking_number': '9405503699300484284476', 'repearment_id': None}
+ - {'DT': Decimal('1628780892'), 'tracking_number': '774649331760', 'repearment_id': None}
+ - {'DT': Decimal('1627563799'), 'tracking_number': '282172077605', 'repearment_id': None}
+ - {'DT': Decimal('1628699794'), 'tracking_number': '282789516745', 'repearment_id': None}
+ - {'DT': Decimal('1628217043'), 'tracking_number': '283050431670', 'repearment_id': None}
+ - {'DT': Decimal('1629313613'), 'tracking_number': '774639088290', 'repearment_id': None}
+ - {'DT': Decimal('1628704782'), 'tracking_number': '282946194384', 'repearment_id': None}
+ - {'DT': Decimal('1627506999'), 'tracking_number': '528468302770', 'repearment_id': None}
+ - {'DT': Decimal('1628633724'), 'tracking_number': '9505506677611235263939', 'repearment_id': None}
+ - {'DT': Decimal('1628141742'), 'tracking_number': '282659119954', 'repearment_id': None}
+ - {'DT': Decimal('1628017484'), 'tracking_number': '1345213476513784', 'repearment_id': None}
+ - {'DT': Decimal('1627445203'), 'tracking_number': '774416200599', 'repearment_id': None}
+ - {'DT': Decimal('1627405155'), 'tracking_number': '774545267245', 'repearment_id': None}
+
+"""

@@ -52,16 +52,20 @@ def join_shipments(candidates):
             result = result and in_stock
         return result
 
+    def not_tmall_shipment(item):
+        return not (len(item.get('origins', '')) > 18 and
+                    '#' not in item.get('origins', ''))
+
     if len(candidates) > 1:
         # filtering that all moves from merge candidates are on the store
         checked_candidates = []
         for item in candidates:
-            if movements_in_stock(item['moves']):
+            if movements_in_stock(item['moves']) and not_tmall_shipment(item):
                 checked_candidates.append(item)
 
         if len(checked_candidates) <= 1:
             print(result_message(
-                skip_text='Have no sense (products are not on stock)')
+                skip_text='Have no sense (products are not in stock)')
             )
             return None
 
@@ -114,7 +118,7 @@ def merge_shipments():
                          {"__class__": "date", "year": 2020, "month": 3,
                           "day": 1}]]],
         order=[["delivery_address", "ASC"], ["state", "ASC"]],
-        fields=fields+['moves'])
+        fields=fields+['moves', 'origins'])
     join_candidates = []
     last = {}
     join_process_context = []
