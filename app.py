@@ -1574,8 +1574,11 @@ def customer_orders_api():
     orders = get_customer_orders(customer['id'], status='closed')
     shopify_variants = []
     for order in orders:
-        shopify_variants.extend(extract_variants_from_order(order))
-    variants = get_multiple_sku_info(sku_list=[v['sku'] for v in shopify_variants])
+        extracted_variants = extract_variants_from_order(order)
+        if extracted_variants:
+            shopify_variants.extend(extracted_variants)
+
+    variants = get_multiple_sku_info(sku_list=[v['sku'] for v in shopify_variants if v['sku']])
     for one_variant in shopify_variants:
         for v in variants:
             if v['PK'] == one_variant['sku']:
