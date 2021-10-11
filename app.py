@@ -1571,6 +1571,8 @@ def customer_orders_api():
     request = app.current_request
     email = request.json_body['email']
     customer = filter_shopify_customer(email=email)
+    if not customer:
+        return Response(status_code=404, body='User does not exist')
     orders = get_customer_orders(customer['id'], status='closed')
     shopify_variants = []
     for order in orders:
