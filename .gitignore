@@ -8,3 +8,4 @@ __pycache__
 .chalice/.DS_Store
 out
 _data
+rollback_data_local/
