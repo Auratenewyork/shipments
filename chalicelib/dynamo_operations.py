@@ -473,8 +473,6 @@ def get_customer_data_from_repairs(customers):
     return items
 
 
-
-
 def add_tmall_label(item):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(TMALL_LABEL_TABLE)

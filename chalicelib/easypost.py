@@ -174,38 +174,63 @@ def get_shipment(_id):
     return shipment
 
 
-def create_address(data, email=None, api_key=EASYPOST_TEST_API_KEY):
-    easypost.api_key = api_key
-    address = {
-        "name": data.get('name', format_fullname(data)),
-        "company": data.get('company'),
-        "street1": data.get('address1'),
-        "street2": data.get('address2'),
-        "city": data.get('city'),
-        "state": data.get('province_code'),
-        "zip": data.get('zip'),
-        "country": data.get('country_code'),
-        "phone": data.get('phone'),
-        "email": email,
-        "mode": "test",
-    }
-    return easypost.Address.create(**address)
+class EasyPostShipment:
 
+    def __init__(self, api_key=EASYPOST_TEST_API_KEY):
+        self.shipment = None
+        easypost.api_key = api_key
 
-def create_predefined_parcel(data, api_key=EASYPOST_TEST_API_KEY):
-    easypost.api_key = api_key
-    default = {
-        "predefined_package": "FlatRateEnvelope",
-        "weight": 10
-    }
-    default.update(data)
-    return easypost.Parcel.create(**default)
+    def create_address(self, data):
+        address = {
+            "name": data.get('name', format_fullname(data)),
+            "company": data.get('company'),
+            "street1": data.get('address1'),
+            "street2": data.get('address2'),
+            "city": data.get('city'),
+            "state": data.get('province_code'),
+            "zip": data.get('zip'),
+            "country": data.get('country_code'),
+            "phone": data.get('phone'),
+            "email": data.get('email'),
+            "mode": "test",
+        }
+        return easypost.Address.create(**address)
 
+    def create_parcel(self, data=None):
+        default = {
+            "predefined_package": "FlatRateEnvelope",
+            "weight": 10
+        }
+        if data:
+            default.update(data)
+        return easypost.Parcel.create(**default)
 
-def create_shipment(from_address, to_address, parcel, api_key=EASYPOST_TEST_API_KEY):
-    easypost.api_key = api_key
-    data = {}
-    data['from_address'] = {'id': from_address}
-    data['to_address'] = {'id': to_address}
-    data['parcel'] = {'id': parcel}
-    return easypost.Shipment.create(**data)
+    @retry(stop_max_attempt_number=2, wait_fixed=50)
+    def create_shipment(self, from_address, to_address, parcel=None):
+        self.from_address = self.create_address(from_address)
+        self.to_address = self.create_address(from_address)
+        self.parcel = self.create_parcel(from_address)
+        self.shipment = shipment = easypost.Shipment.create(**{
+            'from_address': self.from_address['id'],
+            'to_address': self.to_address['id'],
+            'parcel': self.parcel['id']
+        })
+        self.rates = self.get_rates(shipment)
+        return shipment
+
+    @staticmethod
+    def get_retail_rates(shipment):
+        rates = []
+        sh_rates = shipment.rates
+
+        for rate in sh_rates:
+            rates.append({
+                "carrier": rate['carrier'],
+                "retail_rate": rate['retail_rate'],
+                "retail_currency": rate['retail_currency'],
+            })
+
+    def get_shipment(self, _id):
+        if self.shipment:
+            return self.shipment
+        return easypost.Shipment.retrieve(_id)
