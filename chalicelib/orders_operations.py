@@ -64,9 +64,6 @@ def open_runnig_orders(filename='rollback_data/close_running_orders_04_30_2021_a
 
 
 def create_fulfill_order(data, channel_id='1'):
-    # client = Client('aurate-sandbox', '43cf9ddb7acc4ac69586b8f1081d65ab')  # for sandbox
-    # channel_id = 17  # for sandbox and Tmall channel
-    # channel_id = 16  # for prod and Tmall channel
     channel_id = get_tmall_channel_id()
     SaleChannel = client.model('sale.channel')
     return SaleChannel.create_order(channel_id, data)

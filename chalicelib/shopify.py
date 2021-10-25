@@ -4,6 +4,8 @@ import re
 import requests
 
 from chalicelib.fulfil import client
+from chalicelib.dynamo_operations import get_multiple_sku_info
+
 
 SHOPIFY_APP_CRED = os.environ.get('SHOPIFY_APP_CRED', '')
 
@@ -86,16 +88,36 @@ def get_customer_orders(customer_id, status='any'):
     return data['orders']
 
 
+def get_customer_orders_with_variants(customer_id, status='any'):
+    orders = get_customer_orders(customer_id, status)
+    shopify_variants = []
+    for order in orders:
+        extracted_variants = extract_variants_from_order(order)
+        if extracted_variants:
+            shopify_variants.extend(extracted_variants)
+    return shopify_variants
+
+
+def add_sku_info(items):
+    variants = get_multiple_sku_info(sku_list=[v['sku'] for v in items if v['sku']])
+    for one_variant in items:
+        for v in variants:
+            if v['PK'] == one_variant['sku']:
+                one_variant.update(v)
+                break
+    return items
+
+
 def extract_variants_from_order(order):
     return [
         {
-            'order_id':order['id'],
-            'order_name':order['name'],
-            'product_id':variant['product_id'],
-            'variant_id':variant['variant_id'],
-            'id':variant['id'],
-            'sku':variant['sku'],
-         }
+            'order_id': order['id'],
+            'order_name': order['name'],
+            'product_id': variant['product_id'],
+            'variant_id': variant['variant_id'],
+            'id': variant['id'],
+            'sku': variant['sku'],
+        }
         for variant in order['line_items']
     ]
 

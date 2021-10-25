@@ -11,7 +11,6 @@ import requests
 import sentry_sdk
 import traceback
 from datetime import date, datetime, timedelta
-from decimal import Decimal
 from functools import lru_cache
 
 import boto3
@@ -21,7 +20,7 @@ from fulfil_client import ClientError, ServerError
 
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
-    RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY)
+    RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY, CLAIMS_PAGE_SIZE)
 from chalicelib import web_scraper, loopreturns
 from chalicelib.add_tags_in_comments import add_AOV_tag_to_shipments, \
     add_EXE_tag_to_ship_instructions
@@ -30,11 +29,12 @@ from chalicelib.count_boxes import process_boxes
 from chalicelib.create_fulfil import create_fullfill_order
 from chalicelib.delivered_orders import delivered_orders, send_repearment_email
 from chalicelib.dynamo_operations import save_easypost_to_dynamo, \
-    get_dynamo_last_id, save_shopify_sku, get_shopify_sku_info, \
-    get_multiple_sku_info, save_repearment_order, list_repearment_orders, \
+    get_dynamo_last_id, save_shopify_sku, \
+    save_repearment_order, list_repearment_orders, \
     update_repearment_order, get_repearment_order, \
     update_repearment_tracking_number, list_repearment_by_date, \
-    update_repearment_order_info, add_tmall_label, get_tmall_label
+    update_repearment_order_info, add_tmall_label, get_tmall_label, \
+    get_repairs_for_customer
 from chalicelib.easypost import get_easypost_record, \
     scrape_easypost__match_reference, get_easypost_record_by_reference, \
     get_shipment, get_easypost_record_by_reference_
@@ -66,12 +66,13 @@ from chalicelib.shipments import (
     pull_shipments_by_date, weekly_pull, customer_shipments_pull,
     make_batch_for_rocio_shipments)
 from chalicelib.shopify import shopify_products, get_shopify_products, \
-    filter_shopify_customer, get_customer_orders, extract_variants_from_order
+    filter_shopify_customer, get_customer_orders_with_variants, add_sku_info
 from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
 from chalicelib.delivered_orders import return_orders
-from chalicelib.utils import capture_to_sentry, capture_error
+from chalicelib.utils import capture_to_sentry, capture_error, \
+    get_authorization, paginate_items
 from jinja2 import Template
 from chalice import CORSConfig
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -1566,35 +1567,57 @@ def sync_shopify():
 #                     update_shopify_image(item['PK'], image.get('src', ''))
 
 
-@app.route('/customer_orders', methods=['POST'], cors=cors_config)
+@app.route('/customer_orders', methods=['POST', 'GET'], cors=cors_config)
 def customer_orders_api():
     request = app.current_request
-    email = request.json_body['email']
+    if request.method == 'POST':  # for compatibility
+        data = request.json_body
+        email = data.get('email')
+    else:
+        data = request.query_params
+        email = get_authorization(request.headers.get('authorization', ''))
+    if not email:
+        return Response(status_code=401, body='Unauthorized')
+
     customer = filter_shopify_customer(email=email)
     if not customer:
         return Response(status_code=404, body='User does not exist')
-    orders = get_customer_orders(customer['id'], status='closed')
-    shopify_variants = []
-    for order in orders:
-        extracted_variants = extract_variants_from_order(order)
-        if extracted_variants:
-            shopify_variants.extend(extracted_variants)
 
-    variants = get_multiple_sku_info(sku_list=[v['sku'] for v in shopify_variants if v['sku']])
-    for one_variant in shopify_variants:
-        for v in variants:
-            if v['PK'] == one_variant['sku']:
-                one_variant.update(v)
-                break
+    page_size = data.get('page_size', CLAIMS_PAGE_SIZE)
+    page = data.get('page', 1)
+    filter_ = data.get('filter', '')
+    if filter_.lower() == 'claims':
+        variants, lkey, total = get_repairs_for_customer(customer['id'])
+        [var.setdefault('id', var['DT']) for var in variants]
+    else:
+        variants = get_customer_orders_with_variants(customer['id'], status='closed')
 
     address = customer.get('default_address', {})
     address.pop('id', None)
     address.pop('customer_id', None)
     address['first_name'] = customer.get('first_name', '')
     address['last_name'] = customer.get('last_name', '')
+    lkey = None
+    if variants:
+        total = len(variants)
+        # TODO: Fix pagination
+        variants, total_ = paginate_items(variants, page, page_size, sort_key='order_id')
+        add_sku_info(variants)
+        lkey = variants[-1]['id']
 
-    return {'orders': shopify_variants, 'address': address,
-            'customer_id': customer['id'], 'email':email}
+    data = {
+        'items': variants,
+        'address': address,
+        'customer_id': customer['id'],
+        'email': email,
+        'lkey': lkey,
+        'total': total,
+        'page_size': page_size,
+        'page': page
+
+    }
+    print(data)
+    return data
 
 
 def save_repearment_files(_date, files):
@@ -1664,7 +1687,7 @@ def repairmen_list_api():
     last_id, search, filter_, extra_filter = None, None, None, None
     if request.query_params:
         page = int(request.query_params.get('page', 1) or 1)
-        page_size = int(request.query_params.get('page_size', 50))
+        page_size = int(request.query_params.get('page_size', CLAIMS_PAGE_SIZE))
         last_id = request.query_params.get('last_id', None)
         search = request.query_params.get('search', None)
         filter_ = request.query_params.get('filter', None)
@@ -1675,7 +1698,7 @@ def repairmen_list_api():
             extra_filter = 'tracking_number'
     else:
         filter_ = 'pending'
-        page, page_size = 1, 50
+        page, page_size = 1, CLAIMS_PAGE_SIZE
     items, last_key, total = list_repearment_orders(
         last_id, search, filter_, extra_filter, page, page_size)
     return {'items': items, 'last_id': last_key.get('DT', None), 'total': total}
@@ -1805,7 +1828,7 @@ def tmall_api():
     try:
         if body.get('Event') == 'taobao_trade_TradePAID':
             order = TmallOrderConverter(body.get('Content')).get_order()
-            record = create_fulfill_order(body.get('Content'))
+            record = create_fulfill_order(order)
             if type(record) == list:
                 record = record[0]
             body = {'Order': {'id': record.id, 'rec_name': record.rec_name}}

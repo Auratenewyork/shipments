@@ -7,6 +7,9 @@ import re
 from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import ClientError
 
+from chalicelib import CLAIMS_PAGE_SIZE
+from chalicelib.utils import paginate_items
+
 
 # EASYPOST_TABLE = 'fullfill_easypost_order'
 EASYPOST_TABLE = 'easypost_ids'
@@ -262,19 +265,14 @@ def update_repearment_order_info(DT, order):
     print()
 
 
-def paginate_items(items, page=1, page_size=10):
-    items.sort(key=lambda x: x['DT'], reverse=True)
-    return items[(page-1)*page_size:page*page_size], len(items)
-
-
-def search_repearments_order(order_name, approve, page, page_size):
+def search_repearments_order(order_name, approve, page, page_size=CLAIMS_PAGE_SIZE):
     items = list_repearment_orders_(order_name=order_name, approve=approve)
-    items, total = paginate_items(items)
+    items, total = paginate_items(items, sort_key='DT')
     return items, {}, total
 
 
 def list_repearment_orders(ExclusiveStartKey=None, order_name=None,
-                           approve=None, extra_filter=None, page=1, page_size=10):
+                           approve=None, extra_filter=None, page=1, page_size=CLAIMS_PAGE_SIZE):
     if order_name:
         return search_repearments_order(order_name, approve, page, page_size)
 
@@ -295,7 +293,7 @@ def list_repearment_orders(ExclusiveStartKey=None, order_name=None,
 
     response = table.query(**scan_kwargs)
     items = response['Items']
-    items, total = paginate_items(items, page, page_size)
+    items, total = paginate_items(items, page, page_size, sort_key='DT')
 
     # # scan all table in the future replace by pagination
     while 'LastEvaluatedKey' in response:
@@ -323,6 +321,7 @@ def batch_get_repearments(items, extra_filter=None):
     return items
 
 
+# Unused
 def list_repearment_orders_(ExclusiveStartKey=None, order_name=None, approve=None):
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
@@ -383,6 +382,62 @@ def get_repearment_order(DT):
     else:
         return response['Item']
 
+def UUlist_repearment_orders(ExclusiveStartKey=None, order_name=None,
+                           approve=None, extra_filter=None, page=1, page_size=CLAIMS_PAGE_SIZE):
+    if order_name:
+        return search_repearments_order(order_name, approve, page, page_size)
+
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(REPAIRMENT_TABLE)
+    default_scan_kwargs = {
+        'IndexName': 'approve-DT-index',
+        'ScanIndexForward': False,
+        'KeyConditionExpression': Key('approve').eq(approve.lower()),
+    }
+
+    scan_kwargs = default_scan_kwargs.copy()
+    scan_kwargs['Limit'] = page_size
+
+    if ExclusiveStartKey:
+        ExclusiveStartKey = int(ExclusiveStartKey)
+        scan_kwargs['ExclusiveStartKey'] = ExclusiveStartKey
+
+    response = table.query(**scan_kwargs)
+    items = response['Items']
+    total = 0
+    if items:
+        # items.sort(key=lambda x: x['DT'], reverse=True)
+        items = batch_get_repearments(items, extra_filter)
+        total = table.query(Select='COUNT', **default_scan_kwargs)['Count']
+
+    return items, response.get('LastEvaluatedKey', {}), total
+
+
+def get_repairs_for_customer(customer_id=2949941133409, ExclusiveStartKey=None, page=1, page_size=CLAIMS_PAGE_SIZE, full=False):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(REPAIRMENT_TABLE)
+    default_scan_kwargs = {
+        'IndexName': 'customer_id-index',
+        'ScanIndexForward': False,
+        'KeyConditionExpression': Key('customer_id').eq(customer_id),
+    }
+    total = table.query(Select='COUNT', **default_scan_kwargs)['Count']
+
+    if not total:
+        return [], {}, total
+
+    scan_kwargs = default_scan_kwargs.copy()
+    scan_kwargs['Limit'] = min(page_size, int(total))
+
+    if ExclusiveStartKey:
+        scan_kwargs['ExclusiveStartKey'] = int(ExclusiveStartKey)
+
+    response = table.query(**scan_kwargs)
+    items = response['Items']
+    if full:
+        items = batch_get_repearments(items)
+
+    return items, response.get('LastEvaluatedKey', {}), total
 
 
 def get_customer_data_from_repairs(customers):
@@ -416,6 +471,8 @@ def get_customer_data_from_repairs(customers):
                     item['description'],
                     item.get('note', '')])
     return items
+
+
 
 
 def add_tmall_label(item):

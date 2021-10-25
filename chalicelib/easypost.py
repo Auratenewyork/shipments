@@ -5,10 +5,12 @@ import requests
 from requests.auth import HTTPBasicAuth
 from retrying import retry
 
-from chalicelib import EASYPOST_API_KEY, EASYPOST_URL
+from chalicelib import EASYPOST_TEST_API_KEY, EASYPOST_API_KEY, EASYPOST_URL
 from chalicelib.common import listDictsToHTMLTable
 import easypost
 from chalicelib.dynamo_operations import get_easypost_ids
+from chalicelib.utils import format_fullname
+
 
 def get_transit_shipment_params():
     page_size = 100
@@ -171,3 +173,39 @@ def get_shipment(_id):
     shipment = easypost.Shipment.retrieve(_id)
     return shipment
 
+
+def create_address(data, email=None, api_key=EASYPOST_TEST_API_KEY):
+    easypost.api_key = api_key
+    address = {
+        "name": data.get('name', format_fullname(data)),
+        "company": data.get('company'),
+        "street1": data.get('address1'),
+        "street2": data.get('address2'),
+        "city": data.get('city'),
+        "state": data.get('province_code'),
+        "zip": data.get('zip'),
+        "country": data.get('country_code'),
+        "phone": data.get('phone'),
+        "email": email,
+        "mode": "test",
+    }
+    return easypost.Address.create(**address)
+
+
+def create_predefined_parcel(data, api_key=EASYPOST_TEST_API_KEY):
+    easypost.api_key = api_key
+    default = {
+        "predefined_package": "FlatRateEnvelope",
+        "weight": 10
+    }
+    default.update(data)
+    return easypost.Parcel.create(**default)
+
+
+def create_shipment(from_address, to_address, parcel, api_key=EASYPOST_TEST_API_KEY):
+    easypost.api_key = api_key
+    data = {}
+    data['from_address'] = {'id': from_address}
+    data['to_address'] = {'id': to_address}
+    data['parcel'] = {'id': parcel}
+    return easypost.Shipment.create(**data)

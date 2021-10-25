@@ -1,3 +1,4 @@
+import base64
 import csv
 from datetime import datetime
 import json
@@ -57,3 +58,23 @@ def capture_error(error, data=None, email=None, **tags):
         capture_exception(error, scope=scope)
     if email:
         send_email(error, str(data), email=email)
+
+
+def get_authorization(data):
+    if not data:
+        return
+    data = data.split()[1]
+    return base64.b64decode(data).decode()
+
+
+def paginate_items(items, page=1, page_size=10, sort_key=None):
+    if sort_key:
+        items.sort(key=lambda x: x[sort_key], reverse=True)
+
+    return items[(int(page) - 1) * int(page_size):int(page) * int(page_size)], len(items)
+
+
+def format_fullname(data):
+    first_name = data.get('first_name', '').strip()
+    last_name = data.get('last_name', '').strip()
+    return '{} {}'.format(first_name, last_name).strip()
