@@ -178,6 +178,7 @@ class EasyPostShipment:
 
     def __init__(self, api_key=EASYPOST_TEST_API_KEY):
         self.shipment = None
+        self.label = None
         easypost.api_key = api_key
 
     def create_address(self, data):
@@ -211,9 +212,9 @@ class EasyPostShipment:
         self.to_address = self.create_address(from_address)
         self.parcel = self.create_parcel(from_address)
         self.shipment = shipment = easypost.Shipment.create(**{
-            'from_address': self.from_address['id'],
-            'to_address': self.to_address['id'],
-            'parcel': self.parcel['id']
+            'from_address': self.from_address,
+            'to_address': self.to_address,
+            'parcel': self.parcel
         })
         self.rates = self.get_rates(shipment)
         return shipment
@@ -234,3 +235,14 @@ class EasyPostShipment:
         if self.shipment:
             return self.shipment
         return easypost.Shipment.retrieve(_id)
+
+    def get_label(self, rate_id):
+        if self.label:
+            return self.label
+
+        if rate_id:
+            label = self.shipment.buy(rate={'id': rate_id})
+        else:
+            label = shipment.buy(rate=shipment.lowest_rate(carriers=['USPS'], services=['First']))
+        self.label = label
+        return label
