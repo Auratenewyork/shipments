@@ -75,7 +75,8 @@ def filter_shopify_customer(email=None):
     query = {'query': " ".join(params)}
     response = requests.get(base_url, params=query)
     data = response.json()
-    return data['customers'][0]
+    customers = data.get('customers')
+    return customers and customers[0]
 
 
 def get_customer_orders(customer_id, status='any'):
