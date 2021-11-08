@@ -188,6 +188,10 @@ def split_shipment(shipment):
             return f"Skip product {shipment['number']} as it is " \
                    f"Global order."\
                    f"Sale order {shipment['order_numbers']}"
+        if len(sale['reference']) > 18 and '#' not in sale.get('reference', ''):
+            return f"Skip product {shipment['number']} as it is " \
+                   f"From Tmall." \
+                   f"Sale order {shipment['order_numbers']}"
 
     Shipment = client.model('stock.shipment.out')
     instance = Shipment.get(shipment['id'])

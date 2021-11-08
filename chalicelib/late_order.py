@@ -125,7 +125,8 @@ def update_planned_date(shipment, email_type):
     planned_date = shipment['planned_date'] + timedelta(days=delta)
     shipping_instructions = f"{shipment['shipping_instructions']}" \
                             f"\r\nPlanned date delayed at {str(delta)} days."
-    changes = {'planned_date': planned_date,
+    changes = {
+               # 'planned_date': planned_date,
                'shipping_instructions': shipping_instructions}
     Model.write([shipment['id']], changes)
 
