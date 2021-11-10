@@ -71,12 +71,11 @@ from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
 from chalicelib.delivered_orders import return_orders
-from chalicelib.utils import capture_to_sentry, capture_error, \
-    get_authorization, paginate_items
+from chalicelib.utils import capture_to_sentry, capture_error, get_request_data, paginate_items
 from jinja2 import Template
 from chalice import CORSConfig
 from sentry_sdk.integrations.flask import FlaskIntegration
-from chalicelib.decorators import try_except
+from chalicelib.decorators import try_except, auth_customer_by_email
 from chalicelib.orders_operations import create_fulfill_order, \
     cancel_fulfill_order
 from chalicelib.tmall_utils import TmallOrderConverter
@@ -1568,21 +1567,10 @@ def sync_shopify():
 
 
 @app.route('/customer_orders', methods=['POST', 'GET'], cors=cors_config)
-def customer_orders_api():
-    request = app.current_request
-    if request.method == 'POST':  # for compatibility
-        data = request.json_body
-        email = data.get('email')
-    else:
-        data = request.query_params
-        email = get_authorization(request.headers.get('authorization', ''))
-    if not email:
-        return Response(status_code=401, body='Unauthorized')
-
-    customer = filter_shopify_customer(email=email)
-    if not customer:
-        return Response(status_code=404, body='User does not exist')
-
+@auth_customer_by_email(app)
+def customer_orders_api(customer):
+    print(customer)
+    data = get_request_data(app.current_request)
     page_size = data.get('page_size', CLAIMS_PAGE_SIZE)
     page = data.get('page', 1)
     filter_ = data.get('filter', '')
@@ -1609,7 +1597,7 @@ def customer_orders_api():
         'items': variants,
         'address': address,
         'customer_id': customer['id'],
-        'email': email,
+        'email': customer['email'],
         'lkey': lkey,
         'total': total,
         'page_size': page_size,
@@ -1701,6 +1689,29 @@ def repairmen_list_api():
         page, page_size = 1, CLAIMS_PAGE_SIZE
     items, last_key, total = list_repearment_orders(
         last_id, search, filter_, extra_filter, page, page_size)
+    print(items and items[0] or None)
+    return {'items': items, 'last_id': last_key.get('DT', None), 'total': total}
+
+
+@app.route('/customer_repairments', methods=['GET'], cors=cors_config)
+@auth_customer_by_email(app)
+def customer_repairment_list(customer):
+    # https://4p9vek36rc.execute-api.us-east-2.amazonaws.com/api/repairments?search=2345454&filter=Pending
+    request = app.current_request
+    last_id, search, extra_filter = None, None, None
+    if request.query_params:
+        page = int(request.query_params.get('page', 1) or 1)
+        page_size = int(request.query_params.get('page_size', CLAIMS_PAGE_SIZE))
+        last_id = request.query_params.get('last_id', None)
+        search = request.query_params.get('search', None)
+    items, last_key, total = get_repairs_for_customer(
+        customer_id=customer['id'],
+        ExclusiveStartKey=last_id,
+        page=page,
+        page_size=page_size)
+    [item.setdefault('id', item['DT']) for item in items]
+    add_sku_info(items)
+    print(items and items[0] or None)
     return {'items': items, 'last_id': last_key.get('DT', None), 'total': total}
 
 

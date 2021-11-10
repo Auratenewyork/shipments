@@ -78,3 +78,9 @@ def format_fullname(data):
     first_name = data.get('first_name', '').strip()
     last_name = data.get('last_name', '').strip()
     return '{} {}'.format(first_name, last_name).strip()
+
+
+def get_request_data(request):
+    if request.method in ('POST', 'PUT'):  # for compatibility
+        return request.json_body
+    return request.query_params

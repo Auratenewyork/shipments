@@ -382,6 +382,7 @@ def get_repearment_order(DT):
     else:
         return response['Item']
 
+
 def UUlist_repearment_orders(ExclusiveStartKey=None, order_name=None,
                            approve=None, extra_filter=None, page=1, page_size=CLAIMS_PAGE_SIZE):
     if order_name:
@@ -417,22 +418,19 @@ def get_repairs_for_customer(customer_id=2949941133409, ExclusiveStartKey=None, 
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(REPAIRMENT_TABLE)
     default_scan_kwargs = {
-        'IndexName': 'customer_id-index',
-        'ScanIndexForward': False,
-        'KeyConditionExpression': Key('customer_id').eq(customer_id),
+        'FilterExpression': Key('customer_id').eq(customer_id),
     }
-    total = table.query(Select='COUNT', **default_scan_kwargs)['Count']
-
+    total = table.scan(Select='COUNT', **default_scan_kwargs)['Count']
     if not total:
         return [], {}, total
 
     scan_kwargs = default_scan_kwargs.copy()
-    scan_kwargs['Limit'] = min(page_size, int(total))
+    # scan_kwargs['Limit'] = min(page_size, int(total))
 
     if ExclusiveStartKey:
         scan_kwargs['ExclusiveStartKey'] = int(ExclusiveStartKey)
 
-    response = table.query(**scan_kwargs)
+    response = table.scan(**scan_kwargs)
     items = response['Items']
     if full:
         items = batch_get_repearments(items)
