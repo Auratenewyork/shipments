@@ -3,6 +3,7 @@ import os
 import secrets
 import requests
 
+
 false = False
 true = True
 
@@ -39,7 +40,6 @@ def create_store_address(headers, params):
     response = requests.post(url, headers=headers, json=params)
     r = response.json()
     return r['data']['id']
-
 
 
 def get_customer(headers, params, address, email):
@@ -80,6 +80,7 @@ def get_customer_address(headers, params):
     r = response.json()
     return r['data']
 
+
 def get_country_id(headers, address):
     url = f'{RESHINE_URL}countries'
     response = requests.get(url, headers=headers)
@@ -114,8 +115,6 @@ def get_city_info(headers, address):
                 i['state']['country']['name'] == address['country']:
             result = {"city_id" : i['id'], "state_id":  i['state']['id'],
                     "country_id": i['state']['country']['id']}
-
-
 
 
 def format_phone(number):
@@ -167,6 +166,7 @@ def get_or_create_customer_address(headers, params, address, customer_id):
     else:
         customer_address = create_customer_address(headers, params, address, customer_id)
         return customer_address
+
 
 def create_rep_order(headers, store_id, customer_id, address_id, service):
     url = f'{RESHINE_URL}sales-order'
@@ -257,13 +257,6 @@ def login():
     return token, store
 
 
-# def get_services(headers, params):
-#     url = f'{RESHINE_URL}filter-services'
-#     response = requests.get(url, headers=headers, params=params)
-#     r = response.json()
-#     return r['data']
-
-
 def get_services(headers, params, name):
     service_names = {
         'ring reshaping': 'Ring Reshaping',
@@ -322,7 +315,6 @@ def get_sales_order_info(_id):
     store_id = store['id']
     order_info = get_order_info(store_id=store_id, _id=_id, headers=headers)
     return order_info
-
 
 
 """

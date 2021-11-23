@@ -55,8 +55,7 @@ from chalicelib.fulfil import (
     waiting_allocation, add_exe_comment)
 from chalicelib.internal_shipments import ProcessInternalShipment
 from chalicelib.late_order import find_late_orders
-from chalicelib.repearments import create_repearments_order, \
-    get_sales_order_info
+from chalicelib.repearments import create_repearments_order, get_sales_order_info
 from chalicelib.rubyhas import (
     api_call, build_sales_order, create_purchase_order, get_item_quantity,
     get_full_inventory)
@@ -72,6 +71,8 @@ from chalicelib.sync_sku import get_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
 from chalicelib.delivered_orders import return_orders
 from chalicelib.utils import capture_to_sentry, capture_error, get_request_data, paginate_items
+from chalicelib.easypost import RepairementShipment
+from chalicelib.stripe import StripePayment
 from jinja2 import Template
 from chalice import CORSConfig
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -1569,7 +1570,6 @@ def sync_shopify():
 @app.route('/customer_orders', methods=['POST', 'GET'], cors=cors_config)
 @auth_customer_by_email(app)
 def customer_orders_api(customer):
-    print(customer)
     data = get_request_data(app.current_request)
     page_size = data.get('page_size', CLAIMS_PAGE_SIZE)
     page = data.get('page', 1)
@@ -1604,7 +1604,6 @@ def customer_orders_api(customer):
         'page': page
 
     }
-    print(data)
     return data
 
 
@@ -1689,7 +1688,6 @@ def repairmen_list_api():
         page, page_size = 1, CLAIMS_PAGE_SIZE
     items, last_key, total = list_repearment_orders(
         last_id, search, filter_, extra_filter, page, page_size)
-    print(items and items[0] or None)
     return {'items': items, 'last_id': last_key.get('DT', None), 'total': total}
 
 
@@ -1698,7 +1696,7 @@ def repairmen_list_api():
 def customer_repairment_list(customer):
     # https://4p9vek36rc.execute-api.us-east-2.amazonaws.com/api/repairments?search=2345454&filter=Pending
     request = app.current_request
-    last_id, search, extra_filter = None, None, None
+    last_id = search = None
     if request.query_params:
         page = int(request.query_params.get('page', 1) or 1)
         page_size = int(request.query_params.get('page_size', CLAIMS_PAGE_SIZE))
@@ -1711,7 +1709,6 @@ def customer_repairment_list(customer):
         page_size=page_size)
     [item.setdefault('id', item['DT']) for item in items]
     add_sku_info(items)
-    print(items and items[0] or None)
     return {'items': items, 'last_id': last_key.get('DT', None), 'total': total}
 
 
@@ -1754,7 +1751,6 @@ def repairmen_list_api():
             order = create_repearments_order(item)
         except Exception as e:
             order = None
-            print(body)
             send_exception()
 
         if order:
@@ -1782,7 +1778,6 @@ def repearment_reminder_event(event):
 
 @app.route('/repearment_reminder', methods=['GET'])
 def repearment_reminder_api():
-    # end = datetime.utcnow() - timedelta(days=2)
     end = datetime.utcnow() - timedelta(days=4)  # To remind 3 times
     start = end - timedelta(days=1)
     items, _ = list_repearment_by_date(datetime.timestamp(start), datetime.timestamp(end))
@@ -1920,48 +1915,102 @@ def a():
                 requests.post("http://localhost:8000/repairmen_tracking", json=params)
 
 
+@app.route('/create-shipment', methods=['POST'], cors=cors_config)
+def create_shipment_intent():
+    to_address = {
+        "address1": "100NW 6th street",
+        "address2": "",
+        "city": "Miami",
+        "company": "Aurate",
+        "country_code": "US",
+        "country_name": "United States",
+        "province_code": "FL",
+        "zip": "33136"
+    }
+    request = app.current_request
+    body = request.json_body
+    from_address = body.get('address')
+    order = body.get('order')
+    if not (from_address and order):
+        return Response(status_code=400, body='Bad Request!')
 
-"""
-{'DT': Decimal('1628191377'), 'tracking_number': '282406450423', 'repearment_id': None}
-{'DT': Decimal('1627677607'), 'tracking_number': '283075667030', 'repearment_id': None}
-{'DT': Decimal('1629294725'), 'tracking_number': '774619788507', 'repearment_id': None}
-{'DT': Decimal('1627310846'), 'tracking_number': '282069551492', 'repearment_id': None}
-{'DT': Decimal('1628527898'), 'tracking_number': '283232388525', 'repearment_id': None}
-{'DT': Decimal('1627776034'), 'tracking_number': '1Z06242X0387786303', 'repearment_id': None}
-{'DT': Decimal('1627497800'), 'tracking_number': '1ZEY57370352783461', 'repearment_id': None}
-{'DT': Decimal('1627490770'), 'tracking_number': '9400128206334337587234', 'repearment_id': None}
-{'DT': Decimal('1628042327'), 'tracking_number': '1ZAW53220152639323', 'repearment_id': None}
-{'DT': Decimal('1629297764'), 'tracking_number': '283013213637', 'repearment_id': None}
-{'DT': Decimal('1629140439'), 'tracking_number': '282821342180', 'repearment_id': None}
-{'DT': Decimal('1628685386'), 'tracking_number': '282887300442', 'repearment_id': None}
-{'DT': Decimal('1628047404'), 'tracking_number': '774496255776', 'repearment_id': None}
-{'DT': Decimal('1626881792'), 'tracking_number': 'asdf', 'repearment_id': None}
-{'DT': Decimal('1627352478'), 'tracking_number': '2823 2570 6027', 'repearment_id': None}
-{'DT': Decimal('1628112300'), 'tracking_number': '774489393859', 'repearment_id': None}
-{'DT': Decimal('1628614009'), 'tracking_number': '9500113942661237873519', 'repearment_id': None}
-{'DT': Decimal('1628273911'), 'tracking_number': '282735190250', 'repearment_id': None}
-{'DT': Decimal('1628041815'), 'tracking_number': '1ZAW53220152639323', 'repearment_id': None}
-{'DT': Decimal('1627671140'), 'tracking_number': '282349375983', 'repearment_id': None}
-{'DT': Decimal('1627322171'), 'tracking_number': '283077264249', 'repearment_id': None}
-{'DT': Decimal('1627583382'), 'tracking_number': '282241995900', 'repearment_id': None}
+    shipment = RepairementShipment(
+        customer_id=order['customer_id'],
+        order_id=order['order_id'])
+    if shipment.exists:
+        if shipment.repairement_shipment['payment_status'] == 'succeeded':
+            return {'msg': 'Already paid'}
+    else:
+        shipment.create_easypost_shipment(from_address, to_address)
+        shipment.create_repearment_shipment(order)
+    rates = shipment.get_retail_rates()
+    return {'rates': rates, 'selected': rates[0]}
 
- 
- 
- - {'DT': Decimal('1629297881'), 'tracking_number': '283013251134', 'repearment_id': None} service default
- 
- - {'DT': Decimal('1629385113'), 'tracking_number': '282960790128', 'repearment_id': None}
- - {'DT': Decimal('1629478242'), 'tracking_number': '9405503699300484284476', 'repearment_id': None}
- - {'DT': Decimal('1628780892'), 'tracking_number': '774649331760', 'repearment_id': None}
- - {'DT': Decimal('1627563799'), 'tracking_number': '282172077605', 'repearment_id': None}
- - {'DT': Decimal('1628699794'), 'tracking_number': '282789516745', 'repearment_id': None}
- - {'DT': Decimal('1628217043'), 'tracking_number': '283050431670', 'repearment_id': None}
- - {'DT': Decimal('1629313613'), 'tracking_number': '774639088290', 'repearment_id': None}
- - {'DT': Decimal('1628704782'), 'tracking_number': '282946194384', 'repearment_id': None}
- - {'DT': Decimal('1627506999'), 'tracking_number': '528468302770', 'repearment_id': None}
- - {'DT': Decimal('1628633724'), 'tracking_number': '9505506677611235263939', 'repearment_id': None}
- - {'DT': Decimal('1628141742'), 'tracking_number': '282659119954', 'repearment_id': None}
- - {'DT': Decimal('1628017484'), 'tracking_number': '1345213476513784', 'repearment_id': None}
- - {'DT': Decimal('1627445203'), 'tracking_number': '774416200599', 'repearment_id': None}
- - {'DT': Decimal('1627405155'), 'tracking_number': '774545267245', 'repearment_id': None}
 
-"""
+@app.route('/create-payment-intent', methods=['POST'], cors=cors_config)
+def create_payment():
+    request = app.current_request
+    body = request.json_body
+    rate = body.get('rate')
+    if not (rate and rate.get('shipment_id')):
+        return Response(status_code=400, body='Bad Request!')
+
+    shipment = RepairementShipment(shipment_id=rate['shipment_id'])
+    if not shipment.exists:
+        return Response(status_code=400, body='Bad Request! Unknown Rate')
+
+    pid, secret = shipment.make_payment_intent(rate)
+    return {
+        'secret': secret,
+        'amount': rate['retail_rate'],
+        'rate': rate
+    }
+
+
+@app.route('/payment-accepted', methods=['GET', 'POST'], cors=cors_config)
+def payment_accepted():
+    request = app.current_request
+    body = request.json_body
+    intent = body.get('payment_intent')
+    customer_id = body.get('customer_id')
+    if not (intent and customer_id):
+        return Response(status_code=400, body='Bad Request!')
+    try:
+        customer_id = int(customer_id)
+    except ValueError:
+        return Response(status_code=400, body='Bad Request! Wrong Customer')
+    shipment = RepairementShipment(PID=intent, customer_id=customer_id)
+    if not shipment.exists:
+        return Response(status_code=400, body='Bad Request! Wrong payment intent id')
+
+    repairement_shipment = shipment.repairement_shipment
+    repairement = get_repearment_order(repairement_shipment['repairement_id'])
+
+    if body.get('status') != 'succeeded':
+        return {'item': repairement}
+
+    if repairement_shipment['payment_status'] == 'succeeded' and repairement.get('tracking_number'): # already updated
+        return {'item': repairement}
+
+    shipment.get_label()
+    # UPDate order data after get_label
+    return {'item': get_repearment_order(shipment.repairement_shipment['repairement_id'])}
+
+
+@app.route('/sh-payment-succeed', methods=['POST'], cors=cors_config)
+def shipment_payment_succeed():
+    request = app.current_request
+    signature = request.headers.get('stripe-signature')
+    if not signature:
+        return Response(status_code=400, body='Bad Request!')
+
+    event = request.json_body
+    payment = StripePayment()
+    if not payment.verify_payment_intent(signature, event):
+        return Response(status_code=400, body='Bad Request!')
+
+    if event['type'] == "payment_intent.succeeded":
+        shipment = RepairementShipment(PID=event['data']['object']['id'])
+        if shipment.exists:
+            shipment.get_label()
+    return {}

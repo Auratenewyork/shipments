@@ -1,15 +1,21 @@
 import pickle
 from datetime import datetime, timedelta, date
+from decimal import Decimal
+from operator import itemgetter
 
 import requests
 from requests.auth import HTTPBasicAuth
 from retrying import retry
 
-from chalicelib import EASYPOST_TEST_API_KEY, EASYPOST_API_KEY, EASYPOST_URL
+from chalicelib import EASYPOST_API_KEY, EASYPOST_URL
 from chalicelib.common import listDictsToHTMLTable
 import easypost
-from chalicelib.dynamo_operations import get_easypost_ids
+from chalicelib.dynamo_operations import (
+    get_easypost_ids, filter_repairement_shipments,
+    save_repairment_shipment, update_repairment_shipment,
+    update_repairment_order)
 from chalicelib.utils import format_fullname
+from chalicelib.stripe import StripePayment
 
 
 def get_transit_shipment_params():
@@ -169,17 +175,41 @@ def collect_new_info(result, last_id):
 
 
 def get_shipment(_id):
+    print(EASYPOST_API_KEY)
     easypost.api_key = EASYPOST_API_KEY
     shipment = easypost.Shipment.retrieve(_id)
     return shipment
 
 
-class EasyPostShipment:
+class RepairementShipment:
 
-    def __init__(self, api_key=EASYPOST_TEST_API_KEY):
-        self.shipment = None
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.easypost_shipment = {}
         self.label = None
-        easypost.api_key = api_key
+        self.payment = None
+        self.repairement_shipment = None
+        easypost.api_key = EASYPOST_API_KEY
+
+    @property
+    def id(self):
+        if self.repairement_shipment:
+            return self.repairement_shipment['sh_id']
+        return self.easypost_shipment.get('id')
+
+    @property
+    def exists(self):
+        if not self.kwargs:
+            return
+
+        if self.easypost_shipment:
+            return True
+
+        if self.get_repairement_shipment(**self.kwargs):
+            return True
+
+        if 'shipment_id' in self.kwargs:
+            return self.get_shipment(self.kwargs['shipment_id'])
 
     def create_address(self, data):
         address = {
@@ -188,7 +218,7 @@ class EasyPostShipment:
             "street1": data.get('address1'),
             "street2": data.get('address2'),
             "city": data.get('city'),
-            "state": data.get('province_code'),
+            "state": data.get('state') or data.get('province_code'),
             "zip": data.get('zip'),
             "country": data.get('country_code'),
             "phone": data.get('phone'),
@@ -207,42 +237,130 @@ class EasyPostShipment:
         return easypost.Parcel.create(**default)
 
     @retry(stop_max_attempt_number=2, wait_fixed=50)
-    def create_shipment(self, from_address, to_address, parcel=None):
+    def create_easypost_shipment(self, from_address, to_address):
         self.from_address = self.create_address(from_address)
         self.to_address = self.create_address(from_address)
         self.parcel = self.create_parcel(from_address)
-        self.shipment = shipment = easypost.Shipment.create(**{
+        self.easypost_shipment = easypost.Shipment.create(**{
             'from_address': self.from_address,
             'to_address': self.to_address,
             'parcel': self.parcel
         })
-        self.rates = self.get_rates(shipment)
-        return shipment
+        return self
 
-    @staticmethod
-    def get_retail_rates(shipment):
+    def create_repearment_shipment(self, repairement):
+        if not self.id:
+            return ValueError('Get or create shipment firstly')
+        shipment = self.easypost_shipment
+
+        data = {
+            'sh_id': shipment['id'],
+            'customer_id': repairement['customer_id'],
+            'order_id': repairement['order_id'],
+            'repairement_id': repairement['DT'],
+            'approve': repairement['approve'],
+            'PID': 'unknown',
+            'rate_id': self.get_retail_rates()[0]['id'],
+            'client_secret': None,
+            'payment_status': 'created',
+        }
+        save_repairment_shipment(data)
+
+    def get_retail_rates(self):
+        easypost_shipment = self.easypost_shipment
+        if not easypost_shipment:
+            easypost_shipment = self.get_shipment(self.id)
         rates = []
-        sh_rates = shipment.rates
-
+        sh_rates = easypost_shipment['rates']
+        shipment_id = easypost_shipment['id']
         for rate in sh_rates:
+            retail_rate = rate['retail_rate']
+            retail_rate = retail_rate and Decimal(retail_rate)
             rates.append({
+                "id": rate['id'],
+                "shipment_id": shipment_id,
                 "carrier": rate['carrier'],
                 "retail_rate": rate['retail_rate'],
+                "retail_rate_value": retail_rate,
                 "retail_currency": rate['retail_currency'],
+                "est_delivery_days": rate['est_delivery_days'],
             })
+        return sorted(rates, key=itemgetter('retail_rate_value'))
 
     def get_shipment(self, _id):
-        if self.shipment:
-            return self.shipment
-        return easypost.Shipment.retrieve(_id)
+        if self.easypost_shipment:
+            return self.easypost_shipment
+        self.easypost_shipment = easypost.Shipment.retrieve(_id)
+        return self.easypost_shipment
 
-    def get_label(self, rate_id):
+    def get_repairement_shipment(self, **kwargs):
+        if self.repairement_shipment:
+            return self.repairement_shipment
+
+        shipments = filter_repairement_shipments(**kwargs)
+        if shipments:
+            sh_data = shipments[0]
+            self.repairement_shipment = sh_data
+            return sh_data
+
+    def get_label(self, rate_id=None):
         if self.label:
             return self.label
 
-        if rate_id:
-            label = self.shipment.buy(rate={'id': rate_id})
+        if not self.id:
+            return ValueError('Get or create shipment firstly')
+
+        shipment = self.get_shipment(self.id)
+        repairement_shipment = self.get_repairement_shipment(sh_id=self.id)
+        upd_data = {}
+        if shipment.get('postage_label'):
+            self.label = label = shipment
         else:
-            label = shipment.buy(rate=shipment.lowest_rate(carriers=['USPS'], services=['First']))
-        self.label = label
-        return label
+            if rate_id:
+                label = shipment.buy(rate={'id': rate_id})
+                upd_data['rate_id'] = rate_id
+            elif repairement_shipment:
+                label = shipment.buy(rate={'id': self.repairement_shipment['rate_id']})
+            else:
+                label = shipment.buy(rate=shipment.lowest_rate(carriers=['USPS'], services=['First']))
+
+            self.label = label
+
+        if not repairement_shipment.get('label') or 1:
+            self.update_repairment_shipment(
+                payment_status='succeeded',
+                label=label['postage_label']['label_url'],
+                tracking_url=label['tracker']['public_url'],
+                tracking_number=label['tracking_code'],
+                **upd_data
+            )
+            update_repairment_order(
+                DT=repairement_shipment['repairement_id'],
+                tracking_number=label['tracking_code'],
+                tracking_url=label['tracker']['public_url']
+            )
+        return self.label
+
+    def make_payment_intent(self, rate):
+        repairement_shipment = self.get_repairement_shipment(sh_id=self.id)
+        amount = rate['retail_rate']
+        if repairement_shipment and repairement_shipment.get('PID') != 'unknown':
+            payment = StripePayment(_id=repairement_shipment.get('PID'))
+            if payment.intent['amount'] != int(Decimal(amount) * 100):
+                payment = StripePayment(amount=amount)
+        else:
+            payment = StripePayment(amount=amount)
+        self.payment = payment
+        self.update_repairment_shipment(**{
+            'sh_id': rate.get('shipment_id'),
+            'PID': payment.intent['id'],
+            'client_secret': payment.client_secret,
+            'payment_status': 'created',
+            'rate_id': rate['id']
+        })
+        return payment.intent['id'], payment.client_secret
+
+    def update_repairment_shipment(self, **data):
+        if 'sh_id' not in data:
+            data['sh_id'] = self.id
+        return update_repairment_shipment(**data)

@@ -12,7 +12,7 @@ def get_shipments(sale_reference):
     Model = client.model('sale.sale')
     sales = Model.search_read_all(
         domain=['AND', [["reference", "=", sale_reference]]],
-        order=[["sale_date","DESC"]],
+        order=[["sale_date", "DESC"]],
         fields=[]
     )
     sales = list(sales)
@@ -152,6 +152,7 @@ def _fulfill_tracking_(shipment): # delete this!!!!!!!
         month=shipment['planned_date'].strftime('%B'),
     )
     return tracking, estimated_date, shipment['number']
+
 
 def get_sale_lines_info(candidates):
     sale_ids = []

@@ -1,6 +1,8 @@
 import csv
 from datetime import datetime
 from decimal import Decimal
+from operator import and_
+from functools import partial, reduce
 
 import boto3
 import re
@@ -16,6 +18,7 @@ EASYPOST_TABLE = 'easypost_ids'
 SHOPIFY_SKU = 'shopify_sku'
 REPAIRMENT_TABLE = 'repairment'
 TMALL_LABEL_TABLE = 'tmall-labels'
+CLAIM_SHIPMENT_TABLE = 'repairment_shipments'
 
 
 def save_easypost_to_dynamo(info):
@@ -432,9 +435,6 @@ def get_repairs_for_customer(customer_id=2949941133409, ExclusiveStartKey=None, 
 
     response = table.scan(**scan_kwargs)
     items = response['Items']
-    if full:
-        items = batch_get_repearments(items)
-
     return items, response.get('LastEvaluatedKey', {}), total
 
 
@@ -471,10 +471,83 @@ def get_customer_data_from_repairs(customers):
     return items
 
 
-def add_tmall_label(item):
+def save_to_dynamo(data, table):
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table(TMALL_LABEL_TABLE)
-    table.put_item(Item=item)
+    table = dynamodb.Table(table)
+    table.put_item(Item=data)
+    return data
+
+
+def get_from_dynamo(id_key, value, table):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(table)
+    try:
+        response = table.get_item(Key={id_key: value})
+    except ClientError as e:
+        print(e.response['Error']['Message'])
+    else:
+        return response['Item']
+
+
+# TODO: add limit arg
+def filter_dynamo_by_index(table, **kwargs):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(table)
+    scan_kwargs = {}
+    scan_kwargs['FilterExpression'] = reduce(and_, [Attr(k).eq(v) for k, v in kwargs.items()])
+    try:
+        response = table.scan(**scan_kwargs)
+    except ClientError as e:
+        print(e.response['Error']['Message'])
+    else:
+        return response.get('Items')
+
+
+def update_dynamo_item(id_key, table, **kwargs):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(table)
+    id_key = {id_key: kwargs.pop(id_key)}
+    expression = 'set '
+    values = {}
+    for k, val in kwargs.items():
+        expression += '{k}=:{k}, '.format(k=k)
+        values[':{k}'.format(k=k)] = val
+    expression = expression.strip(', ')
+
+    table.update_item(
+        Key=id_key,
+        UpdateExpression=expression,
+        ExpressionAttributeValues=values
+    )
+
+
+def delete_dynamo_item(id_key, table, **kwargs):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(table)
+    id_key = {id_key: kwargs.pop(id_key)}
+    params = {'Key': id_key}
+    if kwargs:
+        expression = 'set '
+        values = {}
+        for k, val in kwargs.items():
+            expression += '{k}=:{k}, '.format(k=k)
+            values[':{k}'.format(k=k)] = val
+        params['ConditionExpression'] = expression.strip(', ')
+        params['ExpressionAttributeValues'] = values
+    table.delete_item(**params)
+
+
+add_tmall_label = partial(save_to_dynamo, table=TMALL_LABEL_TABLE)
+
+
+save_repairment_shipment = partial(save_to_dynamo, table=CLAIM_SHIPMENT_TABLE)
+get_repairment_shipment = partial(get_from_dynamo, id_key='sh_id', table=CLAIM_SHIPMENT_TABLE)
+filter_repairement_shipments = partial(filter_dynamo_by_index, table=CLAIM_SHIPMENT_TABLE)
+update_repairment_shipment = partial(update_dynamo_item, id_key='sh_id', table=CLAIM_SHIPMENT_TABLE)
+delete_repairment_shipment = partial(delete_dynamo_item, id_key='sh_id', table=CLAIM_SHIPMENT_TABLE)
+
+
+update_repairment_order = partial(update_dynamo_item, id_key='DT', table=REPAIRMENT_TABLE)
 
 
 def get_tmall_label(tid):
