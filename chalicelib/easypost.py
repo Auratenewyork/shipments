@@ -327,17 +327,20 @@ class RepairementShipment:
             self.label = label
 
         if not repairement_shipment.get('label') or 1:
+            tracking_data = {
+                'label': label['postage_label']['label_url'],
+                'tracking_url': label['tracker']['public_url'],
+                'tracking_number': label['tracking_code'],
+            }
+            import ipdb; ipdb.set_trace()
             self.update_repairment_shipment(
                 payment_status='succeeded',
-                label=label['postage_label']['label_url'],
-                tracking_url=label['tracker']['public_url'],
-                tracking_number=label['tracking_code'],
+                **tracking_data,
                 **upd_data
             )
             update_repairment_order(
                 DT=repairement_shipment['repairement_id'],
-                tracking_number=label['tracking_code'],
-                tracking_url=label['tracker']['public_url']
+                **tracking_data
             )
         return self.label
 
