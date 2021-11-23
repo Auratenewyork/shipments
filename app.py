@@ -2014,3 +2014,8 @@ def shipment_payment_succeed():
         if shipment.exists:
             shipment.get_label()
     return {}
+
+
+@app.route('/mysecretcheckurl', methods=['GET'])
+def shipment_payment_succeed():
+    return {'running': True}
