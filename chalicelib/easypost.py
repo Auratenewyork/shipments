@@ -13,7 +13,7 @@ import easypost
 from chalicelib.dynamo_operations import (
     get_easypost_ids, filter_repairement_shipments,
     save_repairment_shipment, update_repairment_shipment,
-    update_repairment_order)
+    update_repairment_order, get_repairment_shipment)
 from chalicelib.utils import format_fullname
 from chalicelib.stripe import StripePayment
 
@@ -205,11 +205,10 @@ class RepairementShipment:
         if self.easypost_shipment:
             return True
 
-        if self.get_repairement_shipment(**self.kwargs):
-            return True
-
         if 'shipment_id' in self.kwargs:
-            return self.get_shipment(self.kwargs['shipment_id'])
+            return self.get_easypost_shipment(self.kwargs['shipment_id'])
+
+        return self.get_repairement_shipment(**self.kwargs)
 
     def create_address(self, data):
         address = {
@@ -269,7 +268,7 @@ class RepairementShipment:
     def get_retail_rates(self):
         easypost_shipment = self.easypost_shipment
         if not easypost_shipment:
-            easypost_shipment = self.get_shipment(self.id)
+            easypost_shipment = self.get_easypost_shipment(self.id)
         rates = []
         sh_rates = easypost_shipment['rates']
         shipment_id = easypost_shipment['id']
@@ -287,7 +286,7 @@ class RepairementShipment:
             })
         return sorted(rates, key=itemgetter('retail_rate_value'))
 
-    def get_shipment(self, _id):
+    def get_easypost_shipment(self, _id):
         if self.easypost_shipment:
             return self.easypost_shipment
         self.easypost_shipment = easypost.Shipment.retrieve(_id)
@@ -297,11 +296,17 @@ class RepairementShipment:
         if self.repairement_shipment:
             return self.repairement_shipment
 
-        shipments = filter_repairement_shipments(**kwargs)
-        if shipments:
-            sh_data = shipments[0]
-            self.repairement_shipment = sh_data
-            return sh_data
+        kwargs = kwargs or self.kwargs.copy()
+        if not kwargs:
+            return
+
+        if 'sh_id' in kwargs:
+            self.repairement_shipment = get_repairment_shipment(value=kwargs['sh_id'])
+        else:
+            shipments = filter_repairement_shipments(**kwargs)
+            if shipments:
+                self.repairement_shipment = shipments[0]
+        return self.repairement_shipment
 
     def get_label(self, rate_id=None):
         if self.label:
@@ -310,7 +315,7 @@ class RepairementShipment:
         if not self.id:
             return ValueError('Get or create shipment firstly')
 
-        shipment = self.get_shipment(self.id)
+        shipment = self.get_easypost_shipment(self.id)
         repairement_shipment = self.get_repairement_shipment(sh_id=self.id)
         upd_data = {}
         if shipment.get('postage_label'):
@@ -326,13 +331,12 @@ class RepairementShipment:
 
             self.label = label
 
-        if not repairement_shipment.get('label') or 1:
+        if not repairement_shipment.get('label'):
             tracking_data = {
                 'label': label['postage_label']['label_url'],
                 'tracking_url': label['tracker']['public_url'],
                 'tracking_number': label['tracking_code'],
             }
-            import ipdb; ipdb.set_trace()
             self.update_repairment_shipment(
                 payment_status='succeeded',
                 **tracking_data,

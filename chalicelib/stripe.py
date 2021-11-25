@@ -53,7 +53,7 @@ class StripePayment:
                 # 'card',
                 # 'bancontact',
                 # 'ideal'
-            )
+            ).to_dict()
             self._intent = intent
             return intent
         except Exception as e:
@@ -61,7 +61,7 @@ class StripePayment:
 
     def get_intent(self, _id):
         try:
-            intent = stripe.PaymentIntent.retrieve(_id)
+            intent = stripe.PaymentIntent.retrieve(_id).to_dict()
             self._intent = intent
             return intent
         except Exception as e:
