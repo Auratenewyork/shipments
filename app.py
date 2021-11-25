@@ -2017,5 +2017,5 @@ def shipment_payment_succeed():
 
 
 @app.route('/mysecretcheckurl', methods=['GET'])
-def shipment_payment_succeed():
+def check_url():
     return {'running': True}
