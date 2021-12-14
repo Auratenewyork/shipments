@@ -1,0 +1,163 @@
+{% extends 'fulfil_base.html' %}
+{% block custom_style %}
+    {{ super() }}
+    <style type="text/css">
+    .table {margin-bottom: 0rem;}
+    img {display:none;}
+    </style>
+{% endblock custom_style %}
+
+{% block title %}
+  Packing Slip
+{% endblock %}
+
+{% block report_header scoped %}
+  {% set shipment = record %}
+  {% if shipment.state not in ('packed', 'done') %}
+    <span class="h3 pull-right">Aurate</span>
+  {% else %}
+    <span class="h3 pull-right">Packing Slip</span>
+  {% endif %}
+  <table class="table no-border">
+    <tr>
+      <td colspan=2 class="barcode">{{ shipment.number }}</td>
+    </tr>
+    <tr>
+      <td align="right"><b>Date</b></td>
+      <td>{{ (shipment.effective_date or datetime.datetime.today())|dateformat }}</td>
+    </tr>
+  </table>
+{% endblock report_header %}
+
+{% block body %}
+  {{ super() }}
+{% endblock %}
+
+{% block report_body scoped %}
+    {% set shipment = record %}
+    <table class="table">
+      <thead>
+        <th class="text-center">Reference</th>
+        <th class="text-center">Customer Code</th>
+        <th class="text-center">Carrier</th>
+        <th class="text-center">Tracking Number</th>
+        <th class="text-center">Package Weight</th>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-center">{{ shipment.sales|join(', ', attribute='rec_name') }}</td>
+          <td class="text-center">{{ shipment.customer.code }}</td>
+          <td class="text-center">{{ shipment.carrier and shipment.carrier.rec_name or '-' }}</td>
+          <td class="text-center">{{ shipment.tracking_number and shipment.tracking_number.rec_name or '-' }}</td>
+          <td class="text-center">
+            {% if shipment.package_weight %}
+              {{ format_number(shipment.package_weight, shipment.customer.lang, digits=2) }} {{ shipment.weight_uom.symbol }}
+            {% else %}
+              {{ '-' }}
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <table class="table">
+      <thead>
+        <tr>
+          <th colspan="4" class="text-left">In this Shipment:</th>
+        </tr>
+        <tr>
+          <th>#</th>
+          <th class="text-center">Item</th>
+          <th>Description</th>
+          <th class="text-center">Quantity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for move in shipment.outgoing_moves|selectattr("quantity")|rejectattr('state', 'equalto', 'cancel') %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td class="text-center">
+              {% if move.product %}
+                {{ move.product.code }}
+              {% endif %}
+          </td>
+          <td>
+              {% if move.product %}
+                {{ move.product.name }}
+              {% endif %}
+          </td>
+          <td class="text-center">
+            {{ format_number(move.quantity, shipment.customer.lang, digits=move.unit_digits) }} {% if move.uom.symbol != 'u' %}{{ move.uom.symbol }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if shipment.shipping_instructions %}
+      <div class="row" style="padding-top:20px;">
+          <div class="col-xs-10">
+              <p><b>Shipping Instructions: </b><br/>{{ shipment.shipping_instructions }}</p>
+          </div>
+          <div class="col-xs-2">
+          </div>
+      </div>
+    {% endif %}
+    {% if shipment.public_notes %}
+      <div class="row" style="padding-top:10px;">
+        <div class="col-xs-12">
+          <p><b>Shipment Notes: </b>
+          {% for note in shipment.public_notes %}
+            <li>{{ note.message_wrapped }}</li>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+    {% set gift_messages = shipment.sales|selectattr('gift_message')|join(",", "gift_message") %}
+    {% if gift_messages %}
+      <div class="row" style="padding-top:10px;">
+        <div class="col-xs-12">
+          <p><b>Gift Message:</b><br/>{{ gift_messages }}</p>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if shipment.state == 'done' and shipment.sales | selectattr('shipment_state', 'equalto', 'waiting') | list  %}
+      <div class="row" style="padding-top:10px;">
+        <div class="col-xs-12">
+          <table class="table">
+            <thead>
+              <tr>
+                <th colspan="{% if shipment.sales|length > 1 %}5{% else %}4{% endif %}" class="text-left">Other Items Shipping Soon:</th>
+              </tr>
+              <tr>
+                {% if shipment.sales|length > 1 %}
+                <th class="text-center">From Order</th>
+                {% endif %}
+                <th class="text-center">Item</th>
+                <th class="text-center">Ordered</th>
+                <th class="text-center">Shipped</th>
+                <th class="text-center">Shipping Soon</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sale in shipment.sales | selectattr('shipment_state', 'equalto', 'waiting') %}
+                {% for line in sale.lines | selectattr('product.type', 'equalto', 'goods') | rejectattr('quantity_shipped', 'equalto', None) %}
+                {% if line.quantity > line.quantity_shipped %}
+                <tr>
+                  {% if shipment.sales|length > 1 %}
+                  <td class="text-center">{{ sale.reference or sale.number }}</td>
+                  {% endif %}
+                  <td>{{ line.description }}</td>
+                  <td class="text-center">{{ format_number(line.quantity, shipment.customer.lang, digits=line.unit_digits) }} {% if line.unit.symbol != 'u' %}{{ line.unit.symbol }}{% endif %}</td>
+                  <td class="text-center">{{ format_number(line.quantity_shipped, shipment.customer.lang, digits=line.unit_digits) }} {% if line.unit.symbol != 'u' %}{{ line.unit.symbol }}{% endif %}</td>
+                  <td class="text-center">{{ format_number(line.quantity - line.quantity_shipped, shipment.customer.lang, digits=line.unit_digits) }} {% if line.unit.symbol != 'u' %}{{ line.unit.symbol }}{% endif %}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+
+{% endblock report_body%}

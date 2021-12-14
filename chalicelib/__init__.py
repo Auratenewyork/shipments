@@ -27,8 +27,12 @@ CLAIMS_PAGE_SIZE = 20
 
 ENV = os.environ.get('ENV')
 
+VENDOR_PATH = ''
+
 if ENV == 'local':  # Local development mode
     STRIPE_API_KEY = os.environ.get('STRIPE_TEST_API_KEY')
     STRIPE_WH_KEY = os.environ.get('STRIPE_TEST_WH_KEY')
     EASYPOST_API_KEY = os.environ.get('EASYPOST_TEST_API_KEY')
     TEST_CUSTOMER_ID = 2949941133409
+    VENDOR_PATH = 'vendor'
+    FULFIL_API_URL = os.environ.get('FULFIL_API_ENDPOINT')

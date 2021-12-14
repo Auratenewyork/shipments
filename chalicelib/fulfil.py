@@ -2,11 +2,13 @@ import json
 import os
 import re
 from datetime import date, timedelta, datetime
+from functools import partial
 
 import pdfkit
 import requests
 from fulfil_client import Client
-from jinja2 import Template
+from jinja2 import Template, Environment, BaseLoader
+from jinja2.filters import FILTERS
 
 from chalicelib import (
     AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
@@ -115,16 +117,14 @@ def get_internal_shipments():
     return list(internal_shipments)
 
 
-def get_movement(_id):
-    Model = client.model('stock.move')
-    move = Model.get(_id)
-    return move
+def get_fulfil_object_by_id(_id, model_name):
+    Model = client.model(model_name)
+    return Model.get(_id)
 
 
-def get_product(_id):
-    Model = client.model('product.product')
-    product = Model.get(_id)
-    return product
+get_movement = partial(get_fulfil_object_by_id, model_name='stock.move')
+get_product = partial(get_fulfil_object_by_id, model_name='product.product')
+get_out_shipment = partial(get_fulfil_object_by_id, model_name='stock.shipment.out')
 
 
 def get_product_by_code(code, fields=('id',)):
@@ -474,6 +474,29 @@ def create_pdf(data, template, binary_path):
                                     options={'debug-javascript': '', 'javascript-delay': 2000})
 
     return pdf_string
+
+
+def get_company_address(_id=None):
+    if not _id:
+        # get first address as default
+        Company = client.model('company.company')
+        ids = Company.search_read_all(
+            domain=[['id', '=', '1']],
+            order=None,
+            fields=['party.addresses'])
+        _id = ids.__next__()['party.addresses'][0]
+    Address = client.model('party.address')
+    return Address.get(_id)
+
+
+def render_address_header_template(address=None):
+    if not address:
+        address = get_company_address()
+    Company = client.model('company.company')
+    company = Company.get(1)
+    template = company['header_html']
+    template = Template(template)
+    return template.render(company=company, address=address)
 
 
 def check_in_stock(product_id, location_id, quantity):

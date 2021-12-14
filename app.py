@@ -20,11 +20,12 @@ from fulfil_client import ClientError, ServerError
 
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
-    RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY, CLAIMS_PAGE_SIZE)
+    RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY,
+    CLAIMS_PAGE_SIZE, VENDOR_PATH)
 from chalicelib import web_scraper, loopreturns
 from chalicelib.add_tags_in_comments import add_AOV_tag_to_shipments, \
     add_EXE_tag_to_ship_instructions
-from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder
+from chalicelib.common import listDictsToHTMLTable, CustomJsonEncoder, create_pdf_file, render_internal_template
 from chalicelib.count_boxes import process_boxes
 from chalicelib.create_fulfil import create_fullfill_order
 from chalicelib.delivered_orders import delivered_orders, send_repearment_email
@@ -52,8 +53,9 @@ from chalicelib.fulfil import (
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     client as fulfill_client, get_late_shipments, get_items_waiting_allocation,
     sale_with_discount, get_product, get_inventory_by_warehouse,
-    waiting_allocation, add_exe_comment)
+    waiting_allocation, add_exe_comment, get_out_shipment, render_address_header_template)
 from chalicelib.internal_shipments import ProcessInternalShipment
+from chalicelib import jinja2_extras as je
 from chalicelib.late_order import find_late_orders
 from chalicelib.repearments import create_repearments_order, get_sales_order_info
 from chalicelib.rubyhas import (
@@ -2016,6 +2018,26 @@ def shipment_payment_succeed():
     return {}
 
 
-@app.route('/mysecretcheckurl', methods=['GET'])
+@app.route('/mysecretcheckurl', methods=['GET'], api_key_required=False)
 def check_url():
     return {'running': True}
+
+
+@app.route('/packing-slip/{sh_number}', methods=['GET'], api_key_required=False, cors=cors_config)
+def packing_slip(sh_number):
+    shipment = get_out_shipment(int(sh_number))
+    binary_path = os.path.join(BASE_DIR, VENDOR_PATH, 'bin', 'wkhtmltopdf')
+
+    header = render_address_header_template()
+    template = render_internal_template(
+        {'records': [shipment], 'record': shipment, 'today': datetime.today(), 'header': header},
+        template='packing_slip.html',
+        filters={'dateformat': je.dateformat})
+
+    file = create_pdf_file(
+        html_str=template,
+        binary_path=binary_path,
+        options={'page-height': '6in', 'page-width': '4in'})
+    return Response(body=file,
+                    status_code=200,
+                    headers={'Content-Type': 'application/pdf'})

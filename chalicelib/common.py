@@ -1,6 +1,13 @@
 import datetime
 import json
+import os
+
+import pdfkit
 from _decimal import Decimal
+from jinja2 import Environment, FileSystemLoader, Template, BaseLoader
+
+
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 class HTML:
@@ -70,15 +77,6 @@ class CustomJsonEncoder(json.JSONEncoder):
         return super(CustomJsonEncoder, self).default(obj)
 
 
-def date_after_some_workdays(d, wd_number=3, excluded=(6, 7)):
-    wd = 0
-    while wd != wd_number:
-        if d.isoweekday() not in excluded:
-            wd += 1
-        d += datetime.timedelta(days=1)
-    return d
-
-
 def dates_with_passed_some_work_days(wd_number=3, excluded=(6, 7)):
     d = datetime.date.today()
     wd = 0
@@ -99,3 +97,37 @@ def date_after_some_workdays(d, wd_number=3, excluded=(6, 7)):
             wd += 1
         d += datetime.timedelta(days=1)
     return d
+
+
+# creates PDF from rendered html
+def create_pdf_file(html_str, binary_path, options):
+    default_options = {'debug-javascript': '', 'javascript-delay': 200}
+    default_options.update(options)
+    config = pdfkit.configuration(wkhtmltopdf=binary_path)
+    pdf_string = pdfkit.from_string(
+        html_str,
+        output_path=False,
+        configuration=config,
+        options=default_options)
+    return pdf_string
+
+
+def render_template(data, template, **kwargs):
+    env = Environment(loader=BaseLoader())
+    filters = kwargs.get('filters', {})
+    for key, value in filters.items():
+        env.filters[key] = value
+
+    tmp = env.from_string(template)
+    return tmp.render(**data)
+
+
+# render html from internal template, see chalicelib.fulfil to create from fulfil template
+def render_internal_template(data, template, **kwargs):
+    env = Environment(loader=FileSystemLoader(f'{BASE_DIR}/template'))
+    filters = kwargs.get('filters', {})
+    for key, value in filters.items():
+        env.filters[key] = value
+
+    tmp = env.get_template(template)
+    return tmp.render(**data)
