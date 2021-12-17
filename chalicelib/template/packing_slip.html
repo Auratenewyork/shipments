@@ -24,7 +24,7 @@
     </tr>
     <tr>
       <td align="right"><b>Date</b></td>
-      <td>{{ (shipment.effective_date or datetime.datetime.today())|dateformat }}</td>
+      <td>{{ (shipment.effective_date or today)|dateformat }}</td>
     </tr>
   </table>
 {% endblock report_header %}

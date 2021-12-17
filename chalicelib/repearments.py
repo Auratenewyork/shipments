@@ -3,6 +3,9 @@ import os
 import secrets
 import requests
 
+from chalicelib.create_fulfil import create_fullfill_order
+from chalicelib.decorators import try_except
+from chalicelib.dynamo_operations import get_repearment_order, update_repearment_order_info
 
 false = False
 true = True
@@ -311,10 +314,20 @@ def get_order_info(store_id, _id, headers):
 def get_sales_order_info(_id):
     token, store = login()
     headers = {"AUTHORIZATION": f"Bearer {token}"}
-    params = {'store_id': store['id']}
     store_id = store['id']
     order_info = get_order_info(store_id=store_id, _id=_id, headers=headers)
     return order_info
+
+
+@try_except
+def update_or_create_repairement_order(repairement_id):
+    item = get_repearment_order(repairement_id)
+    if 'repearment_id' not in item:
+        order = create_repearments_order(item)
+        if order:
+            update_repearment_order_info(int(repairement_id), order)
+            create_fullfill_order(item)
+    return True
 
 
 """

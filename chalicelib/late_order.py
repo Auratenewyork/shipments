@@ -6,7 +6,7 @@ import requests
 from fulfil_client import Client
 from jinja2 import Template
 
-from chalicelib import FULFIL_API_URL
+from chalicelib import FULFIL_API_URL, DEV_EMAIL
 from chalicelib.easypsot_tracking import get_n_days_old_orders
 from .common import dates_with_passed_some_work_days, listDictsToHTMLTable
 from chalicelib.email import send_email

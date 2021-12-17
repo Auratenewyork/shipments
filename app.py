@@ -21,7 +21,7 @@ from fulfil_client import ClientError, ServerError
 from chalicelib import (
     AURATE_OUTPUT_ZONE, AURATE_STORAGE_ZONE, AURATE_WAREHOUSE, PRODUCTION,
     RUBYHAS_WAREHOUSE, easypost, RUBYHAS_HQ_STORAGE, EASYPOST_API_KEY,
-    CLAIMS_PAGE_SIZE, VENDOR_PATH)
+    CLAIMS_PAGE_SIZE, VENDOR_PATH, DEV_EMAIL)
 from chalicelib import web_scraper, loopreturns
 from chalicelib.add_tags_in_comments import add_AOV_tag_to_shipments, \
     add_EXE_tag_to_ship_instructions
@@ -57,7 +57,7 @@ from chalicelib.fulfil import (
 from chalicelib.internal_shipments import ProcessInternalShipment
 from chalicelib import jinja2_extras as je
 from chalicelib.late_order import find_late_orders
-from chalicelib.repearments import create_repearments_order, get_sales_order_info
+from chalicelib.repearments import update_or_create_repairement_order
 from chalicelib.rubyhas import (
     api_call, build_sales_order, create_purchase_order, get_item_quantity,
     get_full_inventory)
@@ -78,7 +78,7 @@ from chalicelib.stripe import StripePayment
 from jinja2 import Template
 from chalice import CORSConfig
 from sentry_sdk.integrations.flask import FlaskIntegration
-from chalicelib.decorators import try_except, auth_customer_by_email
+from chalicelib.decorators import auth_customer_by_email
 from chalicelib.orders_operations import create_fulfill_order, \
     cancel_fulfill_order
 from chalicelib.tmall_utils import TmallOrderConverter
@@ -294,7 +294,7 @@ def syncinventories_ids(product_ids):
             send_email(
                 f"Sync inventory by webhook",
                 str(listDictsToHTMLTable(updated_sku)),
-                email=['roman.borodinov@uadevelopers.com'],
+                email=[DEV_EMAIL],
             )
 
 
@@ -1033,7 +1033,7 @@ def sync_inventory(updated_sku=[]):
                 send_email(
                     f"Fail: Sync inventories {date.today().strftime('%Y-%m-%d')}",
                     'dump of info "ryby_updated_sky"',
-                    email=['roman.borodinov@uadevelopers.com'],
+                    email=[DEV_EMAIL],
                 )
             for item in updated_sku:
                 item['warehouse'] = RUBYHAS_HQ_STORAGE
@@ -1730,46 +1730,12 @@ def repairmen_update_api():
     return order
 
 
-def send_exception():
-    fp = io.StringIO()
-    traceback.print_exc(file=fp)
-    message = fp.getvalue()
-    send_email('Repearment exception!!!!!',
-               message,
-               email='roman.borodinov@uadevelopers.com',
-               dev_recipients=True,
-               )
-
-
 @app.route('/repairmen_tracking', methods=['POST'], cors=cors_config)
 def repairmen_list_api():
     request = app.current_request
     body = request.json_body
     update_repearment_tracking_number(int(body['DT']), body['tracking_number'])
-
-    item = get_repearment_order(body['DT'])
-    if 'repearment_id' not in item:
-        try:
-            order = create_repearments_order(item)
-        except Exception as e:
-            order = None
-            send_exception()
-
-        if order:
-            try:
-                update_repearment_order_info(int(body['DT']), order)
-            except Exception as e:
-                send_exception()
-
-        try:
-            create_fullfill_order(item)
-        except Exception as e:
-            send_exception()
-
-        # send_email("Repearment: added tracking number",
-        #            f"Current info {body['tracking_number']}, {body['DT']}",
-        #            email='maxwell@auratenewyork.com',
-        #            dev_recipients=True,)
+    update_or_create_repairement_order(body['DT'])
     return body
 
 
@@ -1823,7 +1789,7 @@ def tmall_api():
     if not body:
         capture_to_sentry(
             'Empty Tmall request!',
-            email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
+            email=['aurate2021@gmail.com', DEV_EMAIL],
             method=request.method)
         return Response(status_code=400, body='Bad Request!')
 
@@ -1831,7 +1797,7 @@ def tmall_api():
     capture_to_sentry(
         'Tmall request!',
         data=data,
-        email=['aurate2021@gmail.com', 'roman.borodinov@uadevelopers.com'],
+        email=['aurate2021@gmail.com', DEV_EMAIL],
         method=request.method)
     try:
         if body.get('Event') == 'taobao_trade_TradePAID':
@@ -1995,6 +1961,7 @@ def payment_accepted():
         return {'item': repairement}
 
     shipment.get_label()
+
     # UPDate order data after get_label
     return {'item': get_repearment_order(shipment.repairement_shipment['repairement_id'])}
 
@@ -2015,6 +1982,7 @@ def shipment_payment_succeed():
         shipment = RepairementShipment(PID=event['data']['object']['id'])
         if shipment.exists:
             shipment.get_label()
+            update_or_create_repairement_order(shipment.repairement_shipment['repairement_id'])
     return {}
 
 

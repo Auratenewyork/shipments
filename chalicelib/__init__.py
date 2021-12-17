@@ -29,6 +29,8 @@ ENV = os.environ.get('ENV')
 
 VENDOR_PATH = ''
 
+DEV_EMAIL = 'aurate.api@gmail.com'
+
 if ENV == 'local':  # Local development mode
     STRIPE_API_KEY = os.environ.get('STRIPE_TEST_API_KEY')
     STRIPE_WH_KEY = os.environ.get('STRIPE_TEST_WH_KEY')

@@ -7,14 +7,14 @@ from functools import partial
 import pdfkit
 import requests
 from fulfil_client import Client
-from jinja2 import Template, Environment, BaseLoader
-from jinja2.filters import FILTERS
+from jinja2 import Template
 
 from chalicelib import (
     AURATE_HQ_STORAGE, COMPANY, FULFIL_API_URL, RUBYHAS_HQ_STORAGE,
     RUBYHAS_WAREHOUSE, AURATE_OUTPUT_ZONE)
 from .common import dates_with_passed_some_work_days
 from chalicelib.email import send_email
+
 
 headers = {
     'X-API-KEY': os.environ.get('FULFIL_API_KEY'),

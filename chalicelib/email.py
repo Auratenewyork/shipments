@@ -3,6 +3,7 @@ import os
 
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition, ContentId
+from chalicelib import DEV_EMAIL
 
 default_email = os.environ.get('DEFAULT_EMAIL', None)
 env_name = os.environ.get('ENV', 'sandbox')
@@ -14,7 +15,7 @@ def send_email(subject, content, email=default_email, file=None,
         email = [email]
 
     if dev_recipients:
-        developer_emails = ['roman.borodinov@uadevelopers.com']
+        developer_emails = [DEV_EMAIL]
         if email:
             email = list(email) + developer_emails
         else:

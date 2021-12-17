@@ -7,7 +7,7 @@ import os
 from chalicelib.email import send_email
 import sentry_sdk
 from sentry_sdk import capture_message, configure_scope, capture_exception
-
+from chalicelib import DEV_EMAIL
 
 ROLLBACK_DIR = os.environ.get('ROLLBACK_DIR', 'rollback')
 FULFIL_API_DOMAIN = os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox')
@@ -58,6 +58,16 @@ def capture_error(error, data=None, email=None, **tags):
         capture_exception(error, scope=scope)
     if email:
         send_email(error, str(data), email=email)
+
+
+def send_exception(with_sentry=True):
+    fp = io.StringIO()
+    traceback.print_exc(file=fp)
+    message = fp.getvalue()
+    send_email('Repearment exception!!!!!',
+               message,
+               email=[DEV_EMAIL],
+               dev_recipients=True)
 
 
 def get_authorization(data):
