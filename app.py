@@ -1731,7 +1731,8 @@ def repairmen_update_api():
             method=request.method)
     else:
         if order['approve'] == 'accepted':
-            send_repearment_email(order.get('email'), 'accepted', DT=order['DT'])
+            dt = b64encode_list_to_str(order.get('email'), str(order.get('DT')))
+            send_repearment_email(order.get('email'), 'accepted', DT=dt)
         elif order['approve'] == 'declined':
             send_repearment_email(order.get('email'), 'declined', NOTE=order['note'])
         return order

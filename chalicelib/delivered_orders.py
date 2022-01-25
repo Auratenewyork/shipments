@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 import requests
 from jinja2 import Template
+from urllib.parse import quote_plus
 
 from chalicelib.email import send_email
 from .fulfil import client
@@ -147,6 +148,7 @@ def send_repearment_email(email, case, NOTE=None, DT=None):
     from app import BASE_DIR
     info = REPEARMENT_CASE[case]
     if DT:
+        DT = quote_plus(DT)
         LINK = f"https://warrantyclaims.auratenewyork.com/info?DT={DT}"
         info['data']['LINK'] = LINK
     template = Template(

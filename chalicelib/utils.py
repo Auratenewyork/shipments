@@ -83,7 +83,7 @@ def b64decode_str_to_list(data):
     return data.split(':')
 
 
-def b64encode_list_to_str(data):
+def b64encode_list_to_str(*data):
     data = ':'.join(data)
     return base64.b64encode(data.encode())
 
