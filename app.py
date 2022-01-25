@@ -72,7 +72,8 @@ from chalicelib.sync_sku import get_inventory_positions, \
     sku_for_update, dump_inventory_positions, \
     complete_inventory, confirm_inventory, new_inventory, dump_updated_sku
 from chalicelib.delivered_orders import return_orders
-from chalicelib.utils import capture_to_sentry, capture_error, get_request_data, paginate_items
+from chalicelib.utils import capture_to_sentry, capture_error, get_request_data, \
+    paginate_items, define_user_email, b64encode_list_to_str, b64decode_str_to_list
 from chalicelib.easypost import RepairementShipment
 from chalicelib.stripe import StripePayment
 from jinja2 import Template
@@ -302,9 +303,11 @@ def syncinventories_ids(product_ids):
 def find_late_orders_view(event):
     find_late_orders()
 
+
 @app.route('/find_late_orders', methods=['GET'])
 def find_late_orders_api():
     find_late_orders()
+
 
 @app.route('/waiting-ruby/re-assign', methods=['GET'])
 def invoke_waiting_ruby():
@@ -1721,13 +1724,17 @@ def repairmen_update_api():
     order = body['order']
     update_repearment_order(order['DT'], order['approve'], order['note'])
 
-    if not body.get('email'):
-        body['email'] = 'maxwell@auratenewyork.com'
-    if order['approve'] == 'accepted':
-        send_repearment_email(body.get('email'), 'accepted', DT=order['DT'])
-    elif order['approve'] == 'declined':
-        send_repearment_email(body.get('email'), 'declined', NOTE=order['note'])
-    return order
+    if not order.get('email'):
+        capture_to_sentry(
+            'Empty email for repairement confirmation!',
+            email=['aurate2021@gmail.com', DEV_EMAIL],
+            method=request.method)
+    else:
+        if order['approve'] == 'accepted':
+            send_repearment_email(order.get('email'), 'accepted', DT=order['DT'])
+        elif order['approve'] == 'declined':
+            send_repearment_email(order.get('email'), 'declined', NOTE=order['note'])
+        return order
 
 
 @app.route('/repairmen_tracking', methods=['POST'], cors=cors_config)
@@ -1737,6 +1744,23 @@ def repairmen_list_api():
     update_repearment_tracking_number(int(body['DT']), body['tracking_number'])
     update_or_create_repairement_order(body['DT'])
     return body
+
+
+@app.route('/repairment/{dt}', methods=['GET'], cors=cors_config)
+def repairement_detail(dt):
+    if isinstance(dt, int):
+        email = define_user_email(app)
+    else:
+        email, dt = b64decode_str_to_list(dt)
+
+    if not email:
+        return Response(status_code=400, body='Bad Request!')
+
+    item = get_repearment_order(dt)
+    if not item or item.get('email') != email:
+        return Response(status_code=400, body='Bad Request!')
+    return {'item': item, 'email': email}
+
 
 
 @app.schedule(Cron(0, 12, '?', '*', '*', '*'))

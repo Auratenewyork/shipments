@@ -9,6 +9,7 @@ import sentry_sdk
 from sentry_sdk import capture_message, configure_scope, capture_exception
 from chalicelib import DEV_EMAIL
 
+
 ROLLBACK_DIR = os.environ.get('ROLLBACK_DIR', 'rollback')
 FULFIL_API_DOMAIN = os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox')
 ENV = os.environ.get('ENV', 'local')
@@ -77,6 +78,16 @@ def get_authorization(data):
     return base64.b64decode(data).decode()
 
 
+def b64decode_str_to_list(data):
+    data = base64.b64decode(data).decode()
+    return data.split(':')
+
+
+def b64encode_list_to_str(data):
+    data = ':'.join(data)
+    return base64.b64encode(data.encode())
+
+
 def paginate_items(items, page=1, page_size=10, sort_key=None):
     if sort_key:
         items.sort(key=lambda x: x[sort_key], reverse=True)
@@ -94,3 +105,11 @@ def get_request_data(request):
     if request.method in ('POST', 'PUT'):  # for compatibility
         return request.json_body
     return request.query_params
+
+
+def define_user_email(app):
+    request = app.current_request
+    if request.method in ('POST', 'PUT'):  # for compatibility
+        return request.json_body.get('email')
+    elif 'Authorization' in request.headers:
+        return get_authorization(request.headers.get('authorization', ''))
