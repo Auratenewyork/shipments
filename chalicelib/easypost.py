@@ -14,7 +14,7 @@ from chalicelib.dynamo_operations import (
     get_easypost_ids, filter_repairement_shipments,
     save_repairment_shipment, update_repairment_shipment,
     update_repairment_order, get_repairment_shipment)
-from chalicelib.utils import format_fullname
+from chalicelib.utils import format_fullname, capture_error
 from chalicelib.stripe import StripePayment
 
 
@@ -185,7 +185,7 @@ class RepairementShipment:
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
-        self.easypost_shipment = {}
+        self._easypost_shipment = None
         self.label = None
         self.payment = None
         self.repairement_shipment = None
@@ -195,7 +195,7 @@ class RepairementShipment:
     def id(self):
         if self.repairement_shipment:
             return self.repairement_shipment['sh_id']
-        return self.easypost_shipment.get('id')
+        return self._easypost_shipment and self._easypost_shipment.get('id')
 
     @property
     def exists(self):
@@ -209,6 +209,15 @@ class RepairementShipment:
             return self.get_easypost_shipment(self.kwargs['shipment_id'])
 
         return self.get_repairement_shipment(**self.kwargs)
+
+    @property
+    def easypost_shipment(self):
+        if self._easypost_shipment:
+            return self._easypost_shipment
+        if not self.id:
+            return
+        self.get_easypost_shipment(self.id)
+        return self._easypost_shipment
 
     def create_address(self, data):
         address = {
@@ -238,9 +247,9 @@ class RepairementShipment:
     @retry(stop_max_attempt_number=2, wait_fixed=50)
     def create_easypost_shipment(self, from_address, to_address):
         self.from_address = self.create_address(from_address)
-        self.to_address = self.create_address(from_address)
+        self.to_address = self.create_address(to_address)
         self.parcel = self.create_parcel(from_address)
-        self.easypost_shipment = easypost.Shipment.create(**{
+        self._easypost_shipment = easypost.Shipment.create(**{
             'from_address': self.from_address,
             'to_address': self.to_address,
             'parcel': self.parcel
@@ -268,7 +277,8 @@ class RepairementShipment:
     def get_retail_rates(self):
         easypost_shipment = self.easypost_shipment
         if not easypost_shipment:
-            easypost_shipment = self.get_easypost_shipment(self.id)
+            return
+
         rates = []
         sh_rates = easypost_shipment['rates']
         shipment_id = easypost_shipment['id']
@@ -287,10 +297,13 @@ class RepairementShipment:
         return sorted(rates, key=itemgetter('retail_rate_value'))
 
     def get_easypost_shipment(self, _id):
-        if self.easypost_shipment:
-            return self.easypost_shipment
-        self.easypost_shipment = easypost.Shipment.retrieve(_id)
-        return self.easypost_shipment
+        if self._easypost_shipment:
+            return self._easypost_shipment
+        try:
+            self._easypost_shipment = easypost.Shipment.retrieve(_id)
+        except easypost.Error as e:
+            capture_error(e, data={'shipment_id': _id}, errors_source='Easypost')
+        return self._easypost_shipment
 
     def get_repairement_shipment(self, **kwargs):
         if self.repairement_shipment:
@@ -315,19 +328,21 @@ class RepairementShipment:
         if not self.id:
             return ValueError('Get or create shipment firstly')
 
-        shipment = self.get_easypost_shipment(self.id)
+        easypost_shipment = self.easypost_shipment
+        if not easypost_shipment:
+            return
         repairement_shipment = self.get_repairement_shipment(sh_id=self.id)
         upd_data = {}
-        if shipment.get('postage_label'):
-            self.label = label = shipment
+        if easypost_shipment.get('postage_label'):
+            self.label = label = easypost_shipment
         else:
             if rate_id:
-                label = shipment.buy(rate={'id': rate_id})
+                label = easypost_shipment.buy(rate={'id': rate_id})
                 upd_data['rate_id'] = rate_id
             elif repairement_shipment:
-                label = shipment.buy(rate={'id': self.repairement_shipment['rate_id']})
+                label = easypost_shipment.buy(rate={'id': self.repairement_shipment['rate_id']})
             else:
-                label = shipment.buy(rate=shipment.lowest_rate(carriers=['USPS'], services=['First']))
+                label = easypost_shipment.buy(rate=easypost_shipment.lowest_rate(carriers=['USPS'], services=['First']))
 
             self.label = label
 

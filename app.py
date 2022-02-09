@@ -53,7 +53,8 @@ from chalicelib.fulfil import (
     get_empty_shipments_count, get_empty_shipments, cancel_customer_shipment,
     client as fulfill_client, get_late_shipments, get_items_waiting_allocation,
     sale_with_discount, get_product, get_inventory_by_warehouse,
-    waiting_allocation, add_exe_comment, get_out_shipment, render_address_header_template)
+    waiting_allocation, add_exe_comment, get_out_shipment, render_address_header_template,
+    get_report_file)
 from chalicelib.internal_shipments import ProcessInternalShipment
 from chalicelib import jinja2_extras as je
 from chalicelib.late_order import find_late_orders
@@ -1929,11 +1930,13 @@ def create_shipment_intent():
 
     shipment = RepairementShipment(
         customer_id=order['customer_id'],
-        order_id=order['order_id'])
-    if shipment.exists:
-        if shipment.repairement_shipment['payment_status'] == 'succeeded':
-            return {'msg': 'Already paid'}
-    else:
+        order_id=order['order_id'],
+        repairement_id=order['DT'])
+
+    if shipment.exists and shipment.repairement_shipment['payment_status'] == 'succeeded':
+        return {'msg': 'Already paid'}
+
+    if not (shipment.exists and shipment.easypost_shipment):
         shipment.create_easypost_shipment(from_address, to_address)
         shipment.create_repearment_shipment(order)
     rates = shipment.get_retail_rates()
@@ -2018,19 +2021,9 @@ def check_url():
 
 @app.route('/packing-slip/{sh_number}', methods=['GET'], api_key_required=False, cors=cors_config)
 def packing_slip(sh_number):
-    shipment = get_out_shipment(int(sh_number))
-    binary_path = os.path.join(BASE_DIR, VENDOR_PATH, 'bin', 'wkhtmltopdf')
-
-    header = render_address_header_template()
-    template = render_internal_template(
-        {'records': [shipment], 'record': shipment, 'today': datetime.today(), 'header': header},
-        template='packing_slip.html',
-        filters={'dateformat': je.dateformat})
-
-    file = create_pdf_file(
-        html_str=template,
-        binary_path=binary_path,
-        options={'page-height': '6in', 'page-width': '4in'})
-    return Response(body=file,
-                    status_code=200,
-                    headers={'Content-Type': 'application/pdf'})
+    try:
+        sh_number = int(sh_number)
+    except ValueError as e:
+        capture_error(e, errors_source='Repairement frontend')
+        return {}
+    return get_report_file(393, [sh_number])

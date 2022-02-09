@@ -693,3 +693,13 @@ def add_exe_comment():
             shipping_instructions = 'EXE'
         update_shipment(shipment,
                         {'shipping_instructions': shipping_instructions})
+
+
+def get_report_file(action_id, objects, report_name='packing_slip4_6'):
+    response = requests.put(
+        f'{FULFIL_API_URL}/report/report.{report_name}',
+        headers=headers,
+        data=json.dumps({"data": {"action_id": action_id}, "objects": objects}))
+
+    if response.status_code == 200:
+        return response.json()

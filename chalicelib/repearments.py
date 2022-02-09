@@ -319,7 +319,7 @@ def get_sales_order_info(_id):
     return order_info
 
 
-@try_except
+@try_except(task='update_or_create_repairement_order')
 def update_or_create_repairement_order(repairement_id):
     item = get_repearment_order(repairement_id)
     if 'repearment_id' not in item:
