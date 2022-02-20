@@ -6,6 +6,7 @@ import requests
 from chalicelib.create_fulfil import create_fullfill_order
 from chalicelib.decorators import try_except
 from chalicelib.dynamo_operations import get_repearment_order, update_repearment_order_info
+from chalicelib.utils import capture_to_sentry, capture_error
 
 false = False
 true = True
@@ -128,27 +129,27 @@ def format_phone(number):
 
 def create_customer_address(headers, params, address, customer_id):
     url = f'{RESHINE_URL}customer-addresses'
-    p = params.copy()
-
-    p.update({
-            "first_name": address['first_name'],
-            "last_name": address['last_name'],
-            "street1": address['address1'],
-            "street2": address['address2'],
-            "zip_code": address['zip'],
-            "address_type": "r",
-            # "store_id": 1,   comes with params
-            "customer_id": customer_id,
-
-            # for beta version
-            "city": address['city'],
-            "phone_number": format_phone(address['phone']),
-        })
+    reshine_address = params.copy()
+    reshine_address.update({
+        "first_name": address['first_name'],
+        "last_name": address['last_name'],
+        "street1": address['address1'],
+        "street2": address['address2'],
+        "zip_code": address['zip'],
+        "address_type": "r",
+        # "store_id": 1,   comes with params
+        "customer_id": customer_id,
+        "country_id": 231,  # US
+        "state_id": get_state_id(headers, address, 231),
+        "city": address['city'],
+        "phone_number": format_phone(address['phone']),
+    })
     city_info = get_city_info(headers, address)
     if city_info:
-        p.update(city_info)
-        p.pop('city_id', None)  # for beta version
-    response = requests.post(url, headers=headers, json=p)
+        reshine_address.update(city_info)
+        reshine_address.pop('city_id', None)  # for beta version
+    print(reshine_address)
+    response = requests.post(url, headers=headers, json=reshine_address)
     r = response.json()
     return r['data']
 
@@ -251,9 +252,19 @@ def login():
     url = f'{RESHINE_URL}login'
     j = {
         "username": "aurate",
-        "password": "UU4BVpCS"
+        "password": "auratenewyork"
     }
-    response = requests.post(url, json=j)
+    try:
+        response = requests.post(url, json=j)
+    except Exception as e:
+        capture_error(e, errors_source='Reshine login')
+        return
+    status = response.status_code
+    if status != 200:
+        capture_to_sentry(
+            'Login to reshine returns {}!'.format(str(status)), url=url)
+        return
+
     res = response.json()
     token = res['data']['access']
     store = res['data']['store']
@@ -285,22 +296,20 @@ def get_services(headers, params, name):
     # return services
 
 
-def create_repearments_order(item):
-    token, store = login()
+def create_reshine_repearments_order(item):
+    reshine_data = login()
+    if not reshine_data:
+        return
+
+    token, store = reshine_data
     headers = {"AUTHORIZATION": f"Bearer {token}"}
     params = {'store_id': store['id']}
     store_id = store['id']
-
-    store_address = get_store_address(headers, params)
-
+    # store_address = get_store_address(headers, params)
     customer = get_or_create_customer(headers, params, address=item['address'], email=item['email'])
     address = get_or_create_customer_address(headers, params, address=item['address'], customer_id=customer['id'])
-    address_id = address['id']
-
-    customer_id = customer['id']
-
     service = get_services(headers, params, name=item['service'])
-    order = create_rep_order(headers, store_id, customer_id, address_id, service)
+    order = create_rep_order(headers, store_id, customer['id'], address['id'], service)
     return order
 
 
@@ -323,10 +332,11 @@ def get_sales_order_info(_id):
 def update_or_create_repairement_order(repairement_id):
     item = get_repearment_order(repairement_id)
     if 'repearment_id' not in item:
-        order = create_repearments_order(item)
-        if order:
-            update_repearment_order_info(int(repairement_id), order)
-            create_fullfill_order(item)
+        order = create_reshine_repearments_order(item)
+        if not order:
+            return False
+        update_repearment_order_info(int(repairement_id), order)
+        dd = create_fullfill_order(item)
     return True
 
 

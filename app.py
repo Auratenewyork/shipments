@@ -1912,14 +1912,14 @@ def a():
 @app.route('/create-shipment', methods=['POST'], cors=cors_config)
 def create_shipment_intent():
     to_address = {
-        "address1": "100NW 6th street",
-        "address2": "",
-        "city": "Miami",
-        "company": "Aurate",
+        "address1": "30-30 Northern Blvd",
+        "address2": "5th Floor",
+        "city": "Long Island City",
+        "company": "QJR C/O Aurate, Inc",
         "country_code": "US",
         "country_name": "United States",
-        "province_code": "FL",
-        "zip": "33136"
+        "province_code": "NY",
+        "zip": "11101"
     }
     request = app.current_request
     body = request.json_body
