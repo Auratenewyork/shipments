@@ -111,6 +111,8 @@ def save_shopify_sku(products):
                     image = product['image']['src']
                 else:
                     image = ''
+
+
             sku = variant['sku']
             sku_[sku] = {
                 'name': product['title'],

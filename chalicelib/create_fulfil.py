@@ -38,6 +38,7 @@ SERVICE_SKU = {
 
 
 def create_fullfill_order(item):
+    import ipdb; ipdb.set_trace()
     item['service'] = 'ring reshaping'
 
     subdomain = 'aurate'
@@ -49,6 +50,7 @@ def create_fullfill_order(item):
         'X-API-KEY': token,
         'Content-Type': 'application/json'
     }
+
     def get_fulfil_model_url(param):
         FULFIL_API_URL = f'https://{subdomain}.fulfil.io/api/v2'
         return f'{FULFIL_API_URL}/model/{param}'

@@ -340,6 +340,8 @@ def update_or_create_repairement_order(repairement_id):
     return True
 
 
+
+
 """
 Services and SKU associated with them
 
