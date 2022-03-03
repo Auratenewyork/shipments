@@ -11,6 +11,7 @@ headers = {
     'Content-Type': 'application/json'
 }
 
+SUBDOMAIN = os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox')
 client = Client(os.environ.get('FULFIL_API_DOMAIN', 'aurate-sandbox'),
                 os.environ.get('FULFIL_API_KEY', ''))
 
@@ -38,21 +39,20 @@ SERVICE_SKU = {
 
 
 def create_fullfill_order(item):
-    import ipdb; ipdb.set_trace()
     item['service'] = 'ring reshaping'
 
-    subdomain = 'aurate'
-    # subdomain = 'aurate-sandbox'
-    token = 'ee41ebf87f4a4fd29696f8b5db6b8cfc'
-    # token = '43cf9ddb7acc4ac69586b8f1081d65ab'
-    client = Client(subdomain, token)
+    # subdomain = 'aurate'
+    # # subdomain = 'aurate-sandbox'
+    # token = 'ee41ebf87f4a4fd29696f8b5db6b8cfc'
+    # # token = '43cf9ddb7acc4ac69586b8f1081d65ab'
+    # client = Client(subdomain, token)
     headers = {
         'X-API-KEY': token,
         'Content-Type': 'application/json'
     }
 
     def get_fulfil_model_url(param):
-        FULFIL_API_URL = f'https://{subdomain}.fulfil.io/api/v2'
+        FULFIL_API_URL = f'https://{SUBDOMAIN}.fulfil.io/api/v2'
         return f'{FULFIL_API_URL}/model/{param}'
 
     errors = []

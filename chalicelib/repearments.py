@@ -5,13 +5,13 @@ import requests
 
 from chalicelib.create_fulfil import create_fullfill_order
 from chalicelib.decorators import try_except
-from chalicelib.dynamo_operations import get_repearment_order, update_repearment_order_info
+from chalicelib.dynamo_operations import get_repearment_order, update_repearment_order_info, get_repairment_shipment
 from chalicelib.utils import capture_to_sentry, capture_error
 
 false = False
 true = True
 
-env_name = os.environ.get('ENV', 'sandbox')
+ENV = os.environ.get('ENV')
 
 RESHINE_URL = 'https://api-live.reshyne.com/api/v1/'
 
@@ -172,19 +172,29 @@ def get_or_create_customer_address(headers, params, address, customer_id):
         return customer_address
 
 
-def create_rep_order(headers, store_id, customer_id, address_id, service):
+def create_options_text_field(text_field):
+    test = 'TEST' if ENV == 'local' else ''
+    url = f'{RESHINE_URL}sales-order'
+    if isinstance(text_field, list):
+        text_field = ', '.join(text_field)
+
+    if test:
+        text_field = '{}-{}-{}'.format(test, text_field, test)
+    return text_field
+
+
+def create_reshyne_sales_order(headers, service, **kwargs):
     url = f'{RESHINE_URL}sales-order'
     options = service['options'][0:1]
-    # options = []
     params = {
-        "store_id": store_id,  # 49
-        "customer_id": customer_id,
-        "customer_address_id": address_id,
-        "is_store_pickup": true,
-        # "shipping_id": "shp_d4556189cb014ff1b805b446c0423c2e",
-        # "rate_id": "rate_a6470ccfe40147588c2a3613e9276cad",
-        "is_round_trip_shipping": true,
-        "is_drop_off": true,
+        "store_id": kwargs.get('store_id'),  # 49
+        "customer_id": kwargs.get('customer_id'),
+        "customer_address_id": kwargs.get('customer_address_id'),
+        "is_store_pickup": True,
+        # "shipping_id": kwargs.get('shipping_id'),
+        # "rate_id": kwargs.get('rate_id'),
+        "is_round_trip_shipping": True,
+        "is_drop_off": True,
         "line_items": [
         #     {
         #     "status": 1,
@@ -224,7 +234,7 @@ def create_rep_order(headers, store_id, customer_id, address_id, service):
                         "option_id": o['id'],
                         # "field_type": o['field_type'],
                         "field_label": o['name'],
-                        "field_text": ', '.join(o['field_text1']),
+                        "field_text": create_options_text_field(o['field_text1']),
                         "price": 0,
                         "method": "POST",
                         # "images": [{
@@ -243,9 +253,13 @@ def create_rep_order(headers, store_id, customer_id, address_id, service):
         ]
     }
     response = requests.post(url, headers=headers, json=params)
-    r = response.json()
-    a = r['data']
-    return r['data']
+    if response.status_code == 201:
+        return response.json()['data']
+
+    capture_to_sentry(
+        'Reshyne sales order creation error',
+        data=response.content,
+        email='aurate2021@gmail.com')
 
 
 def login():
@@ -262,7 +276,7 @@ def login():
     status = response.status_code
     if status != 200:
         capture_to_sentry(
-            'Login to reshine returns {}!'.format(str(status)), url=url)
+            'Login to reshyne returns {}!'.format(str(status)), url=url)
         return
 
     res = response.json()
@@ -296,20 +310,27 @@ def get_services(headers, params, name):
     # return services
 
 
-def create_reshine_repearments_order(item):
+def create_reshyne_repearments_order(item):
     reshine_data = login()
     if not reshine_data:
         return
 
     token, store = reshine_data
     headers = {"AUTHORIZATION": f"Bearer {token}"}
-    params = {'store_id': store['id']}
     store_id = store['id']
-    # store_address = get_store_address(headers, params)
+    params = {'store_id': store_id}
     customer = get_or_create_customer(headers, params, address=item['address'], email=item['email'])
     address = get_or_create_customer_address(headers, params, address=item['address'], customer_id=customer['id'])
     service = get_services(headers, params, name=item['service'])
-    order = create_rep_order(headers, store_id, customer['id'], address['id'], service)
+    shipment = get_repairment_shipment(repairement_id=item['DT'])
+    order_data = {
+        "store_id": store_id,  # 49
+        "customer_id": customer['id'],
+        "customer_address_id": address['id'],
+        "shipping_id": shipment['sh_id'],
+        "rate_id": shipment['rate_id']
+    }
+    order = create_reshyne_sales_order(headers, service, **order_data)
     return order
 
 
@@ -332,7 +353,7 @@ def get_sales_order_info(_id):
 def update_or_create_repairement_order(repairement_id):
     item = get_repearment_order(repairement_id)
     if 'repearment_id' not in item:
-        order = create_reshine_repearments_order(item)
+        order = create_reshyne_repearments_order(item)
         if not order:
             return False
         update_repearment_order_info(int(repairement_id), order)

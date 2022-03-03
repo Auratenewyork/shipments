@@ -2027,3 +2027,12 @@ def packing_slip(sh_number):
         capture_error(e, errors_source='Repairement frontend')
         return {}
     return get_report_file(393, [sh_number])
+
+
+@app.route('/testsentryerrorurl', methods=['GET'], api_key_required=False)
+def sentry_test():
+    try:
+        int('test')
+    except ValueError as e:
+        capture_error(e, errors_source='TEST ERROR')
+        return {}

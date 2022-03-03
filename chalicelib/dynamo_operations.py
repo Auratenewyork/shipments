@@ -541,13 +541,19 @@ add_tmall_label = partial(save_to_dynamo, table=TMALL_LABEL_TABLE)
 
 
 save_repairment_shipment = partial(save_to_dynamo, table=CLAIM_SHIPMENT_TABLE)
-get_repairment_shipment = partial(get_from_dynamo, id_key='sh_id', table=CLAIM_SHIPMENT_TABLE)
+get_repairment_shipment_by_id = partial(get_from_dynamo, id_key='sh_id', table=CLAIM_SHIPMENT_TABLE)
 filter_repairement_shipments = partial(filter_dynamo_by_index, table=CLAIM_SHIPMENT_TABLE)
 update_repairment_shipment = partial(update_dynamo_item, id_key='sh_id', table=CLAIM_SHIPMENT_TABLE)
 delete_repairment_shipment = partial(delete_dynamo_item, id_key='sh_id', table=CLAIM_SHIPMENT_TABLE)
 
 
 update_repairment_order = partial(update_dynamo_item, id_key='DT', table=REPAIRMENT_TABLE)
+
+
+def get_repairment_shipment(**kwargs):
+    shipments = filter_repairement_shipments(**kwargs)
+    if shipments:
+        return shipments[0]
 
 
 def get_tmall_label(tid):

@@ -13,7 +13,7 @@ import easypost
 from chalicelib.dynamo_operations import (
     get_easypost_ids, filter_repairement_shipments,
     save_repairment_shipment, update_repairment_shipment,
-    update_repairment_order, get_repairment_shipment)
+    update_repairment_order, get_repairment_shipment, get_repairment_shipment_by_id)
 from chalicelib.utils import format_fullname, capture_error
 from chalicelib.stripe import StripePayment
 
@@ -314,9 +314,9 @@ class RepairementShipment:
             return
 
         if 'sh_id' in kwargs:
-            self.repairement_shipment = get_repairment_shipment(value=kwargs['sh_id'])
+            self.repairement_shipment = get_repairment_shipment_by_id(value=kwargs['sh_id'])
         else:
-            shipments = filter_repairement_shipments(**kwargs)
+            shipments = get_repairment_shipment(**kwargs)
             if shipments:
                 self.repairement_shipment = shipments[0]
         return self.repairement_shipment
