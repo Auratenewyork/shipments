@@ -1082,9 +1082,9 @@ def add_exe_comment_api():
     add_exe_comment()
 
 
-@app.schedule(Cron(0, 22, '?', '*', '*', '*'))
-def mto_notifications_event(event):
-    mto_notifications_api()
+# @app.schedule(Cron(0, 22, '?', '*', '*', '*'))
+# def mto_notifications_event(event):
+#     mto_notifications_api()
 
 
 def remove_unsubscribed(emails):
